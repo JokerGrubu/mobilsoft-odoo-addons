@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- XML Import Log Form View -->
+    <record id="xml_import_log_form_view" model="ir.ui.view">
+        <field name="name">xml.import.log.form</field>
+        <field name="model">xml.import.log</field>
+        <field name="arch" type="xml">
+            <form string="İçe Aktarım Logu">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Genel Bilgiler">
+                            <field name="source_id"/>
+                            <field name="start_time"/>
+                            <field name="end_time"/>
+                            <field name="duration"/>
+                        </group>
+                        <group string="İstatistikler">
+                            <field name="total_products"/>
+                            <field name="products_created"/>
+                            <field name="products_updated"/>
+                            <field name="products_skipped"/>
+                            <field name="products_failed"/>
+                        </group>
+                    </group>
+                    <notebook invisible="state != 'error'">
+                        <page string="Hata Detayları">
+                            <field name="error_details" widget="text"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- XML Import Log Tree View -->
+    <record id="xml_import_log_tree_view" model="ir.ui.view">
+        <field name="name">xml.import.log.tree</field>
+        <field name="model">xml.import.log</field>
+        <field name="arch" type="xml">
+            <list string="İçe Aktarım Logları" default_order="start_time desc">
+                <field name="source_id"/>
+                <field name="start_time"/>
+                <field name="state" decoration-success="state == 'done'" decoration-danger="state == 'error'" decoration-info="state == 'running'" widget="badge"/>
+                <field name="total_products"/>
+                <field name="products_created" decoration-success="True"/>
+                <field name="products_updated" decoration-info="True"/>
+                <field name="products_skipped" decoration-warning="True"/>
+                <field name="products_failed" decoration-danger="True"/>
+                <field name="duration"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- XML Import Log Action -->
+    <record id="xml_import_log_action" model="ir.actions.act_window">
+        <field name="name">İçe Aktarım Logları</field>
+        <field name="res_model">xml.import.log</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_today': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_empty_folder">
+                Henüz içe aktarım logu bulunmuyor.
+            </p>
+        </field>
+    </record>
+
+    <!-- XML Import Log Search View -->
+    <record id="xml_import_log_search_view" model="ir.ui.view">
+        <field name="name">xml.import.log.search</field>
+        <field name="model">xml.import.log</field>
+        <field name="arch" type="xml">
+            <search string="İçe Aktarım Logları">
+                <field name="source_id"/>
+                <field name="state"/>
+                <filter name="today" string="Bugün" domain="[('start_time', '>=', (context_today()).strftime('%Y-%m-%d'))]"/>
+                <separator/>
+                <filter name="done" string="Tamamlanan" domain="[('state', '=', 'done')]"/>
+                <filter name="error" string="Hatalı" domain="[('state', '=', 'error')]"/>
+            </search>
+        </field>
+    </record>
+
+</odoo>

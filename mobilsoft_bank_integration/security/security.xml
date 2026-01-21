@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Security Groups -->
+        <record id="group_bank_integration_user" model="res.groups">
+            <field name="name">Bank Integration User</field>
+            <field name="comment">Can view bank integrations and transactions</field>
+        </record>
+
+        <record id="group_bank_integration_manager" model="res.groups">
+            <field name="name">Bank Integration Manager</field>
+            <field name="implied_ids" eval="[(4, ref('group_bank_integration_user'))]" />
+            <field name="comment">Can configure and manage bank integrations</field>
+        </record>
+
+        <!-- Record Rules -->
+        <record id="bank_connector_company_rule" model="ir.rule">
+            <field name="name">Bank Connector: multi-company</field>
+            <field name="model_id" ref="model_bank_connector_garantibbva" />
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+
+        <record id="bank_transaction_company_rule" model="ir.rule">
+            <field name="name">Bank Transaction: multi-company</field>
+            <field name="model_id" ref="model_bank_transaction" />
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+
+    </data>
+</odoo>

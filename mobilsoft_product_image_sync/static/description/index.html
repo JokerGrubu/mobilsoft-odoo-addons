@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Variant Image Sync</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            /*max-width: 1200px;*/
+            margin: 0 auto;
+            padding: 20px;
+            /*background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);*/
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            margin: 20px 0;
+        }
+        h1 {
+            color: #6a11cb;
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            border-bottom: 3px solid #6a11cb;
+            padding-bottom: 15px;
+        }
+        h2 {
+            color: #2575fc;
+            font-size: 2em;
+            margin-top: 30px;
+            border-left: 5px solid #6a11cb;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #6a11cb;
+            font-size: 1.5em;
+            margin-top: 25px;
+        }
+        .lang-section {
+            margin: 40px 0;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 12px 0 12px 35px;
+            position: relative;
+            font-size: 1.1em;
+        }
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #6a11cb;
+            font-weight: bold;
+            font-size: 1.5em;
+        }
+        .info-box {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .info-box h3 {
+            color: white;
+            margin-top: 0;
+        }
+        .use-case {
+            background: #e8f4fd;
+            border-left: 4px solid #2575fc;
+            padding: 15px 20px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .use-case h4 {
+            color: #2575fc;
+            margin-top: 0;
+        }
+        .example-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .example-box h4 {
+            color: #856404;
+            margin-top: 0;
+        }
+        .step-list {
+            counter-reset: step-counter;
+            list-style: none;
+            padding: 0;
+        }
+        .step-list li {
+            counter-increment: step-counter;
+            padding: 15px 0 15px 50px;
+            position: relative;
+            font-size: 1.1em;
+        }
+        .step-list li:before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            background: #6a11cb;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .tech-details {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 5px solid #6a11cb;
+        }
+        .tech-details code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e9ecef;
+            color: #6c757d;
+        }
+        .footer a {
+            color: #6a11cb;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #6a11cb;
+            color: white;
+            border-radius: 5px;
+            font-size: 0.9em;
+            margin: 5px;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Product Variant Image Sync</h1>
+        <div style="text-align: center; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 30px; border: 2px solid #e9ecef;">
+            <p style="color: #495057; font-size: 1.1em; font-weight: 600; margin: 0;">
+            📖 Turkish description available below / Türkçe açıklama aşağıda mevcuttur
+            </p>
+        </div>
+
+        <!-- English Section -->
+        <div class="lang-section">
+            <h2>🇬🇧 English</h2>
+            
+            <div class="info-box">
+                <h3>Overview</h3>
+                <p>
+                    The <strong>Product Variant Image Sync</strong> module automatically synchronizes product images 
+                    across variants that share the same attribute values. This eliminates the need to manually add 
+                    the same image to multiple variants with identical attributes.
+                </p>
+                <p>
+                    <strong>Example:</strong> Add an image to "T-Shirt / Red / Small", and it automatically appears 
+                    on all other red T-Shirts (Medium, Large, XL), regardless of size!
+                </p>
+
+            </div>
+
+            <!-- Screenshot -->
+            <div style="text-align: center; margin: 30px 0;">
+                <img src="image.png" alt="Product Variant Image Sync Demo" style="max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">
+            </div>
+
+
+            <h3>✨ Features</h3>
+            <ul class="feature-list">
+                <li><strong>Automatic Image Synchronization:</strong> Add an image to one variant, and it syncs to all variants with matching attribute values</li>
+                <li><strong>Configurable per Attribute:</strong> Enable/disable image sync for each attribute individually using the "Sync Images" flag</li>
+                <li><strong>Attribute-Based Matching:</strong> Images are synced based on specific attribute values (e.g., all "Red" variants)</li>
+                <li><strong>Multi-Attribute Support:</strong> Works with any combination of product attributes</li>
+                <li><strong>Smart Detection:</strong> Only syncs to variants with identical attribute value combinations for sync-enabled attributes</li>
+                <li><strong>Bidirectional Sync:</strong> Updates are reflected across all matching variants automatically</li>
+                <li><strong>No Duplicate Images:</strong> Prevents creating duplicate images for the same variant</li>
+            </ul>
+
+            <h3>🎯 Use Cases</h3>
+            
+            <div class="use-case">
+                <h4>Fashion & Apparel</h4>
+                <p>Add an image to <span class="highlight">T-Shirt / Small / Red</span></p>
+                <p>✓ Image automatically appears on "Medium / Red" and "Large / Red"<br>
+                   ✗ Different colors maintain their unique images</p>
+            </div>
+
+            <div class="use-case">
+                <h4>Electronics</h4>
+                <p>Add images to <span class="highlight">Laptop / 15 inch / Black</span></p>
+                <p>✓ Same images apply to all "15 inch / Black" variants with different RAM or storage</p>
+            </div>
+
+            <div class="use-case">
+                <h4>Furniture</h4>
+                <p>Add images to <span class="highlight">Chair / Oak / Armrest</span></p>
+                <p>✓ Images sync to all oak chairs with armrests, regardless of other attributes</p>
+            </div>
+
+            <h3>📦 Installation</h3>
+            <ol class="step-list">
+                <li>Download or clone the module into your Odoo addons directory</li>
+                <li>Update the app list in Odoo (Apps → Update Apps List)</li>
+                <li>Search for "Product Variant Image Sync" in the Apps menu</li>
+                <li>Click the Install button</li>
+            </ol>
+
+            <h3>⚙️ Configuration</h3>
+            <h4>Enable Image Sync for Attributes</h4>
+            <ol class="step-list">
+                <li>Navigate to <strong>Sales → Configuration → Attributes</strong></li>
+                <li>Open or create an attribute (e.g., "Color")</li>
+                <li>Enable the <strong>"Sync Images Across Variants"</strong> toggle</li>
+                <li>Save the attribute</li>
+            </ol>
+            
+            <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <h4 style="color: #2575fc; margin-top: 0;">Recommended Attributes to Enable:</h4>
+                <ul>
+                    <li>✓ Color</li>
+                    <li>✓ Material</li>
+                    <li>✓ Pattern</li>
+                    <li>✗ Size (usually doesn't need sync)</li>
+                    <li>✗ Dimensions (usually doesn't need sync)</li>
+                </ul>
+                <p><strong>Note:</strong> The sync only applies to attributes where the flag is enabled!</p>
+            </div>
+
+            <h3>🚀 Usage</h3>
+            <ol class="step-list">
+                <li>Navigate to <strong>Sales → Products → Products</strong></li>
+                <li>Open a product with variants</li>
+                <li>Switch to any variant</li>
+                <li>Go to the <strong>Sales</strong> or <strong>Images</strong> section</li>
+                <li>Add an image to the variant</li>
+                <li>The image is automatically added to all variants with matching attribute values</li>
+            </ol>
+
+            <div class="example-box">
+                <h4>📋 Example Workflow</h4>
+                <p><strong>Product:</strong> Athletic Shoes</p>
+                <p><strong>Variants:</strong></p>
+                <ul>
+                    <li>Size 8 / Red</li>
+                    <li>Size 9 / Red</li>
+                    <li>Size 10 / Red</li>
+                    <li>Size 8 / Blue</li>
+                    <li>Size 9 / Blue</li>
+                </ul>
+                <p><strong>Steps:</strong></p>
+                <ol>
+                    <li>Open "Size 8 / Red" variant</li>
+                    <li>Add a red shoe image</li>
+                    <li>The image automatically appears on:
+                        <ul>
+                            <li>✓ Size 9 / Red</li>
+                            <li>✓ Size 10 / Red</li>
+                        </ul>
+                    </li>
+                    <li>Blue variants are not affected (different color attribute)</li>
+                </ol>
+            </div>
+
+            <div class="tech-details">
+                <h3>🔧 Technical Details</h3>
+                <p><strong>Models Extended:</strong></p>
+                <ul>
+                    <li><code>product.attribute</code>: Adds <code>sync_images</code> boolean field</li>
+                    <li><code>product.product</code>: Adds helper methods to find variants with matching attributes</li>
+                    <li><code>product.image</code>: Overrides <code>create</code> and <code>write</code> methods</li>
+                </ul>
+                <p><strong>How It Works:</strong></p>
+                <ol>
+                    <li>Image is added to a variant</li>
+                    <li>System identifies attribute values for sync-enabled attributes only</li>
+                    <li>Searches for variants with identical attribute value combinations (sync-enabled attributes only)</li>
+                    <li>Image is automatically created/updated for matching variants</li>
+                </ol>
+                <p><strong>Dependencies:</strong></p>
+                <ul>
+                    <li><code>product</code></li>
+                    <li><code>website_sale</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Turkish Section -->
+        <div class="lang-section">
+            <h2>🇹🇷 Türkçe</h2>
+            
+            <div class="info-box">
+                <h3>Genel Bakış</h3>
+                <p>
+                    <strong>Product Variant Image Sync</strong> modülü, aynı özellik değerlerine sahip ürün varyantları 
+                    arasında görüntüleri otomatik olarak senkronize eder. Bu, aynı özelliklere sahip birden fazla 
+                    varyanta aynı görseli manuel olarak ekleme ihtiyacını ortadan kaldırır.
+                </p>
+                <p>
+                    <strong>Örnek:</strong> "Tişört / Kırmızı / Small" varyantına görsel ekleyin ve tüm diğer kırmızı 
+                    tişörtlerde (Medium, Large, XL) otomatik olarak görünsün!
+                </p>
+            </div>
+
+            <h3>✨ Özellikler</h3>
+            <ul class="feature-list">
+                <li><strong>Otomatik Görsel Senkronizasyonu:</strong> Bir varyanta görsel ekleyin, eşleşen özelliklere sahip tüm varyantlara senkronize edilir</li>
+                <li><strong>Özellik Başına Yapılandırılabilir:</strong> Her özellik için "Görsel Senkronize Et" bayrağını kullanarak ayrı ayrı etkinleştirin/devre dışı bırakın</li>
+                <li><strong>Özellik Tabanlı Eşleştirme:</strong> Görseller belirli özellik değerlerine göre senkronize edilir</li>
+                <li><strong>Çoklu Özellik Desteği:</strong> Herhangi bir ürün özelliği kombinasyonu ile çalışır</li>
+                <li><strong>Akıllı Tespit:</strong> Yalnızca senkronizasyon etkin özelliklerde aynı özellik değer kombinasyonuna sahip varyantlara senkronize eder</li>
+                <li><strong>Çift Yönlü Senkronizasyon:</strong> Güncellemeler tüm eşleşen varyantlara otomatik yansır</li>
+                <li><strong>Tekrarlanan Görsel Yok:</strong> Aynı varyant için tekrarlanan görsel oluşturmayı önler</li>
+            </ul>
+
+            <h3>🎯 Kullanım Senaryoları</h3>
+            
+            <div class="use-case">
+                <h4>Moda & Tekstil</h4>
+                <p><span class="highlight">Tişört / Small / Kırmızı</span> varyantına görsel ekleyin</p>
+                <p>✓ Görsel otomatik olarak "Medium / Kırmızı" ve "Large / Kırmızı" üzerinde görünür<br>
+                   ✗ Farklı renkler kendi benzersiz görsellerini korur</p>
+            </div>
+
+            <div class="use-case">
+                <h4>Elektronik</h4>
+                <p><span class="highlight">Dizüstü / 15 inç / Siyah</span> varyantına görsel ekleyin</p>
+                <p>✓ Aynı görseller farklı RAM veya depolama kapasiteli tüm "15 inç / Siyah" varyantlara uygulanır</p>
+            </div>
+
+            <div class="use-case">
+                <h4>Mobilya</h4>
+                <p><span class="highlight">Sandalye / Meşe / Kolçaklı</span> varyantına görsel ekleyin</p>
+                <p>✓ Görseller, diğer özelliklerden bağımsız olarak kolçaklı tüm meşe sandalyelere senkronize edilir</p>
+            </div>
+
+            <h3>📦 Kurulum</h3>
+            <ol class="step-list">
+                <li>Modülü Odoo eklenti dizininize indirin veya klonlayın</li>
+                <li>Odoo'da uygulama listesini güncelleyin (Uygulamalar → Uygulama Listesini Güncelle)</li>
+                <li>Uygulamalar menüsünde "Product Variant Image Sync" arayın</li>
+                <li>Kurulum butonuna tıklayın</li>
+            </ol>
+
+            <h3>⚙️ Yapılandırma</h3>
+            <h4>Özellikler için Görsel Senkronizasyonunu Etkinleştirme</h4>
+            <ol class="step-list">
+                <li><strong>Satış → Yapılandırma → Özellikler</strong> menüsüne gidin</li>
+                <li>Bir özellik açın veya oluşturun (örn. "Renk")</li>
+                <li><strong>"Varyantlar Arasında Görselleri Senkronize Et"</strong> anahtarını etkinleştirin</li>
+                <li>Özelliği kaydedin</li>
+            </ol>
+            
+            <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <h4 style="color: #2575fc; margin-top: 0;">Etkinleştirmeniz Önerilen Özellikler:</h4>
+                <ul>
+                    <li>✓ Renk</li>
+                    <li>✓ Malzeme</li>
+                    <li>✓ Desen</li>
+                    <li>✗ Beden (genellikle senkronizasyon gerektirmez)</li>
+                    <li>✗ Boyutlar (genellikle senkronizasyon gerektirmez)</li>
+                </ul>
+                <p><strong>Not:</strong> Senkronizasyon yalnızca bayrağın etkinleştirildiği özellikler için geçerlidir!</p>
+            </div>
+
+            <h3>🚀 Kullanım</h3>
+            <ol class="step-list">
+                <li><strong>Satış → Ürünler → Ürünler</strong> menüsüne gidin</li>
+                <li>Varyantlı bir ürünü açın</li>
+                <li>Herhangi bir varyanta geçin</li>
+                <li><strong>Satış</strong> veya <strong>Görseller</strong> bölümüne gidin</li>
+                <li>Varyanta görsel ekleyin</li>
+                <li>Görsel, eşleşen özellik değerlerine sahip tüm varyantlara otomatik olarak eklenir</li>
+            </ol>
+
+            <div class="example-box">
+                <h4>📋 Örnek İş Akışı</h4>
+                <p><strong>Ürün:</strong> Spor Ayakkabı</p>
+                <p><strong>Varyantlar:</strong></p>
+                <ul>
+                    <li>Numara 40 / Kırmızı</li>
+                    <li>Numara 41 / Kırmızı</li>
+                    <li>Numara 42 / Kırmızı</li>
+                    <li>Numara 40 / Mavi</li>
+                    <li>Numara 41 / Mavi</li>
+                </ul>
+                <p><strong>Adımlar:</strong></p>
+                <ol>
+                    <li>"Numara 40 / Kırmızı" varyantını açın</li>
+                    <li>Kırmızı ayakkabı görseli ekleyin</li>
+                    <li>Görsel otomatik olarak şuralarda görünür:
+                        <ul>
+                            <li>✓ Numara 41 / Kırmızı</li>
+                            <li>✓ Numara 42 / Kırmızı</li>
+                        </ul>
+                    </li>
+                    <li>Mavi varyantlar etkilenmez (farklı renk özelliği)</li>
+                </ol>
+            </div>
+
+            <div class="tech-details">
+                <h3>🔧 Teknik Detaylar</h3>
+                <p><strong>Genişletilen Modeller:</strong></p>
+                <ul>
+                    <li><code>product.attribute</code>: <code>sync_images</code> boolean alanı ekler</li>
+                    <li><code>product.product</code>: Eşleşen özelliklere sahip varyantları bulmak için yardımcı metodlar ekler</li>
+                    <li><code>product.image</code>: <code>create</code> ve <code>write</code> metodlarını optimize eder</li>
+                </ul>
+                <p><strong>Nasıl Çalışır:</strong></p>
+                <ol>
+                    <li>Bir varyanta görsel eklenir</li>
+                    <li>Sistem sadece senkronizasyon etkin özellikler için özellik değerlerini tanımlar</li>
+                    <li>Aynı özellik değer kombinasyonuna sahip varyantları arar (sadece senkronizasyon etkin özellikler)</li>
+                    <li>Görsel, eşleşen varyantlar için otomatik olarak oluşturulur/güncellenir</li>
+                </ol>
+                <p><strong>Bağımlılıklar:</strong></p>
+                <ul>
+                    <li><code>product</code></li>
+                    <li><code>website_sale</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>
+                <span class="badge">Version: 18.0.1.0.0</span>
+                <span class="badge">License: LGPL-3</span>
+                <span class="badge">Odoo 18.0</span>
+            </p>
+            <p><strong>Author:</strong> Kıta</p>
+            <p>For more information, visit: <a href="https://kitayazilim.com" target="_blank">kitayazilim.com</a></p>
+        </div>
+    </div>
+</body>
+</html>

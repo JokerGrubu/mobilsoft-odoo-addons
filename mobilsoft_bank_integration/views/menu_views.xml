@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Main Menu -->
+    <menuitem id="menu_bank_integration_root"
+        name="Bank Integration"
+        sequence="50"
+        web_icon="mobilsoft_bank_integration,static/description/icon.png" />
+
+    <!-- Configuration Menu -->
+    <menuitem id="menu_bank_integration_config"
+        name="Configuration"
+        parent="menu_bank_integration_root"
+        sequence="100" />
+
+    <!-- Garanti BBVA -->
+    <menuitem id="menu_bank_connector_garantibbva"
+        name="Garanti BBVA"
+        parent="menu_bank_integration_config"
+        action="action_bank_connector_garantibbva"
+        sequence="10" />
+
+    <!-- Ziraat Bank -->
+    <menuitem id="menu_bank_connector_ziraat"
+        name="Ziraat Bank"
+        parent="menu_bank_integration_config"
+        action="action_bank_connector_ziraat"
+        sequence="20" />
+
+    <!-- Transactions Menu -->
+    <menuitem id="menu_bank_transactions"
+        name="Transactions"
+        parent="menu_bank_integration_root"
+        action="action_bank_transaction"
+        sequence="10" />
+
+    <!-- Bank Accounts Menu -->
+    <menuitem id="menu_bank_accounts"
+        name="Bank Accounts"
+        parent="menu_bank_integration_root"
+        action="action_bank_account"
+        sequence="20" />
+
+</odoo>

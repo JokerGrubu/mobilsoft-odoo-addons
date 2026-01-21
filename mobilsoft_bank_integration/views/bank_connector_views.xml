@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Garanti BBVA Connector Form View -->
+    <record id="view_bank_connector_garantibbva_form" model="ir.ui.view">
+        <field name="name">bank.connector.garantibbva.form</field>
+        <field name="model">bank.connector.garantibbva</field>
+        <field name="arch" type="xml">
+            <form string="Garanti BBVA Connector">
+                <header>
+                    <button name="action_connect" string="Connect" type="object"
+                        class="btn-primary" invisible="state == 'connected'" />
+                    <button name="action_disconnect" string="Disconnect" type="object"
+                        class="btn-secondary" invisible="state != 'connected'" />
+                    <button name="action_test_connection" string="Test Connection" type="object"
+                        class="btn-secondary" invisible="state != 'connected'" />
+                    <button name="sync_accounts" string="Sync Accounts" type="object"
+                        class="btn-primary" invisible="state != 'connected'" />
+                    <button name="sync_transactions" string="Sync Transactions" type="object"
+                        class="btn-primary" invisible="state != 'connected'" />
+                    <button name="sync_exchange_rates" string="Sync Exchange Rates" type="object"
+                        class="btn-primary" invisible="state != 'connected'" />
+                    <button name="action_sync_all" string="Sync All" type="object"
+                        class="btn-primary" invisible="state != 'connected'" />
+                    <field name="state" widget="statusbar"
+                        statusbar_visible="draft,connected" />
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="%(action_bank_transaction)d" type="action"
+                            class="oe_stat_button" icon="fa-exchange">
+                            <field name="total_transactions" widget="statinfo"
+                                string="Transactions" />
+                        </button>
+                        <button name="%(action_bank_account)d" type="action"
+                            class="oe_stat_button" icon="fa-bank">
+                            <field name="total_accounts" widget="statinfo"
+                                string="Accounts" />
+                        </button>
+                    </div>
+
+                    <widget name="web_ribbon" title="Sandbox" bg_color="text-bg-warning"
+                        invisible="not sandbox_mode" />
+
+                    <div class="oe_title">
+                        <label for="name" string="Connector Name" />
+                        <h1>
+                            <field name="name" placeholder="e.g., Garanti BBVA Production" />
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group name="basic_info">
+                            <field name="bank_id" options="{'no_create': True}" />
+                            <field name="company_id" groups="base.group_multi_company" />
+                            <field name="sandbox_mode" />
+                        </group>
+                        <group name="sync_info">
+                            <field name="auto_sync_enabled" />
+                            <field name="sync_interval"
+                                invisible="not auto_sync_enabled" />
+                            <field name="last_sync" readonly="1" />
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="OAuth Configuration" name="oauth">
+                            <group>
+                                <group>
+                                    <field name="client_id" password="True" />
+                                    <field name="client_secret" password="True" />
+                                    <field name="redirect_uri" />
+                                </group>
+                                <group>
+                                    <field name="garantibbva_scope" />
+                                    <field name="access_token" readonly="1" password="True" />
+                                    <field name="token_expires_at" readonly="1" />
+                                </group>
+                            </group>
+                        </page>
+
+                        <page string="Error Log" name="errors"
+                            invisible="not last_error">
+                            <field name="last_error" readonly="1" />
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <!-- Garanti BBVA Connector List View -->
+    <record id="view_bank_connector_garantibbva_list" model="ir.ui.view">
+        <field name="name">bank.connector.garantibbva.list</field>
+        <field name="model">bank.connector.garantibbva</field>
+        <field name="arch" type="xml">
+            <list string="Garanti BBVA Connectors">
+                <field name="name" />
+                <field name="bank_id" />
+                <field name="company_id" groups="base.group_multi_company" />
+                <field name="sandbox_mode" widget="boolean_toggle" />
+                <field name="state" widget="badge"
+                    decoration-success="state == 'connected'"
+                    decoration-danger="state == 'error'"
+                    decoration-muted="state == 'disconnected'" />
+                <field name="last_sync" />
+                <field name="total_accounts" />
+                <field name="total_transactions" />
+            </list>
+        </field>
+    </record>
+
+    <!-- Ziraat Connector Form View -->
+    <record id="view_bank_connector_ziraat_form" model="ir.ui.view">
+        <field name="name">bank.connector.ziraat.form</field>
+        <field name="model">bank.connector.ziraat</field>
+        <field name="arch" type="xml">
+            <form string="Ziraat Bank Connector">
+                <header>
+                    <button name="action_connect" string="Connect" type="object"
+                        class="btn-primary" invisible="state == 'connected'" />
+                    <button name="action_disconnect" string="Disconnect" type="object"
+                        class="btn-secondary" invisible="state != 'connected'" />
+                    <button name="sync_accounts" string="Sync Accounts" type="object"
+                        class="btn-primary" invisible="state != 'connected'" />
+                    <field name="state" widget="statusbar"
+                        statusbar_visible="draft,connected" />
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Corporate" bg_color="text-bg-info"
+                        invisible="not is_corporate" />
+
+                    <div class="oe_title">
+                        <label for="name" string="Connector Name" />
+                        <h1>
+                            <field name="name" placeholder="e.g., Ziraat Bank Corporate" />
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group>
+                            <field name="bank_id" />
+                            <field name="company_id" groups="base.group_multi_company" />
+                            <field name="sandbox_mode" />
+                            <field name="is_corporate" />
+                        </group>
+                        <group>
+                            <field name="corporate_customer_no"
+                                invisible="not is_corporate" />
+                            <field name="tax_number"
+                                invisible="not is_corporate" />
+                            <field name="last_sync" readonly="1" />
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="OAuth Configuration" name="oauth">
+                            <group>
+                                <field name="client_id" password="True" />
+                                <field name="client_secret" password="True" />
+                                <field name="redirect_uri" />
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Actions -->
+    <record id="action_bank_connector_garantibbva" model="ir.actions.act_window">
+        <field name="name">Garanti BBVA Connectors</field>
+        <field name="res_model">bank.connector.garantibbva</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a Garanti BBVA Bank Connection
+            </p>
+            <p>
+                Configure OAuth credentials to connect to Garanti BBVA Open Banking API.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_bank_connector_ziraat" model="ir.actions.act_window">
+        <field name="name">Ziraat Bank Connectors</field>
+        <field name="res_model">bank.connector.ziraat</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a Ziraat Bank Connection
+            </p>
+            <p>
+                Configure OAuth credentials for Ziraat Bank API integration.
+            </p>
+        </field>
+    </record>
+
+</odoo>

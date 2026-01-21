@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Actions - Önce action'lar tanımlanmalı -->
+    <record id="action_qnb_document_all" model="ir.actions.act_window">
+        <field name="name">Tüm e-Belgeler</field>
+        <field name="res_model">qnb.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Henüz e-belge yok
+            </p>
+            <p>
+                Faturalarınızı onayladığınızda QNB e-Solutions üzerinden 
+                e-Fatura, e-Arşiv veya e-İrsaliye olarak gönderebilirsiniz.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_qnb_document_outgoing" model="ir.actions.act_window">
+        <field name="name">Giden e-Belgeler</field>
+        <field name="res_model">qnb.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('direction', '=', 'outgoing')]</field>
+        <field name="context">{'default_direction': 'outgoing', 'search_default_outgoing': 1}</field>
+    </record>
+
+    <record id="action_qnb_document_incoming" model="ir.actions.act_window">
+        <field name="name">Gelen e-Belgeler</field>
+        <field name="res_model">qnb.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('direction', '=', 'incoming')]</field>
+        <field name="context">{'default_direction': 'incoming', 'search_default_incoming': 1}</field>
+    </record>
+
+    <record id="action_qnb_document_efatura" model="ir.actions.act_window">
+        <field name="name">e-Faturalar</field>
+        <field name="res_model">qnb.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('document_type', '=', 'efatura')]</field>
+        <field name="context">{'search_default_efatura': 1}</field>
+    </record>
+
+    <record id="action_qnb_document_earsiv" model="ir.actions.act_window">
+        <field name="name">e-Arşiv Faturaları</field>
+        <field name="res_model">qnb.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('document_type', '=', 'earsiv')]</field>
+        <field name="context">{'search_default_earsiv': 1}</field>
+    </record>
+
+    <record id="action_qnb_document_eirsaliye" model="ir.actions.act_window">
+        <field name="name">e-İrsaliyeler</field>
+        <field name="res_model">qnb.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('document_type', '=', 'eirsaliye')]</field>
+        <field name="context">{'search_default_eirsaliye': 1}</field>
+    </record>
+
+    <record id="action_qnb_document_draft" model="ir.actions.act_window">
+        <field name="name">Bekleyen Belgeler</field>
+        <field name="res_model">qnb.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state', 'in', ['draft', 'sending'])]</field>
+        <field name="context">{'search_default_draft': 1}</field>
+    </record>
+
+    <record id="action_qnb_document_error" model="ir.actions.act_window">
+        <field name="name">Hatalı Belgeler</field>
+        <field name="res_model">qnb.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state', '=', 'error')]</field>
+        <field name="context">{'search_default_error': 1}</field>
+    </record>
+
+    <!-- Partner Kontrol Wizard Action -->
+    <record id="action_check_partner_efatura" model="ir.actions.act_window">
+        <field name="name">e-Fatura Mükellefi Kontrol</field>
+        <field name="res_model">qnb.check.partner.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Toplu Mükellefi Kontrol Action -->
+    <record id="action_batch_check_partners" model="ir.actions.act_window">
+        <field name="name">Toplu e-Fatura Kontrolü</field>
+        <field name="res_model">qnb.batch.check.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Kontör Bilgisi Action -->
+    <record id="action_credit_info" model="ir.actions.act_window">
+        <field name="name">Kontör Bilgisi</field>
+        <field name="res_model">qnb.credit.info.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- ============ MENUS ============ -->
+    
+    <!-- Top Level Menu (Root) -->
+    <menuitem id="mobilsoft_qnb_efatura_menu_root" 
+              name="QNB e-Solutions" 
+              web_icon="mobilsoft_qnb_efatura,static/description/icon.svg"
+              sequence="55"/>
+
+    <!-- e-Belge Alt Menü -->
+    <menuitem id="menu_qnb_root" 
+              name="e-Belge" 
+              parent="mobilsoft_qnb_efatura_menu_root"
+              sequence="10"/>
+
+    <!-- Sub Menus -->
+    <menuitem id="menu_qnb_documents" 
+              name="e-Belgeler" 
+              parent="menu_qnb_root" 
+              sequence="10"/>
+
+    <menuitem id="menu_qnb_reports" 
+              name="Raporlar" 
+              parent="menu_qnb_root" 
+              sequence="20"/>
+
+    <menuitem id="menu_qnb_config" 
+              name="Ayarlar" 
+              parent="menu_qnb_root" 
+              sequence="90"
+              groups="base.group_system"/>
+
+    <!-- e-Belgeler Alt Menüleri -->
+    <menuitem id="menu_qnb_all_documents" 
+              name="Tüm e-Belgeler" 
+              parent="menu_qnb_documents" 
+              action="action_qnb_document_all"
+              sequence="1"/>
+
+    <menuitem id="menu_qnb_outgoing_documents" 
+              name="Giden e-Belgeler" 
+              parent="menu_qnb_documents" 
+              action="action_qnb_document_outgoing"
+              sequence="10"/>
+
+    <menuitem id="menu_qnb_incoming_documents" 
+              name="Gelen e-Belgeler" 
+              parent="menu_qnb_documents" 
+              action="action_qnb_document_incoming"
+              sequence="20"/>
+
+    <menuitem id="menu_qnb_efatura" 
+              name="e-Faturalar" 
+              parent="menu_qnb_documents" 
+              action="action_qnb_document_efatura"
+              sequence="30"/>
+
+    <menuitem id="menu_qnb_earsiv" 
+              name="e-Arşiv Faturaları" 
+              parent="menu_qnb_documents" 
+              action="action_qnb_document_earsiv"
+              sequence="40"/>
+
+    <menuitem id="menu_qnb_eirsaliye" 
+              name="e-İrsaliyeler" 
+              parent="menu_qnb_documents" 
+              action="action_qnb_document_eirsaliye"
+              sequence="50"/>
+
+    <menuitem id="menu_qnb_draft_documents" 
+              name="Bekleyen Belgeler" 
+              parent="menu_qnb_documents" 
+              action="action_qnb_document_draft"
+              sequence="60"/>
+
+    <menuitem id="menu_qnb_error_documents" 
+              name="Hatalı Belgeler" 
+              parent="menu_qnb_documents" 
+              action="action_qnb_document_error"
+              sequence="70"/>
+
+    <!-- Muhasebe Menüsüne Ekleme -->
+    <menuitem id="menu_account_qnb" 
+              name="e-Belge" 
+              parent="account.menu_finance" 
+              sequence="8"/>
+
+    <menuitem id="menu_account_qnb_outgoing" 
+              name="Giden e-Belgeler" 
+              parent="menu_account_qnb" 
+              action="action_qnb_document_outgoing"
+              sequence="10"/>
+
+    <menuitem id="menu_account_qnb_incoming" 
+              name="Gelen e-Belgeler" 
+              parent="menu_account_qnb" 
+              action="action_qnb_document_incoming"
+              sequence="20"/>
+
+    <!-- Ayarlar Menüsü -->
+    <menuitem id="menu_qnb_settings" 
+              name="QNB e-Solutions Ayarları" 
+              parent="menu_qnb_config" 
+              action="mobilsoft_qnb_efatura.action_qnb_config_settings"
+              sequence="10"/>
+
+    <menuitem id="menu_qnb_check_partner" 
+              name="e-Fatura Mükellefi Sorgula" 
+              parent="menu_qnb_config" 
+              action="action_check_partner_efatura"
+              sequence="20"/>
+
+    <menuitem id="menu_qnb_batch_check" 
+              name="Toplu Mükellefi Kontrol" 
+              parent="menu_qnb_config" 
+              action="action_batch_check_partners"
+              sequence="30"/>
+
+    <menuitem id="menu_qnb_credit_info" 
+              name="Kontör Bilgisi" 
+              parent="menu_qnb_config" 
+              action="action_credit_info"
+              sequence="40"/>
+</odoo>

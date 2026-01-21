@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_qnb" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.qnb</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="priority">50</field>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="QNB e-Solutions" string="QNB e-Solutions" name="mobilsoft_qnb_efatura" groups="account.group_account_manager">
+                    <block title="API Bağlantı Ayarları" name="qnb_connection_settings">
+                        <setting id="qnb_enabled" string="QNB e-Solutions Entegrasyonu" 
+                                 help="QNB e-Solutions e-Fatura/e-Arşiv/e-İrsaliye entegrasyonunu etkinleştirin">
+                            <field name="qnb_enabled"/>
+                        </setting>
+                        <setting id="qnb_environment" string="Ortam" invisible="not qnb_enabled"
+                                 help="Test: connectortest.efinans.com.tr / Canlı: connector.efinans.com.tr">
+                            <field name="qnb_environment" widget="radio"/>
+                        </setting>
+                        <setting id="qnb_credentials" string="API Bilgileri" invisible="not qnb_enabled">
+                            <div class="row mt16">
+                                <label for="qnb_username" string="Kullanıcı Adı (VKN)" class="col-lg-3 o_light_label"/>
+                                <field name="qnb_username" class="col-lg-4" placeholder="1234567890"/>
+                            </div>
+                            <div class="row mt16">
+                                <label for="qnb_password" string="Şifre" class="col-lg-3 o_light_label"/>
+                                <field name="qnb_password" class="col-lg-4" password="True"/>
+                            </div>
+                            <div class="row mt16">
+                                <label for="qnb_wsdl_url" string="Özel WSDL URL (Opsiyonel)" class="col-lg-3 o_light_label"/>
+                                <field name="qnb_wsdl_url" class="col-lg-6" 
+                                       placeholder="https://erpefaturatest1.qnbesolutions.com.tr/efatura/ws/connectorService?wsdl"/>
+                            </div>
+                            <div class="mt16">
+                                <button name="action_test_qnb_connection" type="object" 
+                                        string="Bağlantıyı Test Et" class="btn-primary" icon="fa-plug"/>
+                            </div>
+                        </setting>
+                    </block>
+
+                    <block title="e-Fatura Ayarları" name="qnb_efatura_settings" invisible="not qnb_enabled">
+                        <setting id="qnb_efatura_enabled" string="e-Fatura Aktif">
+                            <field name="qnb_efatura_enabled"/>
+                        </setting>
+                        <setting id="qnb_efatura_scenario" string="Fatura Senaryosu" invisible="not qnb_efatura_enabled">
+                            <field name="qnb_efatura_scenario" widget="radio"/>
+                        </setting>
+                        <setting id="qnb_efatura_prefix" string="Seri Öneki" invisible="not qnb_efatura_enabled">
+                            <field name="qnb_efatura_prefix" placeholder="EF"/>
+                        </setting>
+                    </block>
+
+                    <block title="e-Arşiv Ayarları" name="qnb_earsiv_settings" invisible="not qnb_enabled">
+                        <setting id="qnb_earsiv_enabled" string="e-Arşiv Aktif">
+                            <field name="qnb_earsiv_enabled"/>
+                        </setting>
+                        <setting id="qnb_earsiv_prefix" string="Seri Öneki" invisible="not qnb_earsiv_enabled">
+                            <field name="qnb_earsiv_prefix" placeholder="EA"/>
+                        </setting>
+                        <setting id="qnb_earsiv_send_type" string="Gönderim Tipi" invisible="not qnb_earsiv_enabled">
+                            <field name="qnb_earsiv_send_type" widget="radio"/>
+                        </setting>
+                    </block>
+
+                    <block title="e-İrsaliye Ayarları" name="qnb_eirsaliye_settings" invisible="not qnb_enabled">
+                        <setting id="qnb_eirsaliye_enabled" string="e-İrsaliye Aktif">
+                            <field name="qnb_eirsaliye_enabled"/>
+                        </setting>
+                        <setting id="qnb_eirsaliye_prefix" string="Seri Öneki" invisible="not qnb_eirsaliye_enabled">
+                            <field name="qnb_eirsaliye_prefix" placeholder="IR"/>
+                        </setting>
+                    </block>
+
+                    <block title="Şirket e-Fatura Bilgileri" name="qnb_company_info" invisible="not qnb_enabled">
+                        <setting id="qnb_gib_alias" string="GİB Posta Kutusu Etiketi">
+                            <field name="qnb_gib_alias" placeholder="urn:mail:defaultpk@xxx.com"/>
+                        </setting>
+                        <setting id="qnb_sender_alias" string="Gönderici Etiketi">
+                            <field name="qnb_sender_alias"/>
+                        </setting>
+                    </block>
+
+                    <block title="Otomatik İşlemler" name="qnb_auto_settings" invisible="not qnb_enabled">
+                        <setting id="qnb_auto_fetch" string="Gelen Belgeleri Otomatik Al"
+                                 help="Gelen e-Fatura ve e-İrsaliyeleri otomatik olarak indir">
+                            <field name="qnb_auto_fetch_incoming"/>
+                        </setting>
+                        <setting id="qnb_auto_check" string="Durumu Otomatik Kontrol Et"
+                                 help="Gönderilen belgelerin durumunu periyodik olarak kontrol et">
+                            <field name="qnb_auto_check_status"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Config Settings Action -->
+    <record id="action_qnb_config_settings" model="ir.actions.act_window">
+        <field name="name">QNB e-Solutions Ayarları</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">{'module': 'mobilsoft_qnb_efatura'}</field>
+    </record>
+</odoo>

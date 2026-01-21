@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- QNB Document Form View -->
+    <record id="view_qnb_document_form" model="ir.ui.view">
+        <field name="name">qnb.document.form</field>
+        <field name="model">qnb.document</field>
+        <field name="arch" type="xml">
+            <form string="e-Belge">
+                <header>
+                    <field name="state" widget="statusbar" 
+                           statusbar_visible="draft,sending,sent,delivered,accepted"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Belge Bilgileri">
+                            <field name="document_type"/>
+                            <field name="direction"/>
+                            <field name="ettn"/>
+                            <field name="scenario"/>
+                        </group>
+                        <group string="Taraflar">
+                            <field name="partner_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Tutarlar">
+                            <field name="amount_untaxed"/>
+                            <field name="amount_tax"/>
+                            <field name="amount_total"/>
+                            <field name="currency_id"/>
+                        </group>
+                        <group string="Tarihler">
+                            <field name="document_date"/>
+                            <field name="send_date"/>
+                            <field name="response_date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Durum Geçmişi" name="status_history">
+                            <field name="status_history" nolabel="1" readonly="1">
+                                <list>
+                                    <field name="timestamp"/>
+                                    <field name="status"/>
+                                    <field name="description"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Hata Detayı" name="error_detail" 
+                              invisible="not error_message">
+                            <group>
+                                <field name="error_message" nolabel="1" readonly="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" groups="base.group_user"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- QNB Document List View -->
+    <record id="view_qnb_document_tree" model="ir.ui.view">
+        <field name="name">qnb.document.tree</field>
+        <field name="model">qnb.document</field>
+        <field name="arch" type="xml">
+            <list string="e-Belgeler" decoration-danger="state == 'error'" 
+                  decoration-muted="state == 'draft'" 
+                  decoration-success="state in ('accepted', 'delivered')">
+                <field name="name"/>
+                <field name="document_type"/>
+                <field name="direction"/>
+                <field name="partner_id"/>
+                <field name="document_date"/>
+                <field name="amount_total" sum="Toplam"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'sending'"
+                       decoration-success="state in ('sent', 'delivered', 'accepted')"
+                       decoration-danger="state in ('rejected', 'error')"
+                       decoration-muted="state == 'draft'"/>
+                <field name="send_date"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- QNB Document Search View -->
+    <record id="view_qnb_document_search" model="ir.ui.view">
+        <field name="name">qnb.document.search</field>
+        <field name="model">qnb.document</field>
+        <field name="arch" type="xml">
+            <search string="e-Belge Ara">
+                <field name="name"/>
+                <field name="ettn"/>
+                <field name="partner_id"/>
+                <filter string="Giden" name="outgoing" domain="[('direction', '=', 'outgoing')]"/>
+                <filter string="Gelen" name="incoming" domain="[('direction', '=', 'incoming')]"/>
+                <filter string="e-Fatura" name="efatura" domain="[('document_type', '=', 'efatura')]"/>
+                <filter string="e-Arşiv" name="earsiv" domain="[('document_type', '=', 'earsiv')]"/>
+                <filter string="e-İrsaliye" name="eirsaliye" domain="[('document_type', '=', 'eirsaliye')]"/>
+                <filter string="Taslak" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Gönderildi" name="sent" domain="[('state', '=', 'sent')]"/>
+                <filter string="Kabul Edildi" name="accepted" domain="[('state', '=', 'accepted')]"/>
+                <filter string="Hata" name="error" domain="[('state', '=', 'error')]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- QNB Document Status History Form (embedded) -->
+    <record id="view_qnb_document_history_form" model="ir.ui.view">
+        <field name="name">qnb.document.history.form</field>
+        <field name="model">qnb.document.history</field>
+        <field name="arch" type="xml">
+            <form string="Durum Geçmişi">
+                <group>
+                    <field name="timestamp"/>
+                    <field name="status"/>
+                    <field name="description"/>
+                </group>
+            </form>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="16" fill="#0066CC"/>
+  <path d="M24 32H104V96H24V32Z" fill="white"/>
+  <path d="M32 44H96V52H32V44Z" fill="#0066CC"/>
+  <path d="M32 60H80V68H32V60Z" fill="#0066CC"/>
+  <path d="M32 76H72V84H32V76Z" fill="#0066CC"/>
+  <circle cx="88" cy="80" r="20" fill="#00CC66"/>
+  <path d="M80 80L86 86L96 74" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="64" y="115" font-family="Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">e-Fatura</text>
+</svg>

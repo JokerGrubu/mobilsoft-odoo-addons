@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pos_config_form_inherit" model="ir.ui.view">
+        <field name="name">pos.config.form.inherit.custom.report</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <div groups="base.group_system" position="before">
+                <setting id="other_devices" string="Default Invoice Report" help="Select a custom invoice report template for this POS configuration. This report will be used when generating invoices for orders from this POS.">
+                    <field name="report_template_id" options="{'no_create': True, 'no_open': True}" placeholder="Default Invoice Report"/>
+                </setting>
+            </div>
+        </field>
+    </record>
+</odoo>

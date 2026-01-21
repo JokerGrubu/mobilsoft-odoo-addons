@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <data noupdate="0">
+        <function model="ir.model.fields" name="formbuilder_whitelist">
+            <value>res.partner</value>
+            <value eval="['city_id',]" />
+        </function>
+    </data>
+
+    <data>
+        <record id="action_res_city_kt" model="ir.actions.act_window">
+            <field name="name">İlçeler</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">res.city</field>
+            <field name="view_mode">tree,form</field>
+            <!-- <field name="search_view_id" ref="view_city_kt_search"/> -->
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new city
+                </p>
+            </field>
+        </record>
+
+        <menuitem id="menu_res_city_kt" name="İlçeler"
+                parent="contacts.menu_localisation"
+                action="action_res_city_kt"
+                sequence="5"/>
+
+    </data>
+</odoo>

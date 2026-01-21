@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_qnb_document_user,qnb.document.user,model_qnb_document,group_qnb_user,1,0,0,0
+access_qnb_document_manager,qnb.document.manager,model_qnb_document,group_qnb_manager,1,1,1,0
+access_qnb_document_admin,qnb.document.admin,model_qnb_document,group_qnb_admin,1,1,1,1
+access_qnb_document_history_user,qnb.document.history.user,model_qnb_document_history,group_qnb_user,1,0,0,0
+access_qnb_document_history_manager,qnb.document.history.manager,model_qnb_document_history,group_qnb_manager,1,1,1,0
+access_qnb_document_history_admin,qnb.document.history.admin,model_qnb_document_history,group_qnb_admin,1,1,1,1
+access_qnb_send_invoice_wizard,qnb.send.invoice.wizard,model_qnb_send_invoice_wizard,group_qnb_manager,1,1,1,1
+access_qnb_reject_wizard,qnb.reject.wizard,model_qnb_reject_wizard,group_qnb_manager,1,1,1,1
+access_qnb_check_partner_wizard,qnb.check.partner.wizard,model_qnb_check_partner_wizard,group_qnb_user,1,1,1,1
+access_qnb_batch_check_wizard,qnb.batch.check.wizard,model_qnb_batch_check_wizard,group_qnb_manager,1,1,1,1
+access_qnb_credit_info_wizard,qnb.credit.info.wizard,model_qnb_credit_info_wizard,group_qnb_user,1,1,1,1

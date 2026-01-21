@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Türkiye'yi bul -->
+        
+        <!-- KAMU BANKALARI -->
+        <record id="bank_ziraat" model="res.bank">
+            <field name="name">T.C. Ziraat Bankası A.Ş.</field>
+            <field name="bic">TCZBTR2A</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Doğanbey Mahallesi, Atatürk Bulvarı No:8</field>
+            <field name="city">Ankara</field>
+            <field name="phone">444 0 000</field>
+            <field name="email">musteri@ziraatbank.com.tr</field>
+        </record>
+
+        <record id="bank_halkbank" model="res.bank">
+            <field name="name">Türkiye Halk Bankası A.Ş.</field>
+            <field name="bic">TRHBTR2A</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Barbaros Mah. Şebboy Sok. No:4</field>
+            <field name="city">Ankara</field>
+            <field name="phone">444 0 400</field>
+            <field name="email">destek@halkbank.com.tr</field>
+        </record>
+
+        <record id="bank_vakifbank" model="res.bank">
+            <field name="name">Türkiye Vakıflar Bankası T.A.O.</field>
+            <field name="bic">TVBATR2A</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Atatürk Bulvarı No: 207</field>
+            <field name="city">Ankara</field>
+            <field name="phone">444 0 724</field>
+            <field name="email">info@vakifbank.com.tr</field>
+        </record>
+
+        <!-- ÖZEL BANKALAR -->
+        <record id="bank_isbank" model="res.bank">
+            <field name="name">Türkiye İş Bankası A.Ş.</field>
+            <field name="bic">ISBKTRIS</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Tünel Meydan, İş Kuleleri</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 202</field>
+            <field name="email">info@isbank.com.tr</field>
+        </record>
+
+        <record id="bank_garanti" model="res.bank">
+            <field name="name">Garanti BBVA</field>
+            <field name="bic">TGBATRIS</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Levent Nispetiye Mah. Aytar Cad. No:2</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 333</field>
+            <field name="email">info@garantibbva.com.tr</field>
+        </record>
+
+        <record id="bank_akbank" model="res.bank">
+            <field name="name">Akbank T.A.Ş.</field>
+            <field name="bic">AKBKTRIS</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Sabancı Center, 4. Levent</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 2 525</field>
+            <field name="email">musteri@akbank.com</field>
+        </record>
+
+        <record id="bank_yapi_kredi" model="res.bank">
+            <field name="name">Yapı ve Kredi Bankası A.Ş.</field>
+            <field name="bic">YAPITRISFEX</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Yapı Kredi Plaza D Blok, Levent</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 444</field>
+            <field name="email">destek@yapikredi.com.tr</field>
+        </record>
+
+        <record id="bank_qnb_finansbank" model="res.bank">
+            <field name="name">QNB Finansbank A.Ş.</field>
+            <field name="bic">FABORIST</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Esentepe Mah. Büyükdere Cad. Kristal Kule No:215</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 900</field>
+            <field name="email">destek@qnbfinansbank.com</field>
+        </record>
+
+        <record id="bank_denizbank" model="res.bank">
+            <field name="name">DenizBank A.Ş.</field>
+            <field name="bic">DEABORIS</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Büyükdere Cad. No:141</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 800</field>
+            <field name="email">info@denizbank.com</field>
+        </record>
+
+        <record id="bank_teb" model="res.bank">
+            <field name="name">Türk Ekonomi Bankası A.Ş.</field>
+            <field name="bic">TEABORIS</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">TEB Kampüsü, Saray Mah.</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 666</field>
+            <field name="email">info@teb.com.tr</field>
+        </record>
+
+        <record id="bank_ing" model="res.bank">
+            <field name="name">ING Bank A.Ş.</field>
+            <field name="bic">INGBTRIS</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Reşitpaşa Mah. Eski Büyükdere Cad. No:8</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 600</field>
+            <field name="email">destek@ing.com.tr</field>
+        </record>
+
+        <record id="bank_hsbc" model="res.bank">
+            <field name="name">HSBC Bank A.Ş.</field>
+            <field name="bic">HABORIST</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Esentepe Mah. Büyükdere Cad. No:128</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 111</field>
+            <field name="email">info@hsbc.com.tr</field>
+        </record>
+
+        <record id="bank_sekerbank" model="res.bank">
+            <field name="name">Şekerbank T.A.Ş.</field>
+            <field name="bic">SABORIST</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Emniyet Evleri Mah. Eski Büyükdere Cad. No:1/1A</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 787</field>
+            <field name="email">info@sekerbank.com.tr</field>
+        </record>
+
+        <record id="bank_turkiye_finans" model="res.bank">
+            <field name="name">Türkiye Finans Katılım Bankası A.Ş.</field>
+            <field name="bic">AFKBTRIS</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Büyükdere Cad. No:129</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 888</field>
+            <field name="email">info@turkiyefinans.com.tr</field>
+        </record>
+
+        <record id="bank_kuveyt_turk" model="res.bank">
+            <field name="name">Kuveyt Türk Katılım Bankası A.Ş.</field>
+            <field name="bic">KTEFTRIS</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Büyükdere Cad. No:129/1</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 123</field>
+            <field name="email">info@kuveytturk.com.tr</field>
+        </record>
+
+        <record id="bank_albaraka" model="res.bank">
+            <field name="name">Albaraka Türk Katılım Bankası A.Ş.</field>
+            <field name="bic">BTFHORIS</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Saray Mah. Dr. Adnan Büyükdeniz Cad. No:6</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 5 666</field>
+            <field name="email">info@albaraka.com.tr</field>
+        </record>
+
+        <record id="bank_vakif_katilim" model="res.bank">
+            <field name="name">Vakıf Katılım Bankası A.Ş.</field>
+            <field name="bic">VAKFTRIS</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Saray Mah. Dr. Adnan Büyükdeniz Cad. No:10</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 4 124</field>
+            <field name="email">info@vakifkatilim.com.tr</field>
+        </record>
+
+        <record id="bank_ziraat_katilim" model="res.bank">
+            <field name="name">Ziraat Katılım Bankası A.Ş.</field>
+            <field name="bic">ZABORIST</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Atatürk Bulvarı No:8/B</field>
+            <field name="city">Ankara</field>
+            <field name="phone">444 7 666</field>
+            <field name="email">info@ziraatkatilim.com.tr</field>
+        </record>
+
+        <record id="bank_enpara" model="res.bank">
+            <field name="name">Enpara.com (QNB Finansbank)</field>
+            <field name="bic">FABORIST</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Esentepe Mah. Büyükdere Cad. Kristal Kule No:215</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 635</field>
+            <field name="email">destek@enpara.com</field>
+        </record>
+
+        <record id="bank_odeabank" model="res.bank">
+            <field name="name">Odeabank A.Ş.</field>
+            <field name="bic">ODEATRIS</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Levent Mah. Aydın Sok. No:8</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 8 444</field>
+            <field name="email">info@odeabank.com.tr</field>
+        </record>
+
+        <record id="bank_anadolu" model="res.bank">
+            <field name="name">Anadolubank A.Ş.</field>
+            <field name="bic">AABORIST</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Cumhuriyet Cad. No:14</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 5 544</field>
+            <field name="email">info@anadolubank.com.tr</field>
+        </record>
+
+        <record id="bank_alternatif" model="res.bank">
+            <field name="name">Alternatifbank A.Ş.</field>
+            <field name="bic">CBSBTR2A</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Cumhuriyet Cad. No:46</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 120</field>
+            <field name="email">info@abank.com.tr</field>
+        </record>
+
+        <record id="bank_burgan" model="res.bank">
+            <field name="name">Burgan Bank A.Ş.</field>
+            <field name="bic">BBVIATRI</field>
+            <field name="country" ref="base.tr"/>
+            <field name="street">Esentepe Mah. Büyükdere Cad. No:122</field>
+            <field name="city">İstanbul</field>
+            <field name="phone">444 0 388</field>
+            <field name="email">info@burgan.com.tr</field>
+        </record>
+    </data>
+</odoo>

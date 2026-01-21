@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="payment_provider_form" model="ir.ui.view">
+        <field name="name">PayTR Provider Form</field>
+        <field name="model">payment.provider</field>
+        <field name="inherit_id" ref="payment.payment_provider_form"/>
+        <field name="arch" type="xml">
+            <group name="provider_credentials" position='inside'>
+                <group invisible="code !=  'paytr'">
+                    <field name="paytr_merchant_id" required="code == 'paytr' and state != 'disabled'"/>
+                    <field name="paytr_merchant_key"  required="code == 'paytr' and state != 'disabled'"/>
+                    <field name="paytr_merchant_salt"  required="code == 'paytr' and state != 'disabled'" />
+                </group>
+            </group>
+            <page name="configuration" position='inside'>
+                <group invisible="code !=  'paytr'">                    
+                    <field name="paytr_no_installment"  required="code == 'paytr' and state != 'disabled'" />
+                    <field name="paytr_max_installment"  required="code == 'paytr' and state != 'disabled'" />
+                   <field name="paytr_timeout"  required="code == 'paytr' and state != 'disabled'" />
+                </group>
+            </page>
+        </field>
+    </record>
+</odoo>

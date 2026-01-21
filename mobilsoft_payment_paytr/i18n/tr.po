@@ -1,0 +1,211 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* payment_paytr_kt
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 16.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-04-05 11:37+0000\n"
+"PO-Revision-Date: 2025-04-05 11:37+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. module: payment_paytr_kt
+#. odoo-python
+#: code:addons/payment_paytr_kt/models/payment_transaction.py:0
+#, python-format
+msgid ""
+"An error occurred during processing of your payment. Please try again.(%s) "
+"%s"
+msgstr ""
+"Ödeme sırasında hata oluştu. Lütfen tekrar deneyin.(%s) "
+"%s"
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,field_description:payment_paytr_kt.field_payment_provider__paytr_timeout
+msgid "Aşımı süresi"
+msgstr ""
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,field_description:payment_paytr_kt.field_payment_provider__paytr_ok_url
+msgid "Başarılı URL"
+msgstr ""
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,field_description:payment_paytr_kt.field_payment_provider__code
+msgid "Code"
+msgstr "Kod"
+
+#. module: payment_paytr_kt
+#: model:payment.provider,display_as:payment_paytr_kt.payment_provider_paytr
+msgid "Credit Card (powered by PayTR)"
+msgstr "Kredi Kartı (PayTR)"
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,field_description:payment_paytr_kt.field_payment_provider__paytr_max_installment
+msgid "En fazla taksit sayısı"
+msgstr ""
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,help:payment_paytr_kt.field_payment_provider__paytr_max_installment
+msgid "Gösterilecek en fazlataksit sayısını belirler! 1-12 taksit"
+msgstr ""
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,field_description:payment_paytr_kt.field_payment_provider__paytr_fail_url
+msgid "Hata URL"
+msgstr ""
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,field_description:payment_paytr_kt.field_payment_provider__paytr_merchant_key
+msgid "Mağaza Api Key"
+msgstr ""
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,field_description:payment_paytr_kt.field_payment_provider__paytr_merchant_salt
+msgid "Mağaza Api Salt"
+msgstr ""
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,field_description:payment_paytr_kt.field_payment_provider__paytr_merchant_id
+msgid "Mağaza Numarası"
+msgstr ""
+
+#. module: payment_paytr_kt
+#. odoo-python
+#: code:addons/payment_paytr_kt/models/payment_transaction.py:0
+#, python-format
+msgid "No transaction found matching reference %s."
+msgstr "Eşleşen referans %s bulunamadı."
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields.selection,name:payment_paytr_kt.selection__payment_provider__code__paytr
+msgid "PayTR"
+msgstr ""
+
+#. module: payment_paytr_kt
+#: model:payment.provider,name:payment_paytr_kt.payment_provider_paytr
+msgid "PayTR iFrame"
+msgstr ""
+
+#. module: payment_paytr_kt
+#: model:ir.model,name:payment_paytr_kt.model_payment_provider
+msgid "Payment Provider"
+msgstr "Ödeme Sağlayıcısı"
+
+#. module: payment_paytr_kt
+#: model:ir.model,name:payment_paytr_kt.model_payment_transaction
+msgid "Payment Transaction"
+msgstr "Ödeme İşlemi"
+
+#. module: payment_paytr_kt
+#. odoo-python
+#: code:addons/payment_paytr_kt/controllers/main.py:0
+#, python-format
+msgid ""
+"Payment failed: %s (Code: %s). Please verify your payment details and try "
+"again."
+msgstr ""
+"Ödeme başarısız: %s (Kod: %s). Lütfen ödeme bilgilerinizi kontrol edin ve "
+"tekrar deneyin."
+
+#. module: payment_paytr_kt
+#. odoo-python
+#: code:addons/payment_paytr_kt/controllers/main.py:0
+#, python-format
+msgid ""
+"Payment gateway communication error (Code: %s). Please try again later."
+msgstr ""
+"Ödeme sağlayıcısı iletişim hatası (Kod: %s). Lütfen daha sonra tekrar deneyin."
+
+#. module: payment_paytr_kt
+#. odoo-python
+#: code:addons/payment_paytr_kt/controllers/main.py:0
+#: code:addons/payment_paytr_kt/controllers/main.py:0
+#, python-format
+msgid "Payment notification rejected due to security validation failure"
+msgstr "Ödeme bildirimi güvenlik doğrulama hatası nedeniyle reddedildi"
+
+#. module: payment_paytr_kt
+#. odoo-python
+#: code:addons/payment_paytr_kt/controllers/main.py:0
+#, python-format
+msgid ""
+"Payment status could not be determined. Please contact customer support with"
+" reference: %s"
+msgstr ""
+"Ödeme durumu belirlenemedi. Lütfen müşteri destek ile iletişime geçin "
+"referans: %s"
+
+#. module: payment_paytr_kt
+#: model:ir.model,name:payment_paytr_kt.model_paytr_api
+msgid "Paytr API Interface"
+msgstr "Paytr API Arayüzü"
+
+#. module: payment_paytr_kt
+#. odoo-python
+#: code:addons/payment_paytr_kt/models/payment_transaction.py:0
+#, python-format
+msgid "Received data with missing transaction status"
+msgstr "Alınan verilerde eksik işlem durumu"
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,help:payment_paytr_kt.field_payment_provider__paytr_no_installment
+msgid "Taksit görüntülenmesin"
+msgstr ""
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,field_description:payment_paytr_kt.field_payment_provider__paytr_no_installment
+msgid "Tek çekim"
+msgstr ""
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,help:payment_paytr_kt.field_payment_provider__code
+msgid "The technical code of this payment provider."
+msgstr "Ödeme sağlayıcısının teknik kodu."
+
+#. module: payment_paytr_kt
+#. odoo-python
+#: code:addons/payment_paytr_kt/controllers/main.py:0
+#, python-format
+msgid "Unknown payment gateway error"
+msgstr "Bilinmeyen ödeme sağlayıcı hatası"
+
+#. module: payment_paytr_kt
+#. odoo-python
+#: code:addons/payment_paytr_kt/models/payment_transaction.py:0
+#, python-format
+msgid "Unknown status! Message: %s"
+msgstr "Bilinmeyen durum! Mesaj: %s"
+
+#. module: payment_paytr_kt
+#: model_terms:payment.provider,auth_msg:payment_paytr_kt.payment_provider_paytr
+msgid "Your payment has been authorized."
+msgstr "Ödemeniz yetkilendirilmiştir."
+
+#. module: payment_paytr_kt
+#: model_terms:payment.provider,cancel_msg:payment_paytr_kt.payment_provider_paytr
+msgid "Your payment has been cancelled."
+msgstr "Ödemeniz iptal edilmiştir."
+
+#. module: payment_paytr_kt
+#: model_terms:payment.provider,pending_msg:payment_paytr_kt.payment_provider_paytr
+msgid ""
+"Your payment has been successfully processed but is waiting for approval."
+msgstr ""
+"Ödemeniz başarıyla işlenmiştir ancak onay bekliyor."
+
+#. module: payment_paytr_kt
+#: model_terms:payment.provider,done_msg:payment_paytr_kt.payment_provider_paytr
+msgid "Your payment has been successfully processed. Thank you!"
+msgstr "Ödemeniz başarıyla işlenmiştir. Teşekkür ederiz!"
+
+#. module: payment_paytr_kt
+#: model:ir.model.fields,help:payment_paytr_kt.field_payment_provider__paytr_timeout
+msgid "İşlem zaman aşımı süresi"
+msgstr ""

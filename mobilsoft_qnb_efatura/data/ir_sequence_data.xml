@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- e-Fatura Sequence -->
+        <record id="seq_qnb_efatura" model="ir.sequence">
+            <field name="name">e-Fatura Numarası</field>
+            <field name="code">qnb.document.efatura</field>
+            <field name="prefix">EFA%(y)s</field>
+            <field name="padding">9</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <!-- e-Arşiv Sequence -->
+        <record id="seq_qnb_earsiv" model="ir.sequence">
+            <field name="name">e-Arşiv Numarası</field>
+            <field name="code">qnb.document.earsiv</field>
+            <field name="prefix">EAR%(y)s</field>
+            <field name="padding">9</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <!-- e-İrsaliye Sequence -->
+        <record id="seq_qnb_eirsaliye" model="ir.sequence">
+            <field name="name">e-İrsaliye Numarası</field>
+            <field name="code">qnb.document.eirsaliye</field>
+            <field name="prefix">EIR%(y)s</field>
+            <field name="padding">9</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <!-- QNB Document Sequence -->
+        <record id="seq_qnb_document" model="ir.sequence">
+            <field name="name">QNB Belge Numarası</field>
+            <field name="code">qnb.document</field>
+            <field name="prefix">QNB/%(y)s/</field>
+            <field name="padding">6</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

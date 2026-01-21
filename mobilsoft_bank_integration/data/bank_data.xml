@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Ensure Turkish Banks are in the system -->
+        <record id="bank_garantibbva" model="res.bank">
+            <field name="name">Garanti BBVA</field>
+            <field name="bic">TGBATRIS</field>
+            <field name="country" ref="base.tr" />
+        </record>
+
+        <record id="bank_ziraat" model="res.bank">
+            <field name="name">Ziraat Bankası</field>
+            <field name="bic">TCZBTR2A</field>
+            <field name="country" ref="base.tr" />
+        </record>
+
+        <record id="bank_qnb" model="res.bank">
+            <field name="name">QNB Finansbank</field>
+            <field name="bic">FNNBTRIS</field>
+            <field name="country" ref="base.tr" />
+        </record>
+
+        <record id="bank_isbank" model="res.bank">
+            <field name="name">Türkiye İş Bankası</field>
+            <field name="bic">ISBKTRIS</field>
+            <field name="country" ref="base.tr" />
+        </record>
+
+        <record id="bank_denizbank" model="res.bank">
+            <field name="name">Denizbank</field>
+            <field name="bic">DENITRIS</field>
+            <field name="country" ref="base.tr" />
+        </record>
+
+        <record id="bank_teb" model="res.bank">
+            <field name="name">TEB (Türk Ekonomi Bankası)</field>
+            <field name="bic">TEBUTRIS</field>
+            <field name="country" ref="base.tr" />
+        </record>
+
+        <record id="bank_halkbank" model="res.bank">
+            <field name="name">Türkiye Halk Bankası</field>
+            <field name="bic">TRHBTR2A</field>
+            <field name="country" ref="base.tr" />
+        </record>
+
+    </data>
+</odoo>

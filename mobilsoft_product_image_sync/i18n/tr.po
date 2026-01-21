@@ -1,0 +1,50 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* product_variant_image_sync
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 18.0+e\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-18 11:03+0000\n"
+"PO-Revision-Date: 2025-11-18 11:03+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. module: product_variant_image_sync
+#: model:ir.model.fields,help:product_variant_image_sync.field_product_attribute__sync_images
+msgid ""
+"If enabled, images added to a variant with this attribute will be automatically synced to all other variants with the same attribute value.\n"
+"Example: Enable for \"Color\" attribute to sync images across all variants with the same color."
+msgstr ""
+"Etkinleştirilirse, bu niteliğe sahip bir varyanta eklenen görseller, aynı nitelik değerine sahip diğer tüm varyantlara otomatik olarak senkronize edilir.\n"
+"Örnek: Aynı renge sahip tüm varyantlar arasında görselleri senkronize etmek için \"Renk\" niteliği için etkinleştirin."
+
+#. module: product_variant_image_sync
+#: model:ir.model,name:product_variant_image_sync.model_product_attribute
+msgid "Product Attribute"
+msgstr "Ürün Niteliği"
+
+#. module: product_variant_image_sync
+#: model:ir.model,name:product_variant_image_sync.model_product_image
+msgid "Product Image"
+msgstr "Ürün Görseli"
+
+#. module: product_variant_image_sync
+#: model:ir.model,name:product_variant_image_sync.model_product_product
+msgid "Product Variant"
+msgstr "Ürün Varyantı"
+
+#. module: product_variant_image_sync
+#: model:ir.model.fields,field_description:product_variant_image_sync.field_product_attribute__sync_images
+msgid "Sync Images"
+msgstr "Görselleri Eşitle"
+
+#. module: product_variant_image_sync
+#: model_terms:ir.ui.view,arch_db:product_variant_image_sync.product_attribute_view_form_inherit
+msgid "Sync Variants Images"
+msgstr "Varyant Görsellerini Eşitle"

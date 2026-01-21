@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Partner Form View Extension -->
+    <record id="view_partner_form_qnb" model="ir.ui.view">
+        <field name="name">res.partner.form.qnb</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <!-- e-Fatura Bilgileri Tab -->
+            <xpath expr="//page[@name='sales_purchases']" position="after">
+                <page string="e-Fatura" name="efatura_info" 
+                      invisible="not is_company and not parent_id">
+                    <group>
+                        <group string="e-Fatura Durumu">
+                            <field name="is_efatura_registered" readonly="1"/>
+                            <field name="efatura_alias" readonly="1" 
+                                   invisible="not is_efatura_registered"/>
+                            <field name="efatura_alias_type" readonly="1" 
+                                   invisible="not is_efatura_registered"/>
+                            <field name="efatura_last_check" readonly="1" 
+                                   invisible="not efatura_last_check"/>
+                        </group>
+                        <group string="İşlemler">
+                            <button name="action_check_efatura_status" 
+                                    string="GİB'den Kontrol Et" 
+                                    type="object" 
+                                    class="btn-primary"
+                                    icon="fa-search"
+                                    invisible="not vat"/>
+                            <div class="text-muted" invisible="vat">
+                                <i class="fa fa-info-circle"/> e-Fatura kontrolü için VKN/TCKN girilmelidir.
+                            </div>
+                        </group>
+                    </group>
+                    <group string="Bilgi" invisible="not efatura_last_check">
+                        <div class="alert alert-info" role="alert">
+                            <i class="fa fa-info-circle"/>
+                            <span invisible="not is_efatura_registered">
+                                Bu firma GİB'de e-Fatura mükellefi olarak kayıtlıdır. 
+                                Kesilen faturalar <strong>e-Fatura</strong> olarak gönderilecektir.
+                            </span>
+                            <span invisible="is_efatura_registered">
+                                Bu firma GİB'de e-Fatura mükellefi olarak kayıtlı değildir. 
+                                Kesilen faturalar <strong>e-Arşiv</strong> olarak gönderilecektir.
+                            </span>
+                        </div>
+                    </group>
+                </page>
+            </xpath>
+
+            <!-- VKN alanının yanına e-Fatura badge -->
+            <xpath expr="//field[@name='vat']" position="after">
+                <span class="badge text-bg-success ms-2" 
+                      invisible="not is_efatura_registered">
+                    <i class="fa fa-check"/> e-Fatura Mükellefi
+                </span>
+                <field name="is_efatura_registered" invisible="1"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Partner List View Extension -->
+    <record id="view_partner_tree_qnb" model="ir.ui.view">
+        <field name="name">res.partner.tree.qnb</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <field name="email" position="after">
+                <field name="is_efatura_registered" string="e-Fatura" optional="show" widget="boolean"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Partner Search View Extension -->
+    <record id="view_partner_search_qnb" model="ir.ui.view">
+        <field name="name">res.partner.search.qnb</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <filter name="inactive" position="after">
+                <separator/>
+                <filter string="e-Fatura Mükellefi" name="efatura_registered" 
+                        domain="[('is_efatura_registered', '=', True)]"/>
+                <filter string="e-Fatura Dışı" name="efatura_not_registered" 
+                        domain="[('is_efatura_registered', '=', False)]"/>
+            </filter>
+        </field>
+    </record>
+</odoo>

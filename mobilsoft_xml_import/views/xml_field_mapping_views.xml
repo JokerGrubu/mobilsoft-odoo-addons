@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- XML Field Mapping Tree View -->
+    <record id="xml_field_mapping_tree_view" model="ir.ui.view">
+        <field name="name">xml.field.mapping.tree</field>
+        <field name="model">xml.field.mapping</field>
+        <field name="arch" type="xml">
+            <list string="Alan Eşleştirmeleri" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="odoo_field"/>
+                <field name="xml_path"/>
+                <field name="transform"/>
+                <field name="default_value"/>
+                <field name="is_required" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- XML Field Mapping Form View -->
+    <record id="xml_field_mapping_form_view" model="ir.ui.view">
+        <field name="name">xml.field.mapping.form</field>
+        <field name="model">xml.field.mapping</field>
+        <field name="arch" type="xml">
+            <form string="Alan Eşleştirmesi">
+                <sheet>
+                    <group>
+                        <group string="Eşleştirme">
+                            <field name="source_id" invisible="1"/>
+                            <field name="sequence"/>
+                            <field name="odoo_field"/>
+                            <field name="xml_path"/>
+                            <field name="is_required"/>
+                        </group>
+                        <group string="Dönüşüm">
+                            <field name="transform"/>
+                            <field name="regex_pattern" invisible="transform != 'regex'"/>
+                            <field name="regex_replace" invisible="transform != 'regex'"/>
+                            <field name="default_value"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+</odoo>

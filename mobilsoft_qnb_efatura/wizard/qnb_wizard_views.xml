@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Send Invoice Wizard Form -->
+    <record id="view_qnb_send_invoice_wizard_form" model="ir.ui.view">
+        <field name="name">qnb.send.invoice.wizard.form</field>
+        <field name="model">qnb.send.invoice.wizard</field>
+        <field name="arch" type="xml">
+            <form string="e-Belge Gönder">
+                <group>
+                    <group string="Belge Bilgileri">
+                        <field name="move_id" readonly="1"/>
+                        <field name="partner_id" readonly="1"/>
+                    </group>
+                    <group string="e-Belge Seçenekleri">
+                        <field name="is_partner_efatura" readonly="1" widget="boolean_toggle"/>
+                        <field name="document_type"/>
+                        <field name="scenario" invisible="document_type != 'efatura'"/>
+                    </group>
+                </group>
+                <group invisible="is_partner_efatura">
+                    <div class="alert alert-warning" role="alert">
+                        <span title="Uyarı">⚠️</span>
+                        <strong>Dikkat:</strong> Bu müşteri GİB'de e-Fatura mükellefi olarak kayıtlı değildir. 
+                        Fatura <strong>e-Arşiv</strong> olarak gönderilecektir.
+                    </div>
+                </group>
+                <group invisible="not is_partner_efatura">
+                    <div class="alert alert-info" role="alert">
+                        <span title="Bilgi">ℹ️</span>
+                        Bu müşteri GİB'de e-Fatura mükellefi olarak kayıtlıdır. 
+                        Fatura <strong>e-Fatura</strong> olarak gönderilecektir.
+                    </div>
+                </group>
+                <footer>
+                    <button string="Gönder" name="action_send" type="object" class="btn-primary"/>
+                    <button string="İptal" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Reject Wizard Form -->
+    <record id="view_qnb_reject_wizard_form" model="ir.ui.view">
+        <field name="name">qnb.reject.wizard.form</field>
+        <field name="model">qnb.reject.wizard</field>
+        <field name="arch" type="xml">
+            <form string="e-Fatura Reddet">
+                <group>
+                    <group>
+                        <field name="document_id" readonly="1"/>
+                    </group>
+                    <group>
+                        <field name="reason" required="1"/>
+                    </group>
+                </group>
+                <div class="alert alert-danger" role="alert">
+                    <span title="Uyarı">⚠️</span>
+                    <strong>Dikkat:</strong> Red işlemi geri alınamaz! 
+                    Red nedeni karşı tarafa iletilecektir.
+                </div>
+                <footer>
+                    <button string="Reddet" name="action_reject" type="object" class="btn-danger"/>
+                    <button string="İptal" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Batch Check Wizard Form -->
+    <record id="view_qnb_batch_check_wizard_form" model="ir.ui.view">
+        <field name="name">qnb.batch.check.wizard.form</field>
+        <field name="model">qnb.batch.check.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Toplu e-Fatura Mükellefi Kontrolü">
+                <group>
+                    <field name="partner_ids" widget="many2many_tags" 
+                           domain="[('is_company', '=', True), ('vat', '!=', False)]"
+                           options="{'no_create': True}"/>
+                </group>
+                <group invisible="not result_text">
+                    <field name="result_text" widget="html" nolabel="1"/>
+                </group>
+                <div class="alert alert-info" role="alert" invisible="result_text">
+                    <i class="fa fa-info-circle"/>
+                    Seçili müşterilerin VKN/TCKN bilgileri GİB'den sorgulanacaktır.
+                    <br/>
+                    Müşteri seçilmezse tüm şirket müşterileri kontrol edilecektir.
+                </div>
+                <footer>
+                    <button string="Kontrol Et" name="action_check" type="object" 
+                            class="btn-primary" invisible="result_text"/>
+                    <button string="Tüm Müşterileri Kontrol Et" name="action_check_all" 
+                            type="object" class="btn-secondary" invisible="result_text"/>
+                    <button string="Kapat" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Credit Info Wizard Form -->
+    <record id="view_qnb_credit_info_wizard_form" model="ir.ui.view">
+        <field name="name">qnb.credit.info.wizard.form</field>
+        <field name="model">qnb.credit.info.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Kontör Bilgisi">
+                <group>
+                    <group string="e-Fatura Kontör">
+                        <field name="efatura_credit" readonly="1"/>
+                        <field name="efatura_used" readonly="1"/>
+                    </group>
+                    <group string="e-Arşiv Kontör">
+                        <field name="earsiv_credit" readonly="1"/>
+                        <field name="earsiv_used" readonly="1"/>
+                    </group>
+                    <group string="e-İrsaliye Kontör">
+                        <field name="eirsaliye_credit" readonly="1"/>
+                        <field name="eirsaliye_used" readonly="1"/>
+                    </group>
+                </group>
+                <group invisible="not last_check_date">
+                    <field name="last_check_date" readonly="1"/>
+                </group>
+                <footer>
+                    <button string="Güncelle" name="action_refresh" type="object" class="btn-primary"/>
+                    <button string="Kapat" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

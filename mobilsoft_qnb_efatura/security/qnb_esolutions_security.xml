@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- QNB e-Solutions Security Groups -->
+
+        <!-- User Group: Can view e-documents -->
+        <record id="group_qnb_user" model="res.groups">
+        <field name="name">QNB e-Solutions / Kullanıcı</field>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">e-Belgeleri görüntüleyebilir.</field>
+    </record>
+
+    <!-- Manager Group: Can send/manage e-documents -->
+    <record id="group_qnb_manager" model="res.groups">
+        <field name="name">QNB e-Solutions / Yönetici</field>
+        <field name="implied_ids" eval="[(4, ref('group_qnb_user'))]"/>
+        <field name="comment">e-Belge gönderme ve yönetme yetkisi.</field>
+    </record>
+
+    <!-- Admin Group: Full access including settings -->
+    <record id="group_qnb_admin" model="res.groups">
+        <field name="name">QNB e-Solutions / Sistem Yöneticisi</field>
+        <field name="implied_ids" eval="[(4, ref('group_qnb_manager'))]"/>
+        <field name="comment">Tam yetki - ayarlar dahil.</field>
+    </record>
+
+    <!-- Record Rules -->
+    
+    <!-- Company Rule: Users can only see documents of their own company -->
+    <record id="qnb_document_company_rule" model="ir.rule">
+        <field name="name">QNB Document Multi-Company</field>
+        <field name="model_id" ref="mobilsoft_qnb_efatura.model_qnb_document"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+    </data>
+
+</odoo>

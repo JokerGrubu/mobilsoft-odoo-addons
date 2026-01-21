@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Account Move Form View Extension -->
+    <record id="view_move_form_qnb" model="ir.ui.view">
+        <field name="name">account.move.form.qnb</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <!-- e-Belge butonu -->
+            <xpath expr="//header" position="inside">
+                <button name="action_open_send_wizard" 
+                        string="e-Belge Gönder" 
+                        type="object" 
+                        class="btn-primary"
+                        invisible="state != 'posted' or move_type not in ('out_invoice', 'out_refund') or qnb_state not in ('not_sent', 'error')"
+                        groups="account.group_account_invoice"/>
+                <button name="action_check_qnb_status" 
+                        string="Durum Kontrol" 
+                        type="object" 
+                        class="btn-secondary"
+                        invisible="not qnb_ettn"
+                        groups="account.group_account_invoice"/>
+            </xpath>
+
+            <!-- e-Belge Durumu Badge -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_qnb_documents" 
+                        type="object" 
+                        class="oe_stat_button" 
+                        icon="fa-file-text-o"
+                        invisible="qnb_document_count == 0">
+                    <field name="qnb_document_count" widget="statinfo" string="e-Belgeler"/>
+                </button>
+            </xpath>
+
+            <!-- e-Belge Bilgileri Tab -->
+            <xpath expr="//page[@id='other_tab']" position="after">
+                <page string="e-Belge" name="qnb_info" 
+                      invisible="move_type not in ('out_invoice', 'out_refund', 'in_invoice', 'in_refund')">
+                    <group>
+                        <group string="e-Belge Durumu">
+                            <field name="qnb_state" widget="badge" 
+                                   decoration-info="qnb_state == 'sending'"
+                                   decoration-success="qnb_state in ('sent', 'delivered', 'accepted')"
+                                   decoration-danger="qnb_state in ('rejected', 'error')"
+                                   decoration-muted="qnb_state == 'not_sent'"/>
+                            <field name="qnb_document_type"/>
+                            <field name="qnb_ettn" invisible="not qnb_ettn"/>
+                        </group>
+                        <group string="Müşteri e-Fatura Bilgileri">
+                            <field name="partner_id" invisible="1"/>
+                            <label for="partner_id" string="e-Fatura Kayıtlı"/>
+                            <div>
+                                <span class="badge text-bg-success" invisible="not partner_id.is_efatura_registered">Evet</span>
+                                <span class="badge text-bg-warning" invisible="partner_id.is_efatura_registered">Hayır</span>
+                            </div>
+                        </group>
+                    </group>
+                    <group string="e-Belgeler" invisible="qnb_document_count == 0">
+                        <field name="qnb_document_ids" nolabel="1">
+                            <list>
+                                <field name="name"/>
+                                <field name="document_type"/>
+                                <field name="ettn"/>
+                                <field name="state" widget="badge"
+                                       decoration-info="state == 'sending'"
+                                       decoration-success="state in ('sent', 'delivered', 'accepted')"
+                                       decoration-danger="state in ('rejected', 'error')"/>
+                                <field name="send_date"/>
+                            </list>
+                        </field>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

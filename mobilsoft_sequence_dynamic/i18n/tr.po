@@ -1,0 +1,175 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* sequence_dynamic_placeholders
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 16.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-08 10:30+0000\n"
+"PO-Revision-Date: 2025-07-08 10:30+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. module: sequence_dynamic_placeholders
+#: model_terms:ir.ui.view,arch_db:sequence_dynamic_placeholders.view_sequence_form_inherit
+msgid "1. Enable placeholder replacement"
+msgstr "1. Yer tutucu değişimini etkinleştirin"
+
+#. module: sequence_dynamic_placeholders
+#: model_terms:ir.ui.view,arch_db:sequence_dynamic_placeholders.view_sequence_form_inherit
+msgid ""
+"2. Define placeholders for month and/or year (default: @ for month, # for "
+"year). You can use multiple characters for each placeholder."
+msgstr "2. Ay ve/veya yıl için yer tutucular tanımlayın (varsayılan: ay için @, yıl için #). Her yer tutucu için birden fazla karakter kullanabilirsiniz."
+
+#. module: sequence_dynamic_placeholders
+#: model_terms:ir.ui.view,arch_db:sequence_dynamic_placeholders.view_sequence_form_inherit
+msgid "3. Add mappings for each month (1-12) or year you want to replace"
+msgstr "3. Değiştirmek istediğiniz her ay (1-12) veya yıl için eşleştirmeler ekleyin"
+
+#. module: sequence_dynamic_placeholders
+#: model_terms:ir.ui.view,arch_db:sequence_dynamic_placeholders.view_sequence_form_inherit
+msgid "4. Include the placeholders in your sequence format (e.g., \"ABC/@/####\")"
+msgstr "4. Sıra formatınıza yer tutucuları ekleyin (örn. \"ABC/@/####\")"
+
+#. module: sequence_dynamic_placeholders
+#: model_terms:ir.ui.view,arch_db:sequence_dynamic_placeholders.view_sequence_form_inherit
+msgid "<strong>How to use:</strong>"
+msgstr "<strong>Nasıl kullanılır:</strong>"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,help:sequence_dynamic_placeholders.field_ir_sequence__month_placeholder
+msgid "Character(s) that will be replaced with the month representation"
+msgstr "Ay gösterimi ile değiştirilecek karakter(ler)"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,help:sequence_dynamic_placeholders.field_ir_sequence__year_placeholder
+msgid "Character(s) that will be replaced with the year representation"
+msgstr "Yıl gösterimi ile değiştirilecek karakter(ler)"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence_mapping__create_uid
+msgid "Created by"
+msgstr "oluşturan"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence_mapping__create_date
+msgid "Created on"
+msgstr "oluşturulduğu tarih"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence_mapping__display_name
+msgid "Display Name"
+msgstr "Görüntüleme Adı"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,help:sequence_dynamic_placeholders.field_ir_sequence__use_placeholder_replacement
+msgid "Enable dynamic placeholder replacement in this sequence"
+msgstr "Bu sıraya dinamik yer tutucu değiştirimi etkinleştirin"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence_mapping__id
+msgid "ID"
+msgstr "ID"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence_mapping____last_update
+msgid "Last Modified on"
+msgstr "son değiştirildiği tarih"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence_mapping__write_uid
+msgid "Last Updated by"
+msgstr "son güncellenen"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence_mapping__write_date
+msgid "Last Updated on"
+msgstr "son güncellenen"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence_mapping__mapping_type
+msgid "Mapping Type"
+msgstr "Eşleştirmenin Türü"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields.selection,name:sequence_dynamic_placeholders.selection__ir_sequence_mapping__mapping_type__month
+msgid "Month"
+msgstr "Ay"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence__month_placeholder
+msgid "Month Placeholder"
+msgstr "Ay Yer Tutucusu"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence__mapping_ids
+msgid "Placeholder Mappings"
+msgstr "Yer Tutucu Eşleştirmeleri"
+
+#. module: sequence_dynamic_placeholders
+#: model_terms:ir.ui.view,arch_db:sequence_dynamic_placeholders.view_sequence_form_inherit
+msgid "Placeholder Replacement"
+msgstr "Yer tutucu değiştirimi"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence_mapping__replacement
+msgid "Replacement"
+msgstr "Değiştirme"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model,name:sequence_dynamic_placeholders.model_ir_sequence
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence_mapping__sequence_id
+msgid "Sequence"
+msgstr "Sıra"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model,name:sequence_dynamic_placeholders.model_ir_sequence_date_range
+msgid "Sequence Date Range"
+msgstr "Dizi Tarih Aralığı"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.actions.act_window,name:sequence_dynamic_placeholders.action_sequence_mapping
+#: model:ir.ui.menu,name:sequence_dynamic_placeholders.menu_sequence_mapping
+msgid "Sequence Mappings"
+msgstr "Sıra Eşleştirmeleri"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model,name:sequence_dynamic_placeholders.model_ir_sequence_mapping
+msgid "Sequence Placeholder Mapping"
+msgstr "Sıra Yer Tutucu Eşleştirmesi"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,help:sequence_dynamic_placeholders.field_ir_sequence_mapping__replacement
+msgid "The character or value that will replace the placeholder"
+msgstr "Yer tutucu ile değiştirilecek karakter veya değer"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,help:sequence_dynamic_placeholders.field_ir_sequence_mapping__value
+msgid "The numeric value to map (e.g., 1-12 for months, year number for years)"
+msgstr "Eşleştirmek için sayısal değer (örn. ay için 1-12, yıl için yıl numarası)"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence__use_placeholder_replacement
+msgid "Use Placeholder Replacement"
+msgstr "Yer tutucu değiştirimi kullan"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence_mapping__value
+msgid "Value"
+msgstr "Değer"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields.selection,name:sequence_dynamic_placeholders.selection__ir_sequence_mapping__mapping_type__year
+msgid "Year"
+msgstr "Yıl"
+
+#. module: sequence_dynamic_placeholders
+#: model:ir.model.fields,field_description:sequence_dynamic_placeholders.field_ir_sequence__year_placeholder
+msgid "Year Placeholder"
+msgstr "Yıl Yer Tutucusu"

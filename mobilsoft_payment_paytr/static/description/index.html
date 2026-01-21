@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayTR Ödeme Sağlayıcı Entegrasyonu - Kıta Yazılım</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f9f9f9; color: #222; }
+        h1, h2, h3 { color: #1a73e8; }
+        code, pre { background: #eee; padding: 2px 6px; border-radius: 4px; }
+        .kita { color: #0a4d8c; font-weight: bold; }
+        .odoo { color: #a80000; font-weight: bold; }
+        .section { margin-bottom: 32px; }
+        ul { margin-left: 20px; }
+        .contact { margin-top: 24px; }
+        .license { font-size: 0.95em; color: #666; }
+    </style>
+</head>
+<body>
+    <h2>PayTR Ödeme Sağlayıcı Entegrasyonu</h2>
+    <div class="section">
+        <p>Bu modül, <span class="kita">Kıta Yazılım</span> tarafından geliştirilmiş olup, <span class="odoo">Odoo</span> ile <b>PayTR</b> ödeme altyapısını entegre eder ve müşterilerinizin PayTR iframe çözümü ile güvenli şekilde ödeme yapmasını sağlar. PayTR, Türkiye'de yaygın olarak kullanılan ve kredi kartı, banka kartı, taksitli ödeme gibi birçok seçeneği destekleyen bir ödeme altyapısıdır.</p>
+    </div>
+    <div class="section">
+        <h2>Özellikler</h2>
+        <ul>
+            <li>PayTR iframe ödeme çözümü ile tam entegrasyon</li>
+            <li>Kredi kartı ile ödeme desteği</li>
+            <li>Taksitli ödeme seçenekleri</li>
+            <li>Troy kart sistemi desteği</li>
+            <li>Otomatik işlem durumu güncellemeleri</li>
+            <li>Geliştirme ve test için test modu</li>
+        </ul>
+    </div>
+    <div class="section">
+        <h2>Gereksinimler</h2>
+        <ul>
+            <li>Odoo v16.0, v17.0, v18.0</li>
+            <li>PayTR mağaza hesabı</li>
+            <li>PayTR API bilgileri (Mağaza Numarası, API Key, API Salt)</li>
+        </ul>
+    </div>
+    <div class="section">
+        <h2>Kurulum</h2>
+        <ol>
+            <li>Bu repoyu Odoo eklenti dizininize klonlayın:<br>
+                <pre>git clone https://github.com/kitayazilim/odoo-addons.git /path/to/odoo/addons/payment_paytr_kt</pre>
+            </li>
+            <li>Odoo'da Uygulamalar menüsüne gidin ve "Uygulama Listesini Güncelle" seçeneğine tıklayın.</li>
+            <li>"PayTR iFrame" araması yaparak modülü yükleyin.</li>
+            <li>Alternatif olarak ZIP dosyasını yükleyerek de kurulum yapabilirsiniz.</li>
+        </ol>
+    </div>
+    <div class="section">
+        <h2>Yapılandırma</h2>
+        <ol>
+            <li>Faturalandırma/Muhasebe &gt; Yapılandırma &gt; Ödeme Sağlayıcıları menüsüne gidin.</li>
+            <li>Yeni bir ödeme sağlayıcı oluşturun veya mevcut PayTR sağlayıcısını düzenleyin.</li>
+            <li>Sağlayıcıyı "PayTR" olarak seçin.</li>
+            <li>PayTR mağaza bilgilerinizi girin:
+                <ul>
+                    <li>Mağaza Numarası (Merchant ID)</li>
+                    <li>Mağaza API Key</li>
+                    <li>Mağaza API Salt</li>
+                </ul>
+            </li>
+            <li>Ek ayarları yapılandırın:
+                <ul>
+                    <li>Tek çekim seçeneği</li>
+                    <li>En fazla taksit sayısı</li>
+                    <li>Zaman aşımı limiti</li>
+                </ul>
+            </li>
+            <li>Test için "Test Modu", canlı kullanım için "Etkin" olarak ayarlayın.</li>
+        </ol>
+    </div>
+    <div class="section">
+        <h2>PayTR Canlıya Alma</h2>
+        <ol>
+            <li>PayTR api hesabınıza girip Destek ve Kurulum Başlığı altındaki ayarlardan bildirim url'ini değiştir diyerek site adresinizin sonuna <b>/payment/paytr/return</b> kısmını ekleyin.</li>
+            <li>Odoo uygulamasında Muhasebe &gt; Yapılandırma &gt; Ödeme Sağlayıcıları menüsünden PayTR iFrame sağlayıcısına girin.</li>
+            <li>Ödeme Sistemini Test moduna geçirin ve web sayfanızdan sepetinize bir ürün ekleyerek ilk test isteğiniz ile ödemeyi tamamlayın.</li>
+            <li>Yukarıdaki adım PayTR hesabınızı canlıya almak için zorunludur.</li>
+            <li>İlk test isteğiyle sipariş geçtikten sonra PayTR api hesabınıza girip canlıya alma yönergelerini takip edin.</li>
+            <li>Son olarak daha önce Odoo'dan test moduna aldığınız PayTR Iframe'i etkinleştirerek canlı moda geçirebilirsiniz.</li>
+        </ol>
+    </div>
+    <div class="section">
+        <h2>Kullanım</h2>
+        <p>Yapılandırma tamamlandığında, PayTR ödeme seçeneği web sitenizin ödeme sayfasında görünecektir. Müşteriler bu yöntemi seçtiğinde, PayTR iframe ekranına yönlendirilerek ödemelerini güvenli şekilde tamamlayabilirler.</p>
+    </div>
+    <div class="section contact">
+        <h2>Destek</h2>
+        <p>Destek için <span class="kita">Kıta Yazılım</span> ile iletişime geçebilirsiniz:</p>
+        <ul>
+            <li>Web: <a href="https://kitayazilim.com" target="_blank">kitayazilim.com</a></li>
+            <li>E-posta: <a href="mailto:info@kitayazilim.com">info@kitayazilim.com</a></li>
+            <li>Yardım Masası: <a href="mailto:destek@kitayazilim.com">destek@kitayazilim.com</a></li>
+        </ul>
+    </div>
+    <div class="license">
+        <b>Lisans:</b> Bu modül <b>LGPL-3</b> lisansı ile lisanslanmıştır.
+    </div>
+</body>
+</html>
