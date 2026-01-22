@@ -406,12 +406,20 @@ class QnbApiClient(models.AbstractModel):
         client, history = self._get_client(company)
 
         try:
+            # QNB API signature: vergiTcKimlikNo, sonAlinanBelgeSiraNumarasi, belgeTuru
+            # VKN şirketten al
+            if not company:
+                company = self.env.company
+            
+            vkn = company.vat or company.qnb_username or ''
+            if vkn:
+                # Sadece rakamları al
+                vkn = ''.join(filter(str.isdigit, str(vkn)))
+            
             result = client.service.gelenBelgeleriListele(
-                parametreler={
-                    'urun': document_type,
-                    'baslangicTarihi': start_date.strftime('%Y-%m-%d'),
-                    'bitisTarihi': end_date.strftime('%Y-%m-%d')
-                }
+                vergiTcKimlikNo=vkn,
+                sonAlinanBelgeSiraNumarasi='0',  # 0 = tüm belgeler
+                belgeTuru=document_type
             )
 
             if result:
