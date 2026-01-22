@@ -2,7 +2,7 @@
 {
     'name': 'MobilSoft Ön Muhasebe',
     'version': '19.0.1.0.0',
-    'category': 'Accounting',
+    'category': 'MobilSoft',
     'summary': 'Türkiye pazarına özel Ön Muhasebe uygulaması',
     'description': """
 MobilSoft Ön Muhasebe
@@ -50,5 +50,5 @@ Website: https://www.mobilsoft.net
     'installable': True,
     'application': True,
     'auto_install': False,
-    'sequence': 10,
+    'sequence': 5,
 }

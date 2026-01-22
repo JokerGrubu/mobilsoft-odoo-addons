@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Ana Menü -->
+    <!-- Ana Menü - MobilSoft Ön Muhasebe -->
     <menuitem id="menu_onmuhasebe_root"
-              name="Ön Muhasebe"
-              sequence="10"/>
+              name="MobilSoft Ön Muhasebe"
+              sequence="5"
+              web_icon="mobilsoft_onmuhasebe,static/description/icon.png"/>
     
     <!-- Dashboard -->
     <menuitem id="menu_onmuhasebe_dashboard"
@@ -26,10 +27,17 @@
               action="action_cheque_promissory"
               sequence="20"/>
     
-    <!-- Faturalar -->
-    <menuitem id="menu_onmuhasebe_invoices"
-              name="Faturalar"
+    <!-- Faturalar - Giden -->
+    <menuitem id="menu_onmuhasebe_out_invoices"
+              name="Giden Faturalar"
               parent="menu_onmuhasebe_root"
               action="account.action_move_out_invoice_type"
               sequence="30"/>
+    
+    <!-- Faturalar - Gelen -->
+    <menuitem id="menu_onmuhasebe_in_invoices"
+              name="Gelen Faturalar"
+              parent="menu_onmuhasebe_root"
+              action="account.action_move_in_invoice_type"
+              sequence="31"/>
 </odoo>

@@ -19,12 +19,20 @@
         
         <!-- Dashboard Action -->
         <record id="action_onmuhasebe_dashboard" model="ir.actions.act_window">
-            <field name="name">Gösterge Paneli</field>
+            <field name="name">MobilSoft Ön Muhasebe - Gösterge Paneli</field>
             <field name="res_model">mobilsoft.dashboard</field>
             <field name="view_mode">form</field>
             <field name="target">current</field>
             <field name="context">{'create': True, 'edit': False}</field>
             <field name="domain">[]</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    MobilSoft Ön Muhasebe Gösterge Paneli
+                </p>
+                <p>
+                    Nakit, Banka, Alacaklar ve Borçlar durumunu buradan takip edebilirsiniz.
+                </p>
+            </field>
         </record>
     </data>
 </odoo>

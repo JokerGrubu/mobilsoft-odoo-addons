@@ -5,7 +5,7 @@
         <field name="name">mobilsoft.dashboard.form</field>
         <field name="model">mobilsoft.dashboard</field>
         <field name="arch" type="xml">
-            <form string="Gösterge Paneli" create="1" delete="0">
+            <form string="MobilSoft Ön Muhasebe - Gösterge Paneli" create="1" delete="0">
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button name="action_refresh_dashboard" 
