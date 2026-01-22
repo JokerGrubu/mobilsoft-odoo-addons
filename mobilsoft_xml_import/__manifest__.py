@@ -2,7 +2,7 @@
 {
     'name': 'MobilSoft XML Ürün İçe Aktarma',
     'version': '19.0.2.0.0',
-    'category': 'JOKER Platform/Integrations',
+    'category': 'MobilSoft/Integrations',
     'summary': 'XML ile ürün içe/dışa aktarma - Dropshipping ve Bayi desteği',
     'description': """
 XML Ürün Yönetimi - Import & Export Modülü
