@@ -39,7 +39,7 @@ Teknik Özellikler:
         'l10n_tr',
     ],
     'data': [
-        'security/mobilsoft_qnb_efatura_security.xml',
+        'security/qnb_esolutions_security.xml',
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
         'data/ir_cron_data.xml',

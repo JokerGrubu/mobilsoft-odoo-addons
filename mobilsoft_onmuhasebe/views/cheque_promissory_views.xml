@@ -56,12 +56,12 @@
         </field>
     </record>
     
-    <!-- Çek & Senet Tree View -->
+    <!-- Çek & Senet List View -->
     <record id="view_cheque_promissory_tree" model="ir.ui.view">
         <field name="name">mobilsoft.cheque.promissory.tree</field>
         <field name="model">mobilsoft.cheque.promissory</field>
         <field name="arch" type="xml">
-            <tree string="Çek &amp; Senet" decoration-danger="is_overdue">
+            <list string="Çek &amp; Senet" decoration-danger="is_overdue">
                 <field name="name"/>
                 <field name="type"/>
                 <field name="direction"/>
@@ -73,7 +73,7 @@
                        decoration-warning="state == 'endorsed'"
                        decoration-danger="state == 'bounced'"/>
                 <field name="is_overdue" invisible="1"/>
-            </tree>
+            </list>
         </field>
     </record>
     
@@ -149,14 +149,13 @@
                         domain="[('type', '=', 'cheque')]"/>
                 <filter string="Senet" name="promissory" 
                         domain="[('type', '=', 'promissory')]"/>
-                <group expand="0" string="Grupla">
-                    <filter string="Durum" name="group_state" 
-                            context="{'group_by': 'state'}"/>
-                    <filter string="Cari" name="group_partner" 
-                            context="{'group_by': 'partner_id'}"/>
-                    <filter string="Tür" name="group_type" 
-                            context="{'group_by': 'type'}"/>
-                </group>
+                <separator/>
+                <filter string="Durum" name="group_state" 
+                        context="{'group_by': 'state'}"/>
+                <filter string="Cari" name="group_partner" 
+                        context="{'group_by': 'partner_id'}"/>
+                <filter string="Tür" name="group_type" 
+                        context="{'group_by': 'type'}"/>
             </search>
         </field>
     </record>
