@@ -416,24 +416,48 @@ class QnbApiClient(models.AbstractModel):
                 # Sadece rakamları al
                 vkn = ''.join(filter(str.isdigit, str(vkn)))
             
+            # QNB API belge türü: 'FATURA', 'IRSALIYE', 'UYGULAMA_YANITI', 'IRSALIYE_YANITI'
+            # 'EFATURA' değil, 'FATURA' kullanılmalı
+            belge_turu = 'FATURA' if document_type == 'EFATURA' else document_type
+            
             result = client.service.gelenBelgeleriListele(
                 vergiTcKimlikNo=vkn,
                 sonAlinanBelgeSiraNumarasi='0',  # 0 = tüm belgeler
-                belgeTuru=document_type
+                belgeTuru=belge_turu
             )
 
             if result:
                 documents = []
+                # result bir liste veya tek bir obje olabilir
+                if not isinstance(result, list):
+                    result = [result]
+                
                 for doc in result:
+                    # doc bir dict veya obje olabilir
+                    if hasattr(doc, '__dict__'):
+                        # Obje ise dict'e çevir
+                        doc_dict = doc.__dict__ if hasattr(doc, '__dict__') else {}
+                    elif isinstance(doc, dict):
+                        doc_dict = doc
+                    else:
+                        # Zeep objesi ise
+                        doc_dict = {}
+                        for attr in dir(doc):
+                            if not attr.startswith('_'):
+                                try:
+                                    doc_dict[attr] = getattr(doc, attr)
+                                except:
+                                    pass
+                    
                     documents.append({
-                        'ettn': doc.get('ettn', ''),
-                        'belge_no': doc.get('belgeNo', ''),
-                        'sender_vkn': doc.get('gonderenVkn', ''),
-                        'sender_title': doc.get('gonderenUnvan', ''),
-                        'date': doc.get('belgeTarihi', ''),
-                        'total': doc.get('toplamTutar', 0),
-                        'currency': doc.get('paraBirimi', 'TRY'),
-                        'status': doc.get('durum', '')
+                        'ettn': doc_dict.get('ettn', '') or getattr(doc, 'ettn', ''),
+                        'belge_no': doc_dict.get('belgeNo', '') or getattr(doc, 'belgeNo', '') or doc_dict.get('belge_no', ''),
+                        'sender_vkn': doc_dict.get('gonderenVkn', '') or getattr(doc, 'gonderenVkn', ''),
+                        'sender_title': doc_dict.get('gonderenUnvan', '') or getattr(doc, 'gonderenUnvan', ''),
+                        'date': doc_dict.get('belgeTarihi', '') or getattr(doc, 'belgeTarihi', ''),
+                        'total': float(doc_dict.get('toplamTutar', 0) or getattr(doc, 'toplamTutar', 0) or 0),
+                        'currency': doc_dict.get('paraBirimi', 'TRY') or getattr(doc, 'paraBirimi', 'TRY'),
+                        'status': doc_dict.get('durum', '') or getattr(doc, 'durum', '')
                     })
                 return {'success': True, 'documents': documents}
             return {'success': True, 'documents': []}
