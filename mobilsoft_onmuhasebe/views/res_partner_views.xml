@@ -53,7 +53,7 @@
                         <group>
                             <field name="net_balance" widget="monetary"
                                    decoration-success="net_balance >= 0"
-                                   decoration-danger="net_balance < 0"/>
+                                   decoration-danger="net_balance &lt; 0"/>
                         </group>
                     </group>
                 </page>

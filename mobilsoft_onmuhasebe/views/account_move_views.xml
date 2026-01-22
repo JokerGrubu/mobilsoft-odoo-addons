@@ -7,7 +7,7 @@
         <field name="inherit_id" ref="account.view_move_form"/>
         <field name="arch" type="xml">
             <!-- KDV bilgilerini daha görünür yap -->
-            <xpath expr="//field[@name='amount_total']" position="after">
+            <xpath expr="//field[@name='amount_total_in_currency_signed']" position="after">
                 <div class="alert alert-info" role="alert" 
                      invisible="move_type not in ('out_invoice', 'out_refund', 'in_invoice', 'in_refund')">
                     <strong>KDV Bilgileri:</strong> Türkiye KDV oranları (0%, 1%, 10%, 20%) desteklenmektedir.
