@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Dashboard Form View -->
+    <record id="view_dashboard_form" model="ir.ui.view">
+        <field name="name">mobilsoft.dashboard.form</field>
+        <field name="model">mobilsoft.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Gösterge Paneli" create="0" delete="0">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_refresh_dashboard" 
+                                type="object" 
+                                class="oe_stat_button" 
+                                icon="fa-refresh">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Yenile</span>
+                            </div>
+                        </button>
+                    </div>
+                    
+                    <group>
+                        <group string="💰 Nakit Durumu">
+                            <field name="total_cash" widget="monetary" readonly="1"/>
+                            <field name="total_bank" widget="monetary" readonly="1"/>
+                        </group>
+                        <group string="📊 Cari Durum">
+                            <field name="total_receivable" widget="monetary" readonly="1"/>
+                            <field name="total_payable" widget="monetary" readonly="1"/>
+                        </group>
+                    </group>
+                    
+                    <notebook>
+                        <page string="Hızlı İşlemler" name="quick_actions">
+                            <div class="row">
+                                <div class="col-12 text-center">
+                                    <p class="text-muted">Hızlı işlemler buraya eklenecek</p>
+                                </div>
+                            </div>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

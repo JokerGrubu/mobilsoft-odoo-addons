@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_cheque_promissory" model="ir.sequence">
+            <field name="name">Çek/Senet Numarası</field>
+            <field name="code">mobilsoft.cheque.promissory</field>
+            <field name="prefix">ÇEK-</field>
+            <field name="padding">6</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Çek & Senet Action -->
+        <record id="action_cheque_promissory" model="ir.actions.act_window">
+            <field name="name">Çek &amp; Senet</field>
+            <field name="res_model">mobilsoft.cheque.promissory</field>
+            <field name="view_mode">kanban,tree,form,calendar</field>
+            <field name="context">{'search_default_portfolio': 1}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Henüz çek/senet kaydı yok
+                </p>
+                <p>
+                    Alınan veya verilen çek ve senetleri buradan yönetebilirsiniz.
+                </p>
+            </field>
+        </record>
+        
+        <!-- Dashboard Action -->
+        <record id="action_onmuhasebe_dashboard" model="ir.actions.act_window">
+            <field name="name">Gösterge Paneli</field>
+            <field name="res_model">mobilsoft.dashboard</field>
+            <field name="view_mode">form</field>
+            <field name="target">current</field>
+            <field name="context">{'create': False, 'edit': False}</field>
+            <field name="domain">[]</field>
+        </record>
+    </data>
+</odoo>

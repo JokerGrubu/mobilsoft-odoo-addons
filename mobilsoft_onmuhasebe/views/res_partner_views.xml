@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Cari Hesap Form View -->
+    <record id="view_partner_form_onmuhasebe" model="ir.ui.view">
+        <field name="name">res.partner.form.onmuhasebe</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <!-- VKN/TCKN alanları ekle -->
+            <xpath expr="//field[@name='vat']" position="after">
+                <field name="vkn" placeholder="1234567890"/>
+                <field name="tckn" placeholder="12345678901"/>
+            </xpath>
+            
+            <!-- IBAN ekle -->
+            <xpath expr="//field[@name='phone']" position="after">
+                <field name="iban" placeholder="TR33 0006 1005 1978 6457 8413 26"/>
+            </xpath>
+            
+            <!-- Durum badge -->
+            <xpath expr="//field[@name='is_company']" position="after">
+                <field name="partner_status" widget="badge" 
+                       decoration-success="partner_status == 'active'"
+                       decoration-warning="partner_status == 'passive'"
+                       decoration-danger="partner_status == 'blocked'"/>
+            </xpath>
+            
+            <!-- e-Fatura bilgileri -->
+            <xpath expr="//notebook" position="inside">
+                <page string="🇹🇷 Türkiye Bilgileri" name="turkey_info">
+                    <group>
+                        <group string="Vergi Bilgileri">
+                            <field name="l10n_tr_tax_office_id"/>
+                            <field name="vkn"/>
+                            <field name="tckn"/>
+                        </group>
+                        <group string="Banka Bilgileri">
+                            <field name="iban"/>
+                        </group>
+                    </group>
+                    <group string="e-Fatura">
+                        <field name="is_efatura_user" widget="boolean_toggle"/>
+                        <field name="efatura_alias" 
+                               invisible="not is_efatura_user"/>
+                    </group>
+                </page>
+                
+                <page string="💰 Bakiye Bilgileri" name="balance_info">
+                    <group>
+                        <group>
+                            <field name="total_receivable" widget="monetary"/>
+                            <field name="total_payable" widget="monetary"/>
+                        </group>
+                        <group>
+                            <field name="net_balance" widget="monetary"
+                                   decoration-success="net_balance >= 0"
+                                   decoration-danger="net_balance < 0"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Cari Hesap Tree View -->
+    <record id="view_partner_tree_onmuhasebe" model="ir.ui.view">
+        <field name="name">res.partner.tree.onmuhasebe</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='email']" position="after">
+                <field name="vkn" optional="hide"/>
+                <field name="partner_status" widget="badge" optional="hide"/>
+                <field name="net_balance" widget="monetary" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

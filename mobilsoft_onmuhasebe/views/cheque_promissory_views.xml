@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Çek & Senet Form View -->
+    <record id="view_cheque_promissory_form" model="ir.ui.view">
+        <field name="name">mobilsoft.cheque.promissory.form</field>
+        <field name="model">mobilsoft.cheque.promissory</field>
+        <field name="arch" type="xml">
+            <form string="Çek/Senet">
+                <header>
+                    <button name="action_collect" string="Tahsil/Öde" 
+                            type="object" class="oe_highlight"
+                            invisible="state != 'portfolio'"/>
+                    <button name="action_bounce" string="Karşılıksız" 
+                            type="object" class="btn-danger"
+                            invisible="state not in ('portfolio', 'endorsed')"/>
+                    <button name="action_endorse" string="Ciro Et" 
+                            type="object"
+                            invisible="state != 'portfolio'"/>
+                    <field name="state" widget="statusbar" 
+                           statusbar_visible="portfolio,collected,paid,bounced"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="type" widget="radio"/>
+                            <field name="direction" widget="radio"/>
+                            <field name="partner_id" options="{'no_create': True}"/>
+                        </group>
+                        <group>
+                            <field name="amount" widget="monetary"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="maturity_date"/>
+                            <field name="state"/>
+                        </group>
+                    </group>
+                    <group string="Banka Bilgileri">
+                        <group>
+                            <field name="bank_id"/>
+                            <field name="bank_branch"/>
+                        </group>
+                        <group>
+                            <field name="account_number"/>
+                        </group>
+                    </group>
+                    <group string="Diğer Bilgiler">
+                        <field name="collection_date" 
+                               invisible="state not in ('collected', 'paid')"/>
+                        <field name="is_overdue" readonly="1"/>
+                        <field name="days_overdue" readonly="1"
+                               invisible="not is_overdue"/>
+                        <field name="notes" placeholder="Notlar..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Çek & Senet Tree View -->
+    <record id="view_cheque_promissory_tree" model="ir.ui.view">
+        <field name="name">mobilsoft.cheque.promissory.tree</field>
+        <field name="model">mobilsoft.cheque.promissory</field>
+        <field name="arch" type="xml">
+            <tree string="Çek &amp; Senet" decoration-danger="is_overdue">
+                <field name="name"/>
+                <field name="type"/>
+                <field name="direction"/>
+                <field name="partner_id"/>
+                <field name="amount" widget="monetary"/>
+                <field name="maturity_date"/>
+                <field name="state" widget="badge"
+                       decoration-success="state in ('collected', 'paid')"
+                       decoration-warning="state == 'endorsed'"
+                       decoration-danger="state == 'bounced'"/>
+                <field name="is_overdue" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+    
+    <!-- Çek & Senet Kanban View -->
+    <record id="view_cheque_promissory_kanban" model="ir.ui.view">
+        <field name="name">mobilsoft.cheque.promissory.kanban</field>
+        <field name="model">mobilsoft.cheque.promissory</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column">
+                <field name="name"/>
+                <field name="type"/>
+                <field name="direction"/>
+                <field name="partner_id"/>
+                <field name="amount"/>
+                <field name="maturity_date"/>
+                <field name="state"/>
+                <field name="is_overdue"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click">
+                            <div class="oe_kanban_content">
+                                <div class="o_kanban_record_top">
+                                    <div class="o_kanban_record_headings">
+                                        <strong class="o_kanban_record_title">
+                                            <field name="name"/>
+                                        </strong>
+                                        <div class="o_kanban_record_subtitle">
+                                            <field name="partner_id"/>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="o_kanban_record_body">
+                                    <div>
+                                        <field name="amount" widget="monetary"/>
+                                    </div>
+                                    <div>
+                                        <i class="fa fa-calendar"/> 
+                                        <field name="maturity_date"/>
+                                    </div>
+                                    <div t-if="record.is_overdue.raw_value" 
+                                         class="text-danger">
+                                        <i class="fa fa-exclamation-triangle"/> 
+                                        Vadesi Geçmiş!
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+    
+    <!-- Çek & Senet Search View -->
+    <record id="view_cheque_promissory_search" model="ir.ui.view">
+        <field name="name">mobilsoft.cheque.promissory.search</field>
+        <field name="model">mobilsoft.cheque.promissory</field>
+        <field name="arch" type="xml">
+            <search string="Çek &amp; Senet">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="bank_id"/>
+                <filter string="Vadesi Geçmiş" name="overdue" 
+                        domain="[('is_overdue', '=', True)]"/>
+                <filter string="Portföy" name="portfolio" 
+                        domain="[('state', '=', 'portfolio')]"/>
+                <filter string="Alınan" name="received" 
+                        domain="[('direction', '=', 'received')]"/>
+                <filter string="Verilen" name="given" 
+                        domain="[('direction', '=', 'given')]"/>
+                <separator/>
+                <filter string="Çek" name="cheque" 
+                        domain="[('type', '=', 'cheque')]"/>
+                <filter string="Senet" name="promissory" 
+                        domain="[('type', '=', 'promissory')]"/>
+                <group expand="0" string="Grupla">
+                    <filter string="Durum" name="group_state" 
+                            context="{'group_by': 'state'}"/>
+                    <filter string="Cari" name="group_partner" 
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Tür" name="group_type" 
+                            context="{'group_by': 'type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+</odoo>
