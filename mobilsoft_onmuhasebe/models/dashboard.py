@@ -40,6 +40,23 @@ class MobilsoftDashboard(models.TransientModel):
         default=lambda self: self.env.company.currency_id,
     )
     
+    @api.model
+    def default_get(self, fields_list):
+        """Default değerleri ayarla ve compute et"""
+        res = super().default_get(fields_list)
+        # Currency'yi ayarla
+        if 'currency_id' in fields_list:
+            res['currency_id'] = self.env.company.currency_id.id
+        return res
+    
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Create sonrası compute et"""
+        records = super().create(vals_list)
+        for record in records:
+            record._compute_totals()
+        return records
+    
     @api.depends('currency_id')
     def _compute_totals(self):
         """Dashboard toplamlarını hesapla"""
@@ -118,4 +135,19 @@ class MobilsoftDashboard(models.TransientModel):
             'total_bank': dashboard.total_bank,
             'total_receivable': dashboard.total_receivable,
             'total_payable': dashboard.total_payable,
+        }
+    
+    @api.model
+    def action_open_dashboard(self):
+        """Dashboard'u aç - otomatik record oluştur"""
+        dashboard = self.create({})
+        dashboard._compute_totals()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Gösterge Paneli',
+            'res_model': 'mobilsoft.dashboard',
+            'view_mode': 'form',
+            'res_id': dashboard.id,
+            'target': 'current',
+            'context': {'create': False, 'edit': False},
         }

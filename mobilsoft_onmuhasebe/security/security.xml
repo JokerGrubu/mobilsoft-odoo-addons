@@ -23,7 +23,7 @@
             <field name="res_model">mobilsoft.dashboard</field>
             <field name="view_mode">form</field>
             <field name="target">current</field>
-            <field name="context">{'create': False, 'edit': False}</field>
+            <field name="context">{'create': True, 'edit': False}</field>
             <field name="domain">[]</field>
         </record>
     </data>
