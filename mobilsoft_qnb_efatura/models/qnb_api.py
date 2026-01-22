@@ -477,23 +477,22 @@ class QnbApiClient(models.AbstractModel):
         client, history = self._get_client(company)
 
         try:
-            # QNB API signature kontrolü gerekebilir
-            # Önce parametreler dict ile dene
-            try:
-                result = client.service.gelenBelgeIndir(
-                    parametreler={
-                        'urun': document_type,
-                        'ettn': ettn,
-                        'format': 'XML'
-                    }
-                )
-            except:
-                # Parametreler dict çalışmazsa direkt parametrelerle dene
-                result = client.service.gelenBelgeIndir(
-                    urun=document_type,
-                    ettn=ettn,
-                    format='XML'
-                )
+            # QNB API signature: vergiTcKimlikNo, belgeEttn, belgeTuru, belgeFormati
+            if not company:
+                company = self.env.company
+            
+            vkn = company.vat or company.qnb_username or ''
+            if vkn:
+                vkn = ''.join(filter(str.isdigit, str(vkn)))
+            
+            belge_turu = 'FATURA' if document_type == 'EFATURA' else document_type
+            
+            result = client.service.gelenBelgeIndirExt(
+                vergiTcKimlikNo=vkn,
+                belgeEttn=ettn,
+                belgeTuru=belge_turu,
+                belgeFormati='UBL'  # QNB API: HTML, PDF veya UBL formatları
+            )
 
             if result:
                 return {
