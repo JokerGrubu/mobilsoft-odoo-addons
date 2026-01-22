@@ -30,7 +30,6 @@
                 <page string="🇹🇷 Türkiye Bilgileri" name="turkey_info">
                     <group>
                         <group string="Vergi Bilgileri">
-                            <field name="l10n_tr_tax_office_id"/>
                             <field name="vkn"/>
                             <field name="tckn"/>
                         </group>

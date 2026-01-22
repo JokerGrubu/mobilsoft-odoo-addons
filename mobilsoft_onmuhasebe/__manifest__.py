@@ -34,7 +34,6 @@ Website: https://www.mobilsoft.net
         'sale',
         'purchase',
         'stock',
-        'l10n_tr_tax_office_mobilsoft',
     ],
     'data': [
         'security/ir.model.access.csv',
