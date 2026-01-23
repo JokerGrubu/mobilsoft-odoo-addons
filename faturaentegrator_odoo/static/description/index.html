@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fatura Entegratör - Odoo Modülü</title>
+    <style>
+        .oe_container {
+            width: 100%;
+            margin: 0 auto;
+            max-width: 1170px;
+        }
+        .oe_row {
+            width: 100%;
+            margin-bottom: 32px;
+        }
+        .oe_spaced {
+            padding: 32px 0;
+        }
+        .oe_centered {
+            text-align: center;
+        }
+        .oe_slogan {
+            text-align: center;
+            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+        .oe_mt32 {
+            margin-top: 32px;
+        }
+        .oe_span6 {
+            width: 48%;
+            display: inline-block;
+            vertical-align: top;
+        }
+        .oe_span12 {
+            width: 100%;
+        }
+        .oe_dark {
+            background-color: #f0f0f0;
+        }
+        .oe_screenshot, .oe_picture {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            border-radius: 4px;
+        }
+        .oe_demo {
+            text-align: center;
+        }
+        .oe_separator {
+            border-top: 1px solid #ddd;
+            margin: 40px 0;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .text-justify {
+            text-align: justify;
+        }
+        @media (max-width: 768px) {
+            .oe_span6 {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <div class="oe_centered" style="margin-bottom: 20px;">
+            <img src="icon.png" alt="Fatura Entegratör Logo" style="max-width: 200px; height: auto;">
+        </div>
+        <h2 class="oe_slogan" style="color:#875A7B;">Fatura Entegratör</h2>
+        <h3 class="oe_slogan">Odoo'dan E-Fatura ve E-Arşiv Fatura İşlemlerinizi Otomatikleştirin</h3>
+        <div class="oe_demo oe_picture oe_screenshot">
+            <img src="banner.png" alt="Fatura Entegratör Banner">
+        </div>
+    </div>
+</section>
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <h2 class="oe_slogan" style="color:#875A7B;">Neden Fatura Entegratör?</h2>
+        <div class="oe_span6">
+            <p class="oe_mt32">
+                <strong>Kolay, Hızlı Entegre Edilebilir Odoo Fatura Modülü</strong>
+                <br><br>
+                Fatura Entegratör Odoo modülü, Odoo sipariş ve faturalarınızı Fatura Entegratör API'sine otomatik olarak göndermenizi sağlar. 
+                E-fatura ve e-arşiv fatura işlemlerinizi tek tıkla yönetin, formalize edin ve PDF'lerini alın.
+                <br><br>
+                Çoklu şirket desteği ile farklı şirketleriniz için ayrı entegrasyonlar yapılandırabilir, 
+                her şirket için özel varsayılan ayarlar belirleyebilirsiniz.
+            </p>
+        </div>
+        <div class="oe_span6">
+            <div class="oe_row_img oe_centered">
+                <img class="oe_picture oe_screenshot" src="banner.png" alt="Entegrasyon">
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h2 class="oe_slogan" style="color:#875A7B;">Özellikler</h2>
+        <div class="oe_span6">
+            <div class="oe_row_img oe_centered">
+                <img class="oe_picture" src="fatura-entegrator-entegrasyonlar.png" alt="E-Fatura Entegrasyonu">
+            </div>
+        </div>
+        <div class="oe_span6">
+            <p class="oe_mt32 text-justify">
+                <ul>
+                    <li><strong>Çoklu Şirket Desteği:</strong> Her şirket için ayrı API anahtarı ve entegrasyon yapılandırması</li>
+                    <li><strong>Sipariş Gönderimi:</strong> Odoo siparişlerini (sale.order) Fatura Entegratör'e gönderin</li>
+                    <li><strong>Fatura Gönderimi:</strong> Odoo faturalarını (account.move) Fatura Entegratör'e gönderin</li>
+                    <li><strong>Tüm Entegratörlere Gönderim:</strong> Paraşüt, Bizim Hesap, Logo ve tüm e-fatura entegratörlerine gönderebilirsiniz</li>
+                    <li><strong>Otomatik Formalize:</strong> Gönderilen faturaları otomatik olarak formalize edin</li>
+                    <li><strong>PDF İndirme:</strong> Formalize edilen faturaların PDF'lerini otomatik indirin</li>
+                    <li><strong>Durum Takibi:</strong> Fatura durumlarını (Taslak, Gönderildi, Resmileştirildi) takip edin</li>
+                    <li><strong>İnternet Satışı Desteği:</strong> İnternet satışları için özel ödeme ve kargo bilgileri</li>
+                    <li><strong>Kargo Bilgileri:</strong> Teslimat gereken faturalar için kargo firması ve kurye bilgileri</li>
+                    <li><strong>Muafiyet Yönetimi:</strong> KDV muafiyeti olan faturalar için muafiyet kodu ve sebebi</li>
+                    <li><strong>Callback Desteği:</strong> Fatura durum değişikliklerini otomatik alın</li>
+                </ul>
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <h2 class="oe_slogan" style="color:#875A7B;">Kolay Kurulum</h2>
+        <div class="oe_span6">
+            <p class="oe_mt32">
+                <p class="oe_mt32">
+                    Kurulum oldukça kolaydır. Modülü indirin, <a href="https://faturaentegrator.com" target="_blank">faturaentegrator.com</a> üzerinden bir hesap oluşturun ve API anahtarınızı şirket ayarlarına girin.
+                    <br><br>
+                    API anahtarınızı girdikten sonra "Bağlan" butonuna tıklayarak entegrasyonunuzu aktifleştirin. 
+                    Her şirket için ayrı API anahtarı kullanabilir ve varsayılan ayarlarınızı yapılandırabilirsiniz.
+                </p>
+            </p>
+        </div>
+        <div class="oe_span6">
+            <div class="oe_row_img oe_centered">
+                <img class="oe_picture oe_screenshot" src="fatura-entegrator-install.png" alt="Kurulum Ekran">
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h2 class="oe_slogan" style="color:#875A7B;">Nasıl Çalışır?</h2>
+        <div class="oe_span12">
+            <p class="text-center">
+                <strong>1.</strong> Sipariş veya Faturayı seçin → <strong>2.</strong> "FE'ye Gönder" butonuna tıklayın → <strong>3.</strong> Gerekli bilgileri kontrol edin/düzenleyin → <strong>4.</strong> Gönderin ve formalize edin
+            </p>
+            <br>
+            <div class="oe_row_img oe_centered">
+                <img class="oe_picture oe_screenshot" src="fatura-entegrator-wizard.png" alt="Gönderim Wizard" style="max-width: 80%;">
+            </div>
+            <div class="oe_row_img oe_centered">
+                <img class="oe_picture oe_screenshot" src="fatura-entegrator-status.png" alt="Durum Takibi" style="max-width: 80%;">
+            </div>
+            <div class="oe_row_img oe_centered">
+                <img class="oe_picture oe_screenshot" src="fatura-entegrator-invoice-list.png" alt="Fatura Listesi" style="max-width: 80%;">
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <h2 class="oe_slogan" style="color:#875A7B;">Sipariş ve Fatura Yönetimi</h2>
+        <div class="oe_span6">
+            <h3 class="oe_slogan">Sipariş Gönderimi</h3>
+        </div>
+        <div class="oe_span6">
+            <p class="oe_mt32">
+                <strong>Odoo Siparişlerinizi Kolayca Gönderin</strong>
+                <br><br>
+                Sale Order (Sipariş) formunda "FE'ye Gönder" butonuna tıklayarak siparişinizi Fatura Entegratör'e gönderebilirsiniz. 
+                Wizard ekranında müşteri bilgilerini kontrol edip düzenleyebilir, ödeme ve kargo bilgilerini ekleyebilirsiniz.
+                <br><br>
+                İnternet satışı olan siparişler için ödeme yöntemi ve platform bilgilerini, teslimat gereken siparişler için 
+                kargo firması ve kurye bilgilerini ekleyebilirsiniz.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h2 class="oe_slogan" style="color:#875A7B;">Fatura Durum Takibi</h2>
+        <div class="oe_span6">
+            <p class="oe_mt32">
+                <strong>Faturalarınızı Tek Yerden Yönetin</strong>
+                <br><br>
+                FE Invoice menüsünden gönderdiğiniz tüm faturaları görüntüleyebilir, durumlarını takip edebilirsiniz. 
+                Fatura durumları: Taslak, Gönderildi, Resmileştirildi, İptal Edildi, Reddedildi.
+                <br><br>
+                Formalize edilen faturaların PDF'lerini otomatik olarak indirebilir, Odoo'da saklayabilirsiniz. 
+                Her fatura için Fatura Entegratör'deki orijinal sayfasına direkt link ile erişebilirsiniz.
+            </p>
+        </div>
+        <div class="oe_span6">
+            <div class="oe_row_img oe_centered">
+                <img class="oe_picture oe_screenshot" src="fatura-entegrator-invoice-detail.png" alt="Fatura Detay">
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <h2 class="oe_slogan" style="color:#875A7B;">Desteklenen E-Fatura Entegratörleri</h2>
+        <div class="oe_span12">
+            <p class="text-center">
+                <strong>Tüm Popüler E-Fatura Entegratörlerine Gönderim</strong>
+                <br><br>
+                Fatura Entegratör Odoo modülü, Odoo'dan gönderdiğiniz faturaları tüm popüler e-fatura entegratörlerine aktarabilir. 
+                Paraşüt, Bizim Hesap, Logo ve diğer tüm uygulamalara tek bir API üzerinden gönderim yapabilirsiniz.
+            </p>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; margin-top: 30px; gap: 20px;">
+                <div style="margin: 10px; text-align: center; width: 150px;">
+                    <img src="https://faturaentegrator.com/wp-content/uploads/2025/07/fatura-entegrator-parasut.png" alt="Paraşüt" style="max-width: 120px; height: auto; margin-bottom: 10px;">
+                    <h4>Paraşüt</h4>
+                    <p>Paraşüt entegrasyonu ile faturalarınızı gönderin</p>
+                </div>
+                <div style="margin: 10px; text-align: center; width: 150px;">
+                    <img src="https://faturaentegrator.com/wp-content/uploads/2025/07/fatura-entegrator-bizimhesap.png" alt="Bizim Hesap" style="max-width: 120px; height: auto; margin-bottom: 10px;">
+                    <h4>Bizim Hesap</h4>
+                    <p>Bizim Hesap entegrasyonu ile faturalarınızı gönderin</p>
+                </div>
+                <div style="margin: 10px; text-align: center; width: 150px;">
+                    <img src="https://faturaentegrator.com/wp-content/uploads/2025/08/logo-isbasi.png" alt="Logo İşbaşı" style="max-width: 120px; height: auto; margin-bottom: 10px;">
+                    <h4>Logo İşbaşı</h4>
+                    <p>Logo İşbaşı entegrasyonu ile faturalarınızı gönderin</p>
+                </div>
+                <div style="margin: 10px; text-align: center; width: 150px;">
+                    <img src="https://faturaentegrator.com/wp-content/uploads/2025/07/fatura-entegrator-mysoft.png" alt="Mysoft" style="max-width: 120px; height: auto; margin-bottom: 10px;">
+                    <h4>Mysoft</h4>
+                    <p>Mysoft entegrasyonu ile faturalarınızı gönderin</p>
+                </div>
+                <div style="margin: 10px; text-align: center; width: 150px;">
+                    <img src="https://faturaentegrator.com/wp-content/uploads/2025/07/fatura-entegrator-qnbefinans-1.png" alt="QNB E-Finans" style="max-width: 120px; height: auto; margin-bottom: 10px;">
+                    <h4>QNB E-Finans</h4>
+                    <p>QNB E-Finans entegrasyonu ile faturalarınızı gönderin</p>
+                </div>
+                <div style="margin: 10px; text-align: center; width: 150px;">
+                    <img src="https://faturaentegrator.com/wp-content/uploads/2025/07/elogo.png" alt="E-Logo" style="max-width: 120px; height: auto; margin-bottom: 10px;">
+                    <h4>E-Logo</h4>
+                    <p>E-Logo entegrasyonu ile faturalarınızı gönderin</p>
+                </div>
+                <div style="margin: 10px; text-align: center; width: 150px;">
+                    <img src="https://faturaentegrator.com/wp-content/uploads/2025/07/fatura-entegrator-uyumsoft-1.png" alt="Uyumsoft" style="max-width: 120px; height: auto; margin-bottom: 10px;">
+                    <h4>Uyumsoft</h4>
+                    <p>Uyumsoft entegrasyonu ile faturalarınızı gönderin</p>
+                </div>
+                <div style="margin: 10px; text-align: center; width: 150px;">
+                    <img src="https://faturaentegrator.com/wp-content/uploads/2025/08/Fatura-Entegrator-Turkcell.png" alt="Turkcell Planet" style="max-width: 120px; height: auto; margin-bottom: 10px;">
+                    <h4>Turkcell Planet</h4>
+                    <p>Turkcell Planet entegrasyonu ile faturalarınızı gönderin</p>
+                </div>
+                <div style="margin: 10px; text-align: center; width: 150px;">
+                    <img src="https://faturaentegrator.com/wp-content/uploads/2025/08/Fatura-Entegrator-Isnet.png" alt="İşNet" style="max-width: 120px; height: auto; margin-bottom: 10px;">
+                    <h4>İşNet</h4>
+                    <p>İşNet entegrasyonu ile faturalarınızı gönderin</p>
+                </div>
+                <div style="margin: 10px; text-align: center; width: 150px;">
+                    <img src="https://faturaentegrator.com/wp-content/uploads/2025/07/sovos-1.png" alt="Sovos" style="max-width: 120px; height: auto; margin-bottom: 10px;">
+                    <h4>Sovos</h4>
+                    <p>Sovos entegrasyonu ile faturalarınızı gönderin</p>
+                </div>
+            </div>
+            <p class="text-center" style="margin-top: 30px;">
+                <strong>Ve daha fazlası!</strong> Fatura Entegratör, tüm e-fatura entegratörleri ile uyumlu çalışır. 
+                Hangi entegratörü kullanırsanız kullanın, Odoo'dan tek tıkla fatura gönderimi yapabilirsiniz.
+            </p>
+        </div>
+    </div>
+</section>
+
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <h2 class="oe_slogan" style="color:#875A7B;">Çoklu Şirket Desteği</h2>
+        <div class="oe_span12">
+            <p class="text-center">
+                <strong>Her Şirket İçin Ayrı Entegrasyon</strong>
+                <br><br>
+                Modül, Odoo'nun çoklu şirket özelliğini tam destekler. Her şirket için:
+            </p>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; margin-top: 30px; gap: 20px;">
+                <div style="margin: 10px; text-align: center; width: 200px;">
+                    <h4>🔑 Ayrı API Anahtarı</h4>
+                    <p>Her şirket için farklı Fatura Entegratör hesabı kullanabilirsiniz</p>
+                </div>
+                <div style="margin: 10px; text-align: center; width: 200px;">
+                    <h4>⚙️ Varsayılan Ayarlar</h4>
+                    <p>İnternet satışı, ödeme yöntemi, kargo bilgileri gibi varsayılanlar</p>
+                </div>
+                <div style="margin: 10px; text-align: center; width: 200px;">
+                    <h4>📊 Bağımsız Takip</h4>
+                    <p>Her şirketin faturalarını ayrı ayrı takip edin</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h2 class="oe_slogan" style="color:#875A7B;">Sık Sorulan Sorular</h2>
+        <div class="oe_span12">
+            <div style="margin-bottom: 20px;">
+                <h4><strong>Odoo fatura entegrasyonu hangi fatura türlerini destekler?</strong></h4>
+                <p>Modül, müşteri faturaları (out_invoice), müşteri iade faturaları (out_refund), tedarikçi faturaları (in_invoice) ve tedarikçi iade faturalarını (in_refund) destekler. E-fatura ve e-arşiv fatura işlemlerini yönetebilirsiniz.</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <h4><strong>Çoklu şirket desteği nasıl çalışır?</strong></h4>
+                <p>Her şirket için ayrı API anahtarı tanımlayabilirsiniz. Şirket ayarlarından (Settings > Companies) her şirket için Fatura Entegratör sekmesine giderek API anahtarınızı girebilir ve entegrasyonu aktifleştirebilirsiniz.</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <h4><strong>Faturaları otomatik formalize edebilir miyim?</strong></h4>
+                <p>Evet, faturaları gönderdikten sonra "Formalize Et" butonuna tıklayarak faturaları otomatik olarak formalize edebilirsiniz. Formalize edilen faturaların PDF'leri otomatik olarak indirilir ve Odoo'da saklanır.</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <h4><strong>Callback özelliği nedir?</strong></h4>
+                <p>Callback özelliği sayesinde, Fatura Entegratör'de fatura durumu değiştiğinde (örneğin formalize edildiğinde) Odoo'da otomatik olarak güncellenir. Bu sayede manuel kontrol yapmanıza gerek kalmaz.</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <h4><strong>Hangi e-fatura entegratörlerine gönderim yapabilirim?</strong></h4>
+                <p>Fatura Entegratör Odoo modülü, Paraşüt, Bizim Hesap, Logo, Mysoft, QNB E-Finans, E-Logo, Uyumsoft, Turkcell Planet, İşNet, Sovos ve diğer tüm popüler e-fatura entegratörlerine gönderim yapmanızı sağlar. Hangi entegratörü kullanırsanız kullanın, Odoo'dan tek bir API üzerinden fatura gönderimi yapabilirsiniz.</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <h4><strong>Bizim Hesap nedir?</strong></h4>
+                <p>Bizim Hesap, Fatura Entegratör'ün kendi e-fatura hesabıdır. Ek bir entegratör hesabına ihtiyaç duymadan direkt Fatura Entegratör üzerinden e-fatura süreçlerinizi yönetebilirsiniz. Hızlı kurulum, otomatik formalize ve kolay yönetim imkanı sunar.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <h2 class="oe_slogan" style="color:#875A7B;">İletişim ve Destek</h2>
+        <div class="oe_span6">
+            <div class="oe_row_img oe_centered">
+                <img class="oe_picture" src="https://faturaentegrator.com/wp-content/uploads/2025/07/prefooter.png" alt="Destek">
+            </div>
+        </div>
+        <div class="oe_span6">
+            <p class="oe_mt32">
+                Herhangi bir sorunuz veya öneriniz mi var? Bize ulaşın:
+            </p>
+            <ul>
+                <li><i class="fa fa-globe"></i> <a href="https://faturaentegrator.com" target="_blank">faturaentegrator.com</a></li>
+                <li><i class="fa fa-envelope"></i> <a href="mailto:destek@faturaentegrator.com">destek@faturaentegrator.com</a></li>
+                <li><i class="fa fa-phone"></i> +90 (224) 334 0 356</li>
+                <li><i class="fa fa-map-marker"></i> Üçevler Mah Ertuğrul Cad No:85 / 13 Eker İş Merkezi, 16120 Nilüfer/Bursa</li>
+            </ul>
+            <p>
+                Ayrıca modülün kullanımı ve kurulumu için <a href="https://faturaentegrator.com" target="_blank">dokümantasyonumuzu</a> inceleyebilirsiniz.
+            </p>
+            <p>
+                <strong>Fatura Entegratör ile e-fatura süreçlerinizi kolaylaştırmaya sadece bir tık uzaktasınız!</strong>
+            </p>
+        </div>
+    </div>
+</section>
+
+
+<section class="oe_container oe_separator"></section>
+
+</body>
+</html>
+

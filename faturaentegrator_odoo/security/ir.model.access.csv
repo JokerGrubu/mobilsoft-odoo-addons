@@ -1,0 +1,10 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fe_send_order_wizard_user,fe.send.order.wizard user,model_fe_send_order_wizard,base.group_user,1,1,1,1
+access_fe_integration_temp_user,fe.integration.temp user,model_fe_integration_temp,base.group_user,1,1,1,1
+access_fe_send_order_wizard_line_user,fe.send.order.wizard.line user,model_fe_send_order_wizard_line,base.group_user,1,1,1,1
+access_fe_invoice_user,fe.invoice user,model_fe_invoice,base.group_user,1,1,1,1
+access_fe_invoice_accountant,fe.invoice accountant,model_fe_invoice,account.group_account_user,1,1,1,1
+access_fe_invoice_manager,fe.invoice manager,model_fe_invoice,account.group_account_manager,1,1,1,1
+access_fe_send_invoice_wizard_user,fe.send.invoice.wizard user,model_fe_send_invoice_wizard,base.group_user,1,1,1,1
+access_fe_send_invoice_wizard_line_user,fe.send.invoice.wizard.line user,model_fe_send_invoice_wizard_line,base.group_user,1,1,1,1
+

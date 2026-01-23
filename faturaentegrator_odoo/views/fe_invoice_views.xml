@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- List View -->
+    <record id="view_fe_invoice_list" model="ir.ui.view">
+        <field name="name">fe.invoice.list</field>
+        <field name="model">fe.invoice</field>
+        <field name="arch" type="xml">
+            <list string="Fatura Entegratör Faturaları" default_order="create_date desc" create="0">
+                <field name="invoice_number" string="Fatura No"/>
+                <field name="invoice_date" string="Fatura Tarihi"/>
+                <field name="partner_id" string="Müşteri"/>
+                <field name="external_id" string="FE ID"/>
+                <field name="fe_status" string="Durum"/>
+                <field name="account_move_id" invisible="1"/>
+                <field name="sale_order_id" invisible="1"/>
+                <field name="company_id" invisible="1"/>
+                <button name="action_view_account_move" type="object" string="Fatura" icon="fa-file-text-o" invisible="account_move_id == False"/>
+                <button name="action_view_sale_order" type="object" string="Sipariş" icon="fa-shopping-cart" invisible="sale_order_id == False"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_fe_invoice_form" model="ir.ui.view">
+        <field name="name">fe.invoice.form</field>
+        <field name="model">fe.invoice</field>
+        <field name="arch" type="xml">
+            <form string="Fatura Entegratör Faturası" create="0">
+                <header>
+                      <button name="action_fe_download_formal_pdf" type="object" string="PDF İndir" class="btn-primary" invisible="pdf_url == False"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Temel Bilgiler">
+                            <field name="invoice_number" readonly="1"/>
+                            <field name="invoice_date" readonly="1"/>
+                            <field name="fe_invoice_url" widget="url" readonly="1" invisible="fe_invoice_url == False"/>
+                        </group>
+                        <group string="Bağlantılar">
+                            <field name="account_move_id" readonly="1" options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="sale_order_id" readonly="1" options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="partner_id" readonly="1" options="{'no_create': True, 'no_create_edit': True}"/>
+                        </group>
+                    </group>
+                    <group string="PDF Bilgileri" invisible="pdf_url == False">
+                        <group>
+                            <field name="pdf_url" widget="url" readonly="1" string="PDF URL"/>
+                            <field name="pdf_attachment_id" readonly="1" invisible="pdf_attachment_id == False" string="Kaydedildi"/>
+                        </group>
+                    </group>
+                    <group string="Durum Bilgileri">
+                        <group>
+                            <field name="fe_status" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Muafiyet Bilgileri" invisible="amount_tax != 0">
+                        <group>
+                            <field name="exemption_code" readonly="1"/>
+                            <field name="exemption_reason" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_fe_invoice_search" model="ir.ui.view">
+        <field name="name">fe.invoice.search</field>
+        <field name="model">fe.invoice</field>
+        <field name="arch" type="xml">
+            <search string="Fatura Entegratör Faturaları">
+                <field name="invoice_number" string="Fatura No"/>
+                <field name="external_id" string="FE ID"/>
+                <field name="partner_id" string="Müşteri"/>
+                <field name="account_move_id" string="Odoo Faturası"/>
+                <field name="sale_order_id" string="Odoo Siparişi"/>
+                <separator/>
+                <filter string="Taslak" name="status_draft" domain="[('fe_status', '=', 'draft')]"/>
+                <filter string="Gönderildi" name="status_sent" domain="[('fe_status', '=', 'sent')]"/>
+                <filter string="Resmileştirildi" name="status_formalized" domain="[('fe_status', '=', 'formalized')]"/>
+                <filter string="İptal Edildi" name="status_cancelled" domain="[('fe_status', '=', 'cancelled')]"/>
+                <filter string="Reddedildi" name="status_rejected" domain="[('fe_status', '=', 'rejected')]"/>
+                <separator/>
+                <filter string="Oluşturulma Tarihi" name="filter_create_date" date="create_date"/>
+                <separator/>
+                <filter string="Odoo Faturası Var" name="has_account_move" domain="[('account_move_id', '!=', False)]"/>
+                <filter string="Odoo Siparişi Var" name="has_sale_order" domain="[('sale_order_id', '!=', False)]"/>
+                <separator/>
+                <filter string="Fatura" name="move_type_invoice" domain="[('move_type', '=', 'out_invoice')]"/>
+                <filter string="İade Faturası" name="move_type_refund" domain="[('move_type', '=', 'out_refund')]"/>
+                <group expand="0" string="Grupla">
+                    <filter string="Durum" name="group_fe_status" context="{'group_by': 'fe_status'}"/>
+                    <filter string="Müşteri" name="group_partner" context="{'group_by': 'partner_id'}"/>
+                    <filter string="Fatura Tarihi" name="group_invoice_date" context="{'group_by': 'invoice_date'}"/>
+                    <filter string="Şirket" name="group_company" context="{'group_by': 'company_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_fe_invoice" model="ir.actions.act_window">
+        <field name="name">FT: Faturalar</field>
+        <field name="res_model">fe.invoice</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_fe_invoice_search"/>
+        <field name="context">{'search_default_today': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Henüz Fatura Entegratör'e gönderilmiş fatura yok.
+            </p>
+            <p>
+                Faturalar, Odoo'dan Fatura Entegratör'e gönderildiğinde otomatik olarak burada görünecektir.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menü -->
+    <menuitem id="menu_fe_invoice"
+              name="FT: Faturalar"
+              parent="account.menu_finance_receivables"
+              action="action_fe_invoice"
+              sequence="100"/>
+
+    <!-- Kanban View (opsiyonel) -->
+    <record id="view_fe_invoice_kanban" model="ir.ui.view">
+        <field name="name">fe.invoice.kanban</field>
+        <field name="model">fe.invoice</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="fe_status" class="o_kanban_small_column">
+                <field name="invoice_number"/>
+                <field name="invoice_date"/>
+                <field name="partner_id"/>
+                <field name="fe_status"/>
+                <field name="external_id"/>
+                <field name="account_move_id"/>
+                <field name="sale_order_id"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click">
+                            <div class="oe_kanban_content">
+                                <div class="o_kanban_record_top">
+                                    <div class="o_kanban_record_headings">
+                                        <strong class="o_kanban_record_title">
+                                            <field name="invoice_number"/>
+                                        </strong>
+                                    </div>
+                                </div>
+                                <div class="o_kanban_record_body">
+                                    <div>
+                                        <field name="partner_id"/>
+                                    </div>
+                                    <div>
+                                        <field name="invoice_date"/>
+                                    </div>
+                                    <div>
+                                        <span>Durum: </span><field name="fe_status"/>
+                                    </div>
+                                    <div>
+                                        <field name="external_id"/>
+                                    </div>
+                                </div>
+                                <div class="o_kanban_record_bottom">
+                                    <button name="action_view_account_move" type="object" string="Fatura" icon="fa-file-text-o" invisible="account_move_id == False" class="oe_kanban_action_button"/>
+                                    <button name="action_view_sale_order" type="object" string="Sipariş" icon="fa-shopping-cart" invisible="sale_order_id == False" class="oe_kanban_action_button"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+</odoo>
+

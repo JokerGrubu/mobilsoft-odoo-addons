@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_company_form_inherit_fe" model="ir.ui.view">
+        <field name="name">res.company.form.fatura.entegrator</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/notebook" position="inside">
+                <page string="Fatura Entegratör">
+                    <group>
+                        <group>
+                            <field name="fe_api_key" password="True"/>
+                        </group>
+                        <group>
+                            <button name="fe_connect" type="object" string="Bağlan" class="oe_highlight" invisible="fe_sale_channel_id"/>
+                            <button name="fe_disconnect" type="object" string="Bağlantıyı Kes" invisible="fe_sale_channel_id == False"/>
+                        </group>
+                        <group string="Satış Kanalı" >
+                            <field name="fe_sale_channel_id" readonly="1"/>
+                            <field name="fe_sale_channel_name" readonly="1"/>
+                        </group>
+                    </group>
+                    <div class="oe_read_only" invisible="fe_api_key == False or fe_sale_channel_id == False">
+                        <p>Fatura Entegratör ile daha hızlı fatura oluşturmak için varsayılan ayarlarınızı kayıt edin.</p>
+                    </div>
+                    <group string="İnternet Satışı Varsayılanları" col="2" invisible="fe_api_key == False or fe_sale_channel_id == False">
+                        <group>
+                            <field name="fe_is_internet_sale" string="İnternet Satışı"/>
+                        </group>
+                        <group string="Ödeme Bilgileri" invisible="fe_is_internet_sale == False">
+                            <field name="fe_payment_method"/>
+                            <field name="fe_payment_platform"/>
+                        </group>
+                    </group>
+                    <group string="Teslimat Varsayılanları" col="2" invisible="fe_api_key == False or fe_sale_channel_id == False">
+                        <group>
+                            <field name="fe_is_need_shipment" string="Teslimat Gerekli mi?"/>
+                        </group>
+                        <group string="Teslimat Bilgileri" invisible="fe_is_need_shipment == False">
+                            <field name="fe_shipment_company_title"/>
+                            <field name="fe_shipment_company_tax_number"/>
+                            <field name="fe_shipment_courier_name"/>
+                            <field name="fe_shipment_courier_tax_number"/>
+                        </group>
+                    </group>
+                    <group string="Varsayılan Muafiyet">
+                                <field name="fe_exemption_code"/>
+                            </group>
+                            <group string="Açıklama">
+                                <field name="fe_description"/>
+                            </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
+
