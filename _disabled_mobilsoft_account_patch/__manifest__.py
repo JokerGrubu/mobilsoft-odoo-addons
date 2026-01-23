@@ -17,8 +17,8 @@
     "category": "Accounting/Localizations/Account Charts",
     "depends": ["account"],
     "data": [],
-    "installable": True,
+    "installable": False,  # Disabled - causes KeyError: 'tax_src_id' in new databases
     "application": False,
-    "auto_install": True,
+    "auto_install": False,
     "images": ["images/main_screenshot.png"],
 }
