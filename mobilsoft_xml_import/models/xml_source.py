@@ -570,9 +570,6 @@ class XmlProductSource(models.Model):
                     _logger.warning("XML decode hatası - bazı karakterler kaybolabilir")
 
             return xml_text
-                    encoding = match.group(1).decode('ascii')
-
-            return content.decode(encoding, errors='replace')
 
         except requests.exceptions.RequestException as e:
             raise UserError(_('XML çekilemedi: %s') % str(e))
