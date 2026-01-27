@@ -30,7 +30,7 @@ class XmlProductSource(models.Model):
     )
     active = fields.Boolean(default=True)
     sequence = fields.Integer(default=10)
-    
+
     # Tedarikçi Bilgileri
     supplier_id = fields.Many2one(
         'res.partner',
@@ -38,7 +38,7 @@ class XmlProductSource(models.Model):
         domain=[('supplier_rank', '>', 0)],
         help='Bu XML kaynağına bağlı tedarikçi',
     )
-    
+
     # XML Ayarları
     xml_url = fields.Char(
         string='XML URL',
@@ -54,7 +54,7 @@ class XmlProductSource(models.Model):
         string='Şifre',
         help='HTTP Basic Auth şifresi (opsiyonel)',
     )
-    
+
     # XML Yapısı
     xml_template = fields.Selection([
         ('tsoft', 'T-Soft'),
@@ -74,13 +74,13 @@ class XmlProductSource(models.Model):
         ('akakce', 'Akakçe'),
         ('custom', 'Özel (Custom)'),
     ], string='XML Şablonu', default='custom', required=True)
-    
+
     root_element = fields.Char(
         string='Kök Element (XPath)',
         default='//Product',
         help='Ürün elementlerinin XPath yolu. Örnek: //Products/Product veya //item',
     )
-    
+
     # Durum
     state = fields.Selection([
         ('draft', 'Taslak'),
@@ -88,7 +88,7 @@ class XmlProductSource(models.Model):
         ('error', 'Hata'),
         ('paused', 'Duraklatıldı'),
     ], string='Durum', default='draft', tracking=True)
-    
+
     last_sync = fields.Datetime(
         string='Son Senkronizasyon',
         readonly=True,
@@ -97,7 +97,7 @@ class XmlProductSource(models.Model):
         string='Son Hata',
         readonly=True,
     )
-    
+
     # İstatistikler
     product_count = fields.Integer(
         string='Ürün Sayısı',
@@ -107,7 +107,7 @@ class XmlProductSource(models.Model):
         string='Log Sayısı',
         compute='_compute_counts',
     )
-    
+
     # İlişkiler
     field_mapping_ids = fields.One2many(
         'xml.field.mapping',
@@ -119,14 +119,14 @@ class XmlProductSource(models.Model):
         'source_id',
         string='İçe Aktarım Logları',
     )
-    
+
     # Dropshipping Fiyatlandırma
     price_markup_type = fields.Selection([
         ('percent', 'Yüzde (%)'),
         ('fixed', 'Sabit Tutar'),
         ('both', 'Her İkisi'),
     ], string='Kar Tipi', default='percent')
-    
+
     price_markup_percent = fields.Float(
         string='Kar Marjı (%)',
         default=30.0,
@@ -148,7 +148,7 @@ class XmlProductSource(models.Model):
         ('00', 'Tam sayı'),
         ('none', 'Yuvarlamadan'),
     ], string='Yuvarlama', default='99')
-    
+
     min_price = fields.Float(
         string='Minimum Fiyat',
         help='Bu fiyatın altındaki ürünleri atla',
@@ -162,7 +162,7 @@ class XmlProductSource(models.Model):
         default=1,
         help='Bu stok miktarının altındaki ürünleri atla',
     )
-    
+
     # Senkronizasyon Ayarları
     auto_sync = fields.Boolean(
         string='Otomatik Senkronizasyon',
@@ -176,7 +176,7 @@ class XmlProductSource(models.Model):
         string='Sonraki Senkronizasyon',
         compute='_compute_next_sync',
     )
-    
+
     # İçe Aktarım Seçenekleri
     create_new_products = fields.Boolean(
         string='Yeni Ürün Oluştur',
@@ -210,7 +210,7 @@ class XmlProductSource(models.Model):
         default=True,
         help='Ürün açıklamalarını güncelle',
     )
-    
+
     # Stok Sıfır Politikası
     deactivate_zero_stock = fields.Boolean(
         string='Stok 0 Olunca Satışa Kapat',
@@ -222,14 +222,14 @@ class XmlProductSource(models.Model):
         default=True,
         help='Stok 0 olduğunda ve hiç satışı olmayan ürünleri sistemden sil',
     )
-    
+
     # Varyant Ayarları
     create_variants = fields.Boolean(
         string='Varyant Oluştur',
         default=True,
         help='Aynı SKU farklı barkod = Varyant olarak aç',
     )
-    
+
     # Eşleştirme Önceliği
     match_by_barcode = fields.Boolean(
         string='Barkod ile Eşleştir',
@@ -248,7 +248,7 @@ class XmlProductSource(models.Model):
         default=80,
         help='İsim eşleştirmesi için minimum benzerlik oranı',
     )
-    
+
     # Varsayılan Değerler
     default_category_id = fields.Many2one(
         'product.category',
@@ -291,7 +291,7 @@ class XmlProductSource(models.Model):
             'tsoft': 'product',
             'ticimax': '//Products/Product',
             'ideasoft': '//ProductList/Product',
-            'akinsoft': '//urunler/urun',
+            'akinsoft': '//urun',
             'opencart': '//products/product',
             'woocommerce': '//rss/channel/item',
             'prestashop': '//products/product',
@@ -310,10 +310,10 @@ class XmlProductSource(models.Model):
     def action_load_template_mappings(self):
         """Şablona göre varsayılan alan eşleştirmelerini yükle"""
         self.ensure_one()
-        
+
         # Mevcut mapping'leri sil
         self.field_mapping_ids.unlink()
-        
+
         # Şablona göre mapping'ler
         templates = {
             'tsoft': {
@@ -361,16 +361,17 @@ class XmlProductSource(models.Model):
                 'weight': 'Weight',
             },
             'akinsoft': {
-                'sku': 'stok_kodu',
-                'barcode': 'barkod',
-                'name': 'stok_adi',
-                'description': 'aciklama',
-                'price': 'satis_fiyat1',
-                'cost_price': 'alis_fiyat',
-                'stock': 'miktar',
-                'category': 'grup_adi',
-                'brand': 'marka',
-                'image': 'resim',
+                'sku': 'STOK_KODU',
+                'barcode': 'BARKODU',
+                'name': 'STOK_ADI',
+                'description': 'DETAY',
+                'category': 'KATEGORI',
+                'brand': 'MARKA',
+                'image': 'GORSEL1',
+                'image2': 'GORSEL2',
+                'image3': 'GORSEL3',
+                'image4': 'GORSEL4',
+                'extra1': 'ALTKATEGORI',
             },
             'opencart': {
                 'sku': 'model',
@@ -491,16 +492,16 @@ class XmlProductSource(models.Model):
                 'image': 'Image',
             },
         }
-        
+
         mapping_data = templates.get(self.xml_template, {})
-        
+
         for odoo_field, xml_path in mapping_data.items():
             self.env['xml.field.mapping'].create({
                 'source_id': self.id,
                 'odoo_field': odoo_field,
                 'xml_path': xml_path,
             })
-        
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -519,17 +520,17 @@ class XmlProductSource(models.Model):
     def _fetch_xml(self):
         """XML'i URL'den çek"""
         self.ensure_one()
-        
+
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (compatible; OdooBot/1.0)',
                 'Accept': 'application/xml, text/xml, */*',
             }
-            
+
             auth = None
             if self.xml_username and self.xml_password:
                 auth = (self.xml_username, self.xml_password)
-            
+
             response = requests.get(
                 self.xml_url,
                 headers=headers,
@@ -537,51 +538,51 @@ class XmlProductSource(models.Model):
                 timeout=120,
             )
             response.raise_for_status()
-            
+
             # Encoding düzeltme - content bytes olarak al
             # XML header'dan encoding'i oku
             content = response.content
-            
+
             # XML declaration'dan encoding tespit et
             encoding = 'utf-8'
             if content.startswith(b'<?xml'):
                 match = re.search(rb'encoding=["\']([^"\']+)["\']', content[:100])
                 if match:
                     encoding = match.group(1).decode('ascii')
-            
+
             return content.decode(encoding, errors='replace')
-            
+
         except requests.exceptions.RequestException as e:
             raise UserError(_('XML çekilemedi: %s') % str(e))
 
     def _parse_xml(self, xml_content):
         """XML içeriğini parse et"""
         self.ensure_one()
-        
+
         try:
             # XML namespace'leri temizle
             xml_content = re.sub(r'\sxmlns[^"]*"[^"]*"', '', xml_content)
             xml_content = re.sub(r'\sxmlns=[^"]*"[^"]*"', '', xml_content)
-            
+
             # String'i parse et (zaten UTF-8 decode edilmiş)
             root = ET.fromstring(xml_content)
-            
+
             # XPath ile ürünleri bul
             xpath = self.root_element
             if xpath.startswith('//'):
                 xpath = '.' + xpath
-            
+
             products = root.findall(xpath)
-            
+
             if not products:
                 # Alternatif yolları dene
                 products = root.findall('.//Product') or \
                           root.findall('.//product') or \
                           root.findall('.//item') or \
                           root.findall('.//entry')
-            
+
             return products
-            
+
         except ET.ParseError as e:
             raise UserError(_('XML parse hatası: %s') % str(e))
 
@@ -589,22 +590,22 @@ class XmlProductSource(models.Model):
         """Element içinden değer al (nested path desteği)"""
         if not path:
             return None
-        
+
         # Path'i parçala (örn: "Images/Image/Url")
         parts = path.split('/')
         current = element
-        
+
         for i, part in enumerate(parts):
             if current is None:
                 return None
-            
+
             # Attribute kontrolü (@attr)
             if part.startswith('@'):
                 return current.get(part[1:])
-            
+
             # Son parça mı kontrol et (çoklu değer için)
             is_last_part = (i == len(parts) - 1)
-            
+
             # Child element bul
             found = current.find(part)
             if found is None:
@@ -613,22 +614,22 @@ class XmlProductSource(models.Model):
                     if child.tag.lower() == part.lower():
                         found = child
                         break
-            
+
             current = found
-        
+
         if current is not None:
             return current.text
-        
+
         return None
 
     def _get_element_values(self, element, path):
         """Element içinden TÜM değerleri al (çoklu görsel için)"""
         if not path:
             return []
-        
+
         values = []
         parts = path.split('/')
-        
+
         # İlk parçaya kadar git (parent element)
         current = element
         for part in parts[:-1]:
@@ -641,7 +642,7 @@ class XmlProductSource(models.Model):
                         found = child
                         break
             current = found
-        
+
         # Son parçadaki TÜM elementleri bul
         if current is not None and len(parts) > 0:
             last_part = parts[-1]
@@ -649,25 +650,25 @@ class XmlProductSource(models.Model):
                 if child.tag.lower() == last_part.lower():
                     if child.text:
                         values.append(child.text.strip())
-        
+
         return values
 
     def _extract_product_data(self, element):
         """XML elementinden ürün verilerini çıkar"""
         self.ensure_one()
-        
+
         data = {}
-        
+
         for mapping in self.field_mapping_ids:
             value = self._get_element_value(element, mapping.xml_path)
-            
+
             if value:
                 # Dönüşüm uygula
                 if mapping.transform:
                     value = mapping.apply_transform(value)
-                
+
                 data[mapping.odoo_field] = value
-        
+
         # Çoklu görsel URL'lerini topla (T-Soft formatı: images/img_item)
         image_mapping = self.field_mapping_ids.filtered(lambda m: m.odoo_field == 'image')
         if image_mapping:
@@ -676,7 +677,7 @@ class XmlProductSource(models.Model):
                 data['image'] = all_images[0]  # İlk görsel ana görsel
                 if len(all_images) > 1:
                     data['extra_images'] = all_images[1:]  # Ek görseller
-        
+
         # Eğer image hala boşsa alternatif yolları dene
         if not data.get('image'):
             # Alternatif görsel yollarını dene
@@ -699,7 +700,7 @@ class XmlProductSource(models.Model):
                     if len(all_imgs) > 1:
                         data['extra_images'] = all_imgs[1:]
                     break
-        
+
         # Açıklama alternatiflerini dene
         if not data.get('description'):
             desc_paths = [
@@ -713,14 +714,14 @@ class XmlProductSource(models.Model):
                 if desc_val and len(desc_val) > 10:
                     data['description'] = desc_val
                     break
-        
+
         return data
 
     def _download_image(self, url):
         """URL'den görsel indir ve base64 olarak döndür"""
         if not url:
             return None
-        
+
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -728,25 +729,25 @@ class XmlProductSource(models.Model):
             }
             response = requests.get(url, headers=headers, timeout=30, stream=True)
             response.raise_for_status()
-            
+
             # İçerik tipi kontrolü
             content_type = response.headers.get('Content-Type', '')
             if not any(t in content_type for t in ['image', 'octet-stream']):
                 _logger.warning(f"Geçersiz görsel tipi: {content_type} - {url}")
                 return None
-            
+
             # Boyut kontrolü (max 10MB)
             content_length = response.headers.get('Content-Length')
             if content_length and int(content_length) > 10 * 1024 * 1024:
                 _logger.warning(f"Görsel çok büyük: {content_length} bytes - {url}")
                 return None
-            
+
             # Base64'e çevir
             image_data = base64.b64encode(response.content).decode('utf-8')
-            
+
             _logger.debug(f"Görsel indirildi: {url}")
             return image_data
-            
+
         except requests.exceptions.RequestException as e:
             _logger.warning(f"Görsel indirilemedi: {url} - {e}")
             return None
@@ -758,28 +759,28 @@ class XmlProductSource(models.Model):
         """HTML içeriğini temizle"""
         if not html_content:
             return ''
-        
+
         # Temel HTML etiketlerini koru, tehlikeli olanları kaldır
         import re
-        
+
         # Script ve style etiketlerini tamamen kaldır
         html_content = re.sub(r'<script[^>]*>.*?</script>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
         html_content = re.sub(r'<style[^>]*>.*?</style>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
-        
+
         # Inline style ve event handler'ları kaldır
         html_content = re.sub(r'\s+on\w+="[^"]*"', '', html_content, flags=re.IGNORECASE)
         html_content = re.sub(r'\s+style="[^"]*"', '', html_content, flags=re.IGNORECASE)
-        
+
         # Birden fazla boşluğu tekile indir
         html_content = re.sub(r'\s+', ' ', html_content)
         html_content = html_content.strip()
-        
+
         return html_content
 
     def _extract_all_images(self, element):
         """XML elementinden tüm görsel URL'lerini çıkar"""
         images = []
-        
+
         # Farklı görsel path'lerini dene
         image_paths = [
             './/Images/Image/Path', './/Images/Image/Url', './/Images/Image',
@@ -788,14 +789,14 @@ class XmlProductSource(models.Model):
             './/image', './/Image', './/img', './/Img',
             './picture1', './picture2', './picture3', './picture4', './picture5',
         ]
-        
+
         for path in image_paths:
             found = element.findall(path)
             for img_elem in found:
                 url = img_elem.text if img_elem.text else img_elem.get('url') or img_elem.get('src')
                 if url and url.startswith('http') and url not in images:
                     images.append(url)
-        
+
         return images
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -805,20 +806,20 @@ class XmlProductSource(models.Model):
     def _calculate_sale_price(self, cost_price):
         """Tedarikçi fiyatından satış fiyatı hesapla"""
         self.ensure_one()
-        
+
         if not cost_price:
             return 0.0
-        
+
         cost = float(cost_price)
         sale_price = cost
-        
+
         # Markup uygula
         if self.price_markup_type in ('percent', 'both'):
             sale_price = cost * (1 + self.price_markup_percent / 100)
-        
+
         if self.price_markup_type in ('fixed', 'both'):
             sale_price += self.price_markup_fixed
-        
+
         # Yuvarlama
         if self.price_round:
             if self.price_round_method == '99':
@@ -827,7 +828,7 @@ class XmlProductSource(models.Model):
                 sale_price = int(sale_price) + 0.90
             elif self.price_round_method == '00':
                 sale_price = round(sale_price)
-        
+
         return sale_price
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -838,7 +839,7 @@ class XmlProductSource(models.Model):
         """Mevcut ürünü bul"""
         self.ensure_one()
         Product = self.env['product.template']
-        
+
         # 1. Barkod ile eşleştir
         if self.match_by_barcode and data.get('barcode'):
             barcode = str(data['barcode']).strip()
@@ -846,7 +847,7 @@ class XmlProductSource(models.Model):
                 product = Product.search([('barcode', '=', barcode)], limit=1)
                 if product:
                     return product, 'barcode'
-        
+
         # 2. SKU/Ürün kodu ile eşleştir
         if self.match_by_sku and data.get('sku'):
             sku = str(data['sku']).strip()
@@ -854,7 +855,7 @@ class XmlProductSource(models.Model):
                 product = Product.search([('default_code', '=', sku)], limit=1)
                 if product:
                     return product, 'sku'
-        
+
         # 3. İsim benzerliği ile eşleştir
         if self.match_by_name and data.get('name'):
             name = str(data['name']).strip()
@@ -863,14 +864,14 @@ class XmlProductSource(models.Model):
                 product = Product.search([('name', '=ilike', name)], limit=1)
                 if product:
                     return product, 'name_exact'
-                
+
                 # Benzerlik kontrolü
                 all_products = Product.search([])
                 for prod in all_products:
                     ratio = SequenceMatcher(None, name.lower(), prod.name.lower()).ratio() * 100
                     if ratio >= self.name_match_ratio:
                         return prod, f'name_similar_{int(ratio)}%'
-        
+
         return None, None
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -880,16 +881,16 @@ class XmlProductSource(models.Model):
     def action_test_connection(self):
         """Bağlantıyı test et"""
         self.ensure_one()
-        
+
         try:
             xml_content = self._fetch_xml()
             products = self._parse_xml(xml_content)
-            
+
             self.write({
                 'state': 'active',
                 'last_error': False,
             })
-            
+
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -900,7 +901,7 @@ class XmlProductSource(models.Model):
                     'sticky': False,
                 }
             }
-            
+
         except Exception as e:
             self.write({
                 'state': 'error',
@@ -911,24 +912,24 @@ class XmlProductSource(models.Model):
     def action_preview_xml(self):
         """XML içeriğini önizle"""
         self.ensure_one()
-        
+
         try:
             xml_content = self._fetch_xml()
             products = self._parse_xml(xml_content)
-            
+
             if products:
                 # İlk 3 ürünü göster
                 preview = []
                 for i, prod in enumerate(products[:3]):
                     data = self._extract_product_data(prod)
                     preview.append(f"Ürün {i+1}: {json.dumps(data, ensure_ascii=False, indent=2)}")
-                
+
                 preview_text = '\n\n'.join(preview)
-                
+
                 raise UserError(_('XML Önizleme (%s ürün bulundu):\n\n%s') % (len(products), preview_text))
             else:
                 raise UserError(_('XML\'de ürün bulunamadı. Root element yolunu kontrol edin.'))
-                
+
         except UserError:
             raise
         except Exception as e:
@@ -937,46 +938,46 @@ class XmlProductSource(models.Model):
     def action_import_products(self):
         """Ürünleri içe aktar"""
         self.ensure_one()
-        
+
         # Log oluştur
         log = self.env['xml.import.log'].create({
             'source_id': self.id,
             'start_time': fields.Datetime.now(),
             'state': 'running',
         })
-        
+
         created = updated = skipped = failed = 0
         errors = []
-        
+
         try:
             # XML çek ve parse et
             xml_content = self._fetch_xml()
             products = self._parse_xml(xml_content)
-            
+
             log.total_products = len(products)
-            
+
             _logger.info(f"XML Import: {len(products)} ürün bulundu - {self.name}")
-            
+
             for element in products:
                 try:
                     # Ürün verilerini çıkar
                     data = self._extract_product_data(element)
-                    
+
                     if not data.get('name'):
                         skipped += 1
                         continue
-                    
+
                     # Fiyat kontrolü
                     price = float(data.get('price', 0) or 0)
                     cost = float(data.get('cost_price', 0) or data.get('price', 0) or 0)
-                    
+
                     if self.min_price and price < self.min_price:
                         skipped += 1
                         continue
                     if self.max_price and price > self.max_price:
                         skipped += 1
                         continue
-                    
+
                     # Stok kontrolü
                     stock = int(data.get('stock', 0) or 0)
                     if stock < self.min_stock:
@@ -997,10 +998,10 @@ class XmlProductSource(models.Model):
                                 _logger.info(f"Stok yetersiz ({stock} < {self.min_stock}) - ürün satışa kapatıldı: {existing.name}")
                         skipped += 1
                         continue
-                    
+
                     # Mevcut ürün ara
                     existing, match_type = self._find_existing_product(data)
-                    
+
                     if existing:
                         if self.update_existing:
                             self._update_product(existing, data, cost, price)
@@ -1013,19 +1014,19 @@ class XmlProductSource(models.Model):
                             created += 1
                         else:
                             skipped += 1
-                    
+
                 except Exception as e:
                     failed += 1
                     errors.append(f"{data.get('name', 'Bilinmiyor')}: {str(e)}")
                     _logger.error(f"Ürün import hatası: {e}")
-            
+
             # Sonuçları kaydet
             self.write({
                 'last_sync': fields.Datetime.now(),
                 'state': 'active',
                 'last_error': False,
             })
-            
+
             log.write({
                 'end_time': fields.Datetime.now(),
                 'state': 'done',
@@ -1035,7 +1036,7 @@ class XmlProductSource(models.Model):
                 'products_failed': failed,
                 'error_details': '\n'.join(errors) if errors else False,
             })
-            
+
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -1048,7 +1049,7 @@ class XmlProductSource(models.Model):
                     'sticky': True,
                 }
             }
-            
+
         except Exception as e:
             self.write({
                 'state': 'error',
@@ -1064,20 +1065,20 @@ class XmlProductSource(models.Model):
     def _create_product(self, data, cost_price, xml_price):
         """Yeni ürün oluştur veya varyant ekle"""
         self.ensure_one()
-        
+
         # Varyant kontrolü: Aynı SKU farklı barkod = Varyant
         if self.create_variants and data.get('sku'):
             existing_by_sku = self.env['product.template'].search([
                 ('default_code', '=', data.get('sku')),
                 ('xml_source_id', '=', self.id),
             ], limit=1)
-            
+
             if existing_by_sku and data.get('barcode'):
                 # Aynı SKU var, farklı barkodlu varyant olarak ekle
                 return self._create_variant(existing_by_sku, data, cost_price)
-        
+
         sale_price = self._calculate_sale_price(cost_price)
-        
+
         vals = {
             'name': data.get('name'),
             'default_code': data.get('sku'),
@@ -1095,7 +1096,7 @@ class XmlProductSource(models.Model):
             'xml_last_sync': fields.Datetime.now(),
             'is_dropship': True,
         }
-        
+
         # Görsel
         if data.get('image'):
             image_url = data.get('image')
@@ -1105,7 +1106,7 @@ class XmlProductSource(models.Model):
                 image_data = self._download_image(image_url)
                 if image_data:
                     vals['image_1920'] = image_data
-        
+
         # Açıklama
         if data.get('description'):
             description = data.get('description')
@@ -1113,52 +1114,52 @@ class XmlProductSource(models.Model):
             description = self._clean_html(description)
             vals['description_sale'] = description
             vals['description'] = description
-        
+
         # Tedarikçi stok
         if data.get('stock'):
             try:
                 vals['xml_supplier_stock'] = int(data.get('stock'))
             except:
                 pass
-        
+
         if self.default_category_id:
             vals['categ_id'] = self.default_category_id.id
-        
+
         if self.supplier_id:
             vals['xml_supplier_id'] = self.supplier_id.id
-        
+
         # Desi/Ağırlık
         if data.get('weight'):
             try:
                 vals['weight'] = float(data['weight'])
             except:
                 pass
-        
+
         if data.get('deci'):
             try:
                 vals['volume'] = float(data['deci'])
                 vals['deci'] = float(data['deci'])
             except:
                 pass
-        
+
         product = self.env['product.template'].create(vals)
-        
+
         # Görsel URL olarak ekle (indirmeden)
         if data.get('image') and not self.download_images:
             self._set_image_from_url(product, data.get('image'))
-        
+
         # Ek görseller ekle
         if data.get('extra_images'):
             if self.download_images:
                 self._add_extra_images(product, data.get('extra_images'))
             else:
                 self._add_extra_images_from_url(product, data.get('extra_images'))
-        
+
         # Dropship rotası ekle (stock_dropshipping modülü)
         dropship_route = self.env.ref('stock_dropshipping.route_drop_shipping', raise_if_not_found=False)
         if dropship_route:
             product.write({'route_ids': [(4, dropship_route.id)]})
-        
+
         # Tedarikçi bilgisi ekle
         if self.supplier_id:
             self.env['product.supplierinfo'].create({
@@ -1167,23 +1168,23 @@ class XmlProductSource(models.Model):
                 'price': cost_price,
                 'product_code': data.get('sku'),
             })
-        
+
         _logger.info(f"Yeni ürün oluşturuldu (Dropship): {product.name}")
-        
+
         return product
 
     def _add_extra_images(self, product, image_urls):
         """Ürüne ek görseller ekle"""
         if not image_urls:
             return
-        
+
         ProductImage = self.env.get('product.image')
         if not ProductImage:
             # product.image modeli yoksa URL'leri text alanında sakla
             urls_text = '\n'.join(image_urls)
             product.write({'xml_image_urls': urls_text})
             return
-        
+
         for i, url in enumerate(image_urls[:5]):  # Max 5 ek görsel
             try:
                 image_data = self._download_image(url)
@@ -1204,7 +1205,7 @@ class XmlProductSource(models.Model):
         """
         if not image_url:
             return
-        
+
         # Sadece URL'yi sakla - disk tasarrufu
         product.write({'xml_image_url': image_url})
         _logger.debug(f"Görsel URL kaydedildi: {product.name}")
@@ -1213,7 +1214,7 @@ class XmlProductSource(models.Model):
         """Ürüne ek görsel URL'lerini ekle (indirmeden, sadece URL saklanır)"""
         if not image_urls:
             return
-        
+
         # URL'leri text alanında sakla - disk tasarrufu
         urls_text = '\n'.join(image_urls[:10])  # Max 10 ek görsel URL
         product.write({'xml_image_urls': urls_text})
@@ -1222,39 +1223,39 @@ class XmlProductSource(models.Model):
     def _create_variant(self, product_tmpl, data, cost_price):
         """Mevcut ürüne varyant ekle (farklı barkod)"""
         self.ensure_one()
-        
+
         # Barkod attribute'u bul veya oluştur
         barcode_attr = self.env['product.attribute'].search([
             ('name', '=', 'Barkod'),
         ], limit=1)
-        
+
         if not barcode_attr:
             barcode_attr = self.env['product.attribute'].create({
                 'name': 'Barkod',
                 'display_type': 'radio',
                 'create_variant': 'always',
             })
-        
+
         barcode_value = data.get('barcode')
-        
+
         # Attribute value bul veya oluştur
         attr_value = self.env['product.attribute.value'].search([
             ('attribute_id', '=', barcode_attr.id),
             ('name', '=', barcode_value),
         ], limit=1)
-        
+
         if not attr_value:
             attr_value = self.env['product.attribute.value'].create({
                 'attribute_id': barcode_attr.id,
                 'name': barcode_value,
             })
-        
+
         # Ürüne attribute line ekle
         attr_line = self.env['product.template.attribute.line'].search([
             ('product_tmpl_id', '=', product_tmpl.id),
             ('attribute_id', '=', barcode_attr.id),
         ], limit=1)
-        
+
         if attr_line:
             # Mevcut line'a value ekle
             attr_line.write({'value_ids': [(4, attr_value.id)]})
@@ -1265,27 +1266,27 @@ class XmlProductSource(models.Model):
                 'attribute_id': barcode_attr.id,
                 'value_ids': [(6, 0, [attr_value.id])],
             })
-        
+
         # Yeni varyantı bul ve güncelle
         new_variant = self.env['product.product'].search([
             ('product_tmpl_id', '=', product_tmpl.id),
             ('barcode', '=', False),
         ], limit=1)
-        
+
         if new_variant:
             new_variant.write({
                 'barcode': barcode_value,
                 'default_code': f"{data.get('sku')}-{barcode_value[-4:]}",
             })
-        
+
         _logger.info(f"Varyant eklendi: {product_tmpl.name} - Barkod: {barcode_value}")
-        
+
         return product_tmpl
 
     def _update_product(self, product, data, cost_price, xml_price):
         """Mevcut ürünü güncelle"""
         self.ensure_one()
-        
+
         vals = {
             'xml_source_id': self.id,
             'xml_supplier_price': cost_price,
@@ -1293,12 +1294,12 @@ class XmlProductSource(models.Model):
             'xml_last_sync': fields.Datetime.now(),
             'is_dropship': True,
         }
-        
+
         if self.update_price:
             sale_price = self._calculate_sale_price(cost_price)
             vals['list_price'] = sale_price
             vals['standard_price'] = cost_price
-        
+
         if self.update_stock and data.get('stock'):
             try:
                 stock_qty = int(data.get('stock'))
@@ -1309,7 +1310,7 @@ class XmlProductSource(models.Model):
                     _logger.info(f"Stok yeterli ({stock_qty}) - ürün satışa tekrar açıldı: {product.name}")
             except:
                 pass
-        
+
         # Görsel güncelle
         if self.update_images and data.get('image'):
             image_url = data.get('image')
@@ -1319,47 +1320,47 @@ class XmlProductSource(models.Model):
                 image_data = self._download_image(image_url)
                 if image_data:
                     vals['image_1920'] = image_data
-        
+
         # Açıklama güncelle
         if self.update_description and data.get('description'):
             description = data.get('description')
             description = self._clean_html(description)
             vals['description_sale'] = description
             vals['description'] = description
-        
+
         if self.supplier_id:
             vals['xml_supplier_id'] = self.supplier_id.id
-        
+
         product.write(vals)
-        
+
         # Görsel URL olarak ekle (güncelleme sonrası)
         if self.update_images and data.get('image') and not self.download_images:
             self._set_image_from_url(product, data.get('image'))
-        
+
         # Ek görselleri güncelle
         if self.update_images and data.get('extra_images'):
             if self.download_images:
                 self._add_extra_images(product, data.get('extra_images'))
             else:
                 self._add_extra_images_from_url(product, data.get('extra_images'))
-        
+
         _logger.debug(f"Ürün güncellendi: {product.name}")
-        
+
         return product
 
     def _handle_zero_stock_product(self, product):
         """Stok 0 olan ürünü işle"""
         self.ensure_one()
-        
+
         if not product:
             return
-        
+
         # Ürünün satış geçmişi var mı kontrol et
         has_sales = self.env['sale.order.line'].search_count([
             ('product_id.product_tmpl_id', '=', product.id),
             ('state', 'in', ['sale', 'done']),
         ]) > 0
-        
+
         if self.delete_unsold_zero_stock and not has_sales:
             # Satışı yok, sil
             product_name = product.name
@@ -1396,7 +1397,7 @@ class XmlProductSource(models.Model):
             ('state', '=', 'active'),
             ('auto_sync', '=', True),
         ])
-        
+
         for source in sources:
             if source.next_sync and source.next_sync <= fields.Datetime.now():
                 try:
@@ -1448,22 +1449,22 @@ class XmlProductSource(models.Model):
     def action_apply_dropship_route(self):
         """Tüm XML ürünlerine dropship rotası uygula"""
         self.ensure_one()
-        
+
         dropship_route = self.env.ref('stock_dropshipping.route_drop_shipping', raise_if_not_found=False)
         if not dropship_route:
             raise UserError(_('Dropship rotası bulunamadı. stock_dropshipping modülü kurulu mu?'))
-        
+
         products = self.env['product.template'].search([
             ('xml_source_id', '=', self.id),
             ('route_ids', 'not in', [dropship_route.id]),
         ])
-        
+
         count = 0
         for product in products:
             if dropship_route.id not in product.route_ids.ids:
                 product.write({'route_ids': [(4, dropship_route.id)]})
                 count += 1
-        
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -1478,14 +1479,14 @@ class XmlProductSource(models.Model):
     def action_sync_suppliers(self):
         """Tüm XML ürünlerine tedarikçi bilgisi ekle"""
         self.ensure_one()
-        
+
         if not self.supplier_id:
             raise UserError(_('Lütfen önce tedarikçi seçin.'))
-        
+
         products = self.env['product.template'].search([
             ('xml_source_id', '=', self.id),
         ])
-        
+
         count = 0
         for product in products:
             # Tedarikçi zaten ekli mi?
@@ -1493,7 +1494,7 @@ class XmlProductSource(models.Model):
                 ('product_tmpl_id', '=', product.id),
                 ('partner_id', '=', self.supplier_id.id),
             ], limit=1)
-            
+
             if not existing:
                 self.env['product.supplierinfo'].create({
                     'product_tmpl_id': product.id,
@@ -1502,7 +1503,7 @@ class XmlProductSource(models.Model):
                     'product_code': product.xml_supplier_sku or product.default_code,
                 })
                 count += 1
-        
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
