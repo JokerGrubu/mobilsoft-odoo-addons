@@ -1,0 +1,9 @@
+external_id,code,name_tr,name_en,account_type,reconcile,company_id
+CASH_IZMIR,100002,İzmir Kasa,Izmir Cash,asset_cash,FALSE,1
+BANK_GARANTI,102002,Garanti Bankası 028-6293204,Garanti Bank 028-6293204,asset_cash,FALSE,1
+BANK_IS,102003,İş Bankası 110520 993254,Is Bank 110520 993254,asset_cash,FALSE,1
+BANK_ZIRAAT,102004,Ziraat Bankası Kağıthane Şb. 77501,Ziraat Bank Kagithane Br. 77501,asset_cash,FALSE,1
+BANK_DENIZ,102005,Denizbank Kağıthane (61900001),Denizbank Kagithane (61900001),asset_cash,FALSE,1
+BANK_QNB1,102006,QNB Bankası 152033558,QNB Bank 152033558,asset_cash,FALSE,1
+BANK_QNB2,102007,QNB Bankası 152033560,QNB Bank 152033560,asset_cash,FALSE,1
+BANK_CC,108001,Kredi Kartı Hesabı,Credit Card Account,asset_current,FALSE,1

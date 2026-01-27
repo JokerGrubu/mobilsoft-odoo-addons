@@ -1,0 +1,22 @@
+external_id,code,name_tr,name_en,account_type,reconcile,company_id
+ACC_159000,159000,VERİLEN SİPARİŞ AVANSLARI,Advances Paid for Orders,asset_current,FALSE,1
+ACC_180000,180000,GELECEK AYLARA AİT GİDERLER,Prepaid Expenses,asset_current,FALSE,1
+ACC_190000,190000,DEVREDEN KATMA DEĞER VERGİSİ (KDV),Carried Forward VAT,asset_current,FALSE,1
+ACC_193000,193000,PEŞİN ÖDENEN VERGİLER VE FONLAR,Prepaid Taxes and Funds,asset_current,FALSE,1
+ACC_329000,329000,DİĞER TİCARİ BORÇLAR,Other Trade Payables,liability_current,FALSE,1
+ACC_331000,331000,ORTAKLARA BORÇLAR,Payables to Partners,liability_current,FALSE,1
+ACC_340000,340000,ALINAN SİPARİŞ AVANSLARI,Customer Advances Received,liability_current,FALSE,1
+ACC_361000,361000,ÖDENECEK SOSYAL GÜVENLİK KESİNTİLERİ,Social Security Payables,liability_current,FALSE,1
+ACC_368000,368000,VADESİ GEÇMİŞ ERTELENMİŞ VEYA TAKSİTLENDİRİLMİŞ VERGİ VE DİĞER YÜKÜMLÜLÜKLER,Overdue Deferred or Installment Taxes,liability_current,FALSE,1
+ACC_370000,370000,DÖNEM KARI VERGİ VE DİĞER YASAL YÜKÜMLÜLÜK KARŞILIKLARI,Provision for Tax and Legal Liabilities,liability_current,FALSE,1
+ACC_371000,371000,DÖNEM KARININ PEŞİN ÖDENEN VERGİ VE DİĞER YÜKÜMLÜLÜKLERİ (-),Prepaid Tax on Period Profit (-),liability_current,FALSE,1
+ACC_501000,501000,ÖDENMEMİŞ SERMAYE (-),Unpaid Capital (-),equity,FALSE,1
+ACC_502000,502000,SERMAYE DÜZELTMESİ OLUMLU FARKLARI,Capital Adjustment Positive Differences,equity,FALSE,1
+ACC_602000,602000,DİĞER GELİRLER,Other Income,income,FALSE,1
+ACC_611000,611000,SATIŞ İSKONTOLARI (-),Sales Discounts (-),income,FALSE,1
+ACC_653000,653000,KOMİSYON GİDERLERİ (-),Commission Expenses (-),expense,FALSE,1
+ACC_660000,660000,KISA VADELİ BORÇLANMA GİDERLERİ (-),Short-term Borrowing Expenses (-),expense,FALSE,1
+ACC_679000,679000,DİĞER OLAĞANDIŞI GELİR VE KARLAR,Other Extraordinary Income and Gains,income_other,FALSE,1
+ACC_689000,689000,DİĞER OLAĞANDIŞI GİDER VE ZARARLAR (-),Other Extraordinary Expenses and Losses (-),expense,FALSE,1
+ACC_690000,690000,DÖNEM KARI VEYA ZARARI,Period Profit or Loss,equity_unaffected,FALSE,1
+ACC_691000,691000,DÖNEM KARI VERGİ VE DİĞER YASAL YÜKÜMLÜLÜK KARŞILIKLARI (-),Provision for Tax on Period Profit (-),liability_current,FALSE,1
