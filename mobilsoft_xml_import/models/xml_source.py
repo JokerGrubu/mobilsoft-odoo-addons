@@ -598,7 +598,20 @@ class XmlProductSource(models.Model):
             xml_content = re.sub(r'\sxmlns[^"]*"[^"]*"', '', xml_content)
             xml_content = re.sub(r'\sxmlns=[^"]*"[^"]*"', '', xml_content)
 
-            # String'i parse et (zaten UTF-8 decode edilmiş)
+            # String parse et - eğer byte ise decode et
+            if isinstance(xml_content, bytes):
+                # Encoding denemeleri
+                for enc in ['utf-8', 'iso-8859-9', 'windows-1254', 'latin1']:
+                    try:
+                        xml_content = xml_content.decode(enc)
+                        _logger.info(f"XML {enc} ile decode edildi")
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                else:
+                    xml_content = xml_content.decode('utf-8', errors='ignore')
+                    _logger.warning("XML decode hatası - bazı karakterler kaybolmuş olabilir")
+
             root = ET.fromstring(xml_content)
 
             # XPath ile ürünleri bul
@@ -608,12 +621,16 @@ class XmlProductSource(models.Model):
 
             products = root.findall(xpath)
 
+            _logger.info(f"XML Parse: {len(products)} ürün bulundu (xpath: {xpath})")
+
             if not products:
                 # Alternatif yolları dene
                 products = root.findall('.//Product') or \
                           root.findall('.//product') or \
                           root.findall('.//item') or \
                           root.findall('.//entry')
+                if products:
+                    _logger.info(f"Alternatif xpath ile {len(products)} ürün bulundu")
 
             return products
 
