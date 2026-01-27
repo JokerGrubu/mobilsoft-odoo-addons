@@ -159,8 +159,8 @@ class XmlProductSource(models.Model):
     )
     min_stock = fields.Integer(
         string='Minimum Stok',
-        default=1,
-        help='Bu stok miktarının altındaki ürünleri atla',
+        default=0,  # ⚠️ 0 yapıldı - Dropshipping ürünler stok kontrolü yapmaz
+        help='Bu stok miktarının altındaki ürünleri atla (0 = Tüm ürünleri al)',
     )
 
     # Senkronizasyon Ayarları
@@ -214,12 +214,12 @@ class XmlProductSource(models.Model):
     # Stok Sıfır Politikası
     deactivate_zero_stock = fields.Boolean(
         string='Stok 0 Olunca Satışa Kapat',
-        default=True,
+        default=False,  # ⚠️ KAPATILDI - Dropshipping ürünler için stok kontrolü yapılmaz
         help='Stok miktarı 0 olan ürünleri satışa kapat (sale_ok = False)',
     )
     delete_unsold_zero_stock = fields.Boolean(
         string='Satışı Olmayan 0 Stokları Sil',
-        default=True,
+        default=False,  # ⚠️ KAPATILDI - Hiçbir zaman ürün silmeyecek
         help='Stok 0 olduğunda ve hiç satışı olmayan ürünleri sistemden sil',
     )
 
@@ -1076,9 +1076,9 @@ class XmlProductSource(models.Model):
                         skipped += 1
                         continue
 
-                    # Stok kontrolü
+                    # Stok kontrolü (sadece min_stock > 0 ise kontrol et)
                     stock = int(data.get('stock', 0) or 0)
-                    if stock < self.min_stock:
+                    if self.min_stock > 0 and stock < self.min_stock:
                         # Stok min_stock altında - mevcut ürünü kontrol et
                         existing, match_type = self._find_existing_product(data)
                         if existing and existing.exists():
@@ -1087,8 +1087,8 @@ class XmlProductSource(models.Model):
                                 'xml_supplier_stock': stock,
                                 'xml_last_sync': fields.Datetime.now(),
                             })
-                            # Stok 0 ise satışa kapat veya sil
-                            if stock == 0:
+                            # Stok 0 ise ve ayarlar aktifse işle
+                            if stock == 0 and (self.deactivate_zero_stock or self.delete_unsold_zero_stock):
                                 self._handle_zero_stock_product(existing)
                             elif self.deactivate_zero_stock and existing.exists():
                                 # Stok min_stock altında ama 0 değil - sadece satışa kapat
