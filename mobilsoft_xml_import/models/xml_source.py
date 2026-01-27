@@ -832,6 +832,85 @@ class XmlProductSource(models.Model):
         return sale_price
 
     # ══════════════════════════════════════════════════════════════════════════
+    # CATEGORY MATCHING
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def _find_or_create_category(self, category_name, subcategory_name=None):
+        """Kategoriyi bul veya oluştur (otomatik eşleştirme)"""
+        self.ensure_one()
+
+        if not category_name:
+            return None
+
+        Category = self.env['product.category']
+        category_name = str(category_name).strip()
+
+        # 1. Tam eşleşme ara (büyük/küçük harf duyarsız)
+        category = Category.search([
+            ('name', '=ilike', category_name)
+        ], limit=1)
+
+        if category:
+            # Alt kategori varsa onunla devam et
+            if subcategory_name:
+                subcategory_name = str(subcategory_name).strip()
+                subcategory = Category.search([
+                    ('name', '=ilike', subcategory_name),
+                    ('parent_id', '=', category.id)
+                ], limit=1)
+
+                if subcategory:
+                    return subcategory
+                else:
+                    # Alt kategoriyi oluştur
+                    return Category.create({
+                        'name': subcategory_name,
+                        'parent_id': category.id,
+                    })
+            return category
+
+        # 2. Benzer kategori ara (kısmi eşleşme)
+        similar = Category.search([
+            ('name', 'ilike', category_name)
+        ], limit=1)
+
+        if similar:
+            _logger.info(f"Benzer kategori bulundu: '{category_name}' → '{similar.name}'")
+            if subcategory_name:
+                subcategory_name = str(subcategory_name).strip()
+                subcategory = Category.search([
+                    ('name', '=ilike', subcategory_name),
+                    ('parent_id', '=', similar.id)
+                ], limit=1)
+
+                if subcategory:
+                    return subcategory
+                else:
+                    return Category.create({
+                        'name': subcategory_name,
+                        'parent_id': similar.id,
+                    })
+            return similar
+
+        # 3. Kategori bulunamadı - yeni oluştur
+        _logger.info(f"Yeni kategori oluşturuluyor: {category_name}")
+
+        # Ana kategoriyi oluştur
+        parent_category = Category.create({
+            'name': category_name,
+        })
+
+        # Alt kategori varsa onu da oluştur
+        if subcategory_name:
+            subcategory_name = str(subcategory_name).strip()
+            return Category.create({
+                'name': subcategory_name,
+                'parent_id': parent_category.id,
+            })
+
+        return parent_category
+
+    # ══════════════════════════════════════════════════════════════════════════
     # PRODUCT MATCHING
     # ══════════════════════════════════════════════════════════════════════════
 
@@ -1122,7 +1201,12 @@ class XmlProductSource(models.Model):
             except:
                 pass
 
-        if self.default_category_id:
+        # Kategori eşleştirme
+        if data.get('category'):
+            category = self._find_or_create_category(data.get('category'), data.get('extra1'))
+            if category:
+                vals['categ_id'] = category.id
+        elif self.default_category_id:
             vals['categ_id'] = self.default_category_id.id
 
         if self.supplier_id:
@@ -1327,6 +1411,12 @@ class XmlProductSource(models.Model):
             description = self._clean_html(description)
             vals['description_sale'] = description
             vals['description'] = description
+
+        # Kategori güncelleme
+        if data.get('category'):
+            category = self._find_or_create_category(data.get('category'), data.get('extra1'))
+            if category:
+                vals['categ_id'] = category.id
 
         if self.supplier_id:
             vals['xml_supplier_id'] = self.supplier_id.id
