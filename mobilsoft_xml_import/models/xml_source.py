@@ -546,8 +546,30 @@ class XmlProductSource(models.Model):
             # XML declaration'dan encoding tespit et
             encoding = 'utf-8'
             if content.startswith(b'<?xml'):
-                match = re.search(rb'encoding=["\']([^"\']+)["\']', content[:100])
+                match = re.search(rb'encoding=["\']([^"\']+)["\']', content[:200])
                 if match:
+                    encoding = match.group(1).decode('ascii').lower()
+                    _logger.debug(f"XML encoding tespit edildi: {encoding}")
+
+            # Türkçe karakter sorunları için encoding denemeleri
+            try:
+                # Önce belirtilen encoding'i dene
+                xml_text = content.decode(encoding)
+            except (UnicodeDecodeError, LookupError):
+                # Hata varsa sırayla encoding'leri dene
+                for enc in ['utf-8', 'iso-8859-9', 'windows-1254', 'latin1']:
+                    try:
+                        xml_text = content.decode(enc)
+                        _logger.info(f"XML {enc} encoding ile decode edildi")
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                else:
+                    # Hiçbiri çalışmazsa hataları ignore et
+                    xml_text = content.decode('utf-8', errors='ignore')
+                    _logger.warning("XML decode hatası - bazı karakterler kaybolabilir")
+
+            return xml_text
                     encoding = match.group(1).decode('ascii')
 
             return content.decode(encoding, errors='replace')
