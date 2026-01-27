@@ -792,23 +792,52 @@ class XmlProductSource(models.Model):
             return None
 
     def _clean_html(self, html_content):
-        """HTML içeriğini temizle"""
+        """HTML içeriğini temizle ve düzgün formatla"""
         if not html_content:
             return ''
 
-        # Temel HTML etiketlerini koru, tehlikeli olanları kaldır
         import re
+        from html import unescape
+
+        # HTML entity'leri decode et
+        html_content = unescape(html_content)
 
         # Script ve style etiketlerini tamamen kaldır
         html_content = re.sub(r'<script[^>]*>.*?</script>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
         html_content = re.sub(r'<style[^>]*>.*?</style>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
 
+        # <BR> etiketlerini satır sonuna çevir
+        html_content = re.sub(r'<br\s*/?>', '\n', html_content, flags=re.IGNORECASE)
+
+        # Boş span/div etiketlerini kaldır
+        html_content = re.sub(r'<span[^>]*>\s*</span>', '', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'<div[^>]*>\s*</div>', '', html_content, flags=re.IGNORECASE)
+
+        # ID'siz, class'sız, boş div/span'leri kaldır
+        html_content = re.sub(r'<div>\s*', '', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'\s*</div>', '', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'<span>\s*', '', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'\s*</span>', '', html_content, flags=re.IGNORECASE)
+
         # Inline style ve event handler'ları kaldır
         html_content = re.sub(r'\s+on\w+="[^"]*"', '', html_content, flags=re.IGNORECASE)
         html_content = re.sub(r'\s+style="[^"]*"', '', html_content, flags=re.IGNORECASE)
 
+        # Gereksiz attribute'ları kaldır (sayısal ID'ler vs)
+        html_content = re.sub(r'\s+\d{15,}', '', html_content)
+
+        # <UL> ve <LI> etiketlerini temizle
+        html_content = re.sub(r'<ul[^>]*>', '\n', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'</ul>', '', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'<li[^>]*>', '• ', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'</li>', '\n', html_content, flags=re.IGNORECASE)
+
         # Birden fazla boşluğu tekile indir
-        html_content = re.sub(r'\s+', ' ', html_content)
+        html_content = re.sub(r' {2,}', ' ', html_content)
+
+        # Birden fazla satır sonunu ikiye indir
+        html_content = re.sub(r'\n{3,}', '\n\n', html_content)
+
         html_content = html_content.strip()
 
         return html_content
