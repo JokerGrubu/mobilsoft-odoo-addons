@@ -467,19 +467,54 @@ class QnbApiClient(models.AbstractModel):
             # 'EFATURA' değil, 'FATURA' kullanılmalı
             belge_turu = 'FATURA' if document_type == 'EFATURA' else document_type
 
-            result = client.service.gelenBelgeleriListele(
-                vergiTcKimlikNo=vkn,
-                sonAlinanBelgeSiraNumarasi='0',  # 0 = tüm belgeler
-                belgeTuru=belge_turu
-            )
+            # ===== SAYFALAMA İLE TÜM BELGELERİ ÇEK =====
+            all_results = []
+            last_sequence = '0'
+            page = 1
+            max_pages = 50  # Güvenlik limiti
 
-            if result:
-                documents = []
-                # result bir liste veya tek bir obje olabilir
+            while page <= max_pages:
+                result = client.service.gelenBelgeleriListele(
+                    vergiTcKimlikNo=vkn,
+                    sonAlinanBelgeSiraNumarasi=last_sequence,
+                    belgeTuru=belge_turu
+                )
+
+                if not result:
+                    break
+
+                # Liste mi tek obje mi?
                 if not isinstance(result, list):
                     result = [result]
 
-                for doc in result:
+                _logger.info(f"QNB: Sayfa {page}, sequence={last_sequence}, belgeler={len(result)}")
+
+                # Sonuçları ekle
+                all_results.extend(result)
+
+                # Sequence numarasını güncelle (son belgenin sequence'ı)
+                if len(result) > 0:
+                    last_doc = result[-1]
+                    if hasattr(last_doc, 'belgeSiraNo'):
+                        new_sequence = str(last_doc.belgeSiraNo)
+                        if new_sequence == last_sequence:
+                            # Aynı sequence geldi, dur
+                            break
+                        last_sequence = new_sequence
+                    else:
+                        # belgeSiraNo yok, tek sayfa var
+                        break
+
+                # 100'den az geldi mi? (son sayfa)
+                if len(result) < 100:
+                    break
+
+                page += 1
+
+            # Tüm sonuçları işle
+            if all_results:
+                documents = []
+                for doc in all_results:
                     # doc bir dict veya obje olabilir
                     if hasattr(doc, '__dict__'):
                         # Obje ise dict'e çevir
