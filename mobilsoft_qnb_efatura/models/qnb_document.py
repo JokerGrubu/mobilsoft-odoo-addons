@@ -953,11 +953,25 @@ class QnbDocument(models.Model):
                 ('IRSALIYE', 'eirsaliye'),
             ]
 
-            # ===== GELEN BELGELERİ ÇEK (TÜM TÜRLER) =====
+            # ===== GELEN BELGELERİ ÇEK (TÜM TÜRLER, AYLIK PARÇALARDA) =====
+            # QNB API 100 belge limiti koyduğu için aylık parçalara bölüyoruz
+            from datetime import timedelta
+
             for api_type, odoo_type in document_types:
-                result_in = api_client.get_incoming_documents(start_date, end_date, document_type=api_type, company=company)
-                if result_in.get('success'):
-                    documents = result_in.get('documents', [])
+                # Aylık parçalara böl
+                current_start = start_date
+                while current_start < end_date:
+                    current_end = min(current_start + timedelta(days=30), end_date)
+
+                    result_in = api_client.get_incoming_documents(current_start, current_end, document_type=api_type, company=company)
+                    if result_in.get('success'):
+                        documents = result_in.get('documents', [])
+                        _logger.info(f"QNB: {api_type} gelen belgeler ({current_start.strftime('%Y-%m-%d')} - {current_end.strftime('%Y-%m-%d')}): {len(documents)} belge")
+                    else:
+                        documents = []
+                        _logger.warning(f"QNB: {api_type} gelen belgeler alınamadı: {result_in.get('message')}")
+                        current_start = current_end + timedelta(days=1)
+                        continue
                     for doc in documents:
                         ettn = doc.get('ettn')
                         if not ettn:
@@ -1100,11 +1114,25 @@ class QnbDocument(models.Model):
                             })
                             incoming_count += 1
 
-            # ===== GİDEN BELGELERİ ÇEK (TÜM TÜRLER) =====
+                    # Sonraki aya geç
+                    current_start = current_end + timedelta(days=1)
+
+            # ===== GİDEN BELGELERİ ÇEK (TÜM TÜRLER, 90 GÜNLÜK PARÇALARDA) =====
             for api_type, odoo_type in document_types:
-                result_out = api_client.get_outgoing_documents(start_date, end_date, document_type=api_type, company=company)
-                if result_out.get('success'):
-                    documents = result_out.get('documents', [])
+                # 90 günlük parçalara böl (giden belgeler için limit)
+                current_start = start_date
+                while current_start < end_date:
+                    current_end = min(current_start + timedelta(days=89), end_date)
+
+                    result_out = api_client.get_outgoing_documents(current_start, current_end, document_type=api_type, company=company)
+                    if result_out.get('success'):
+                        documents = result_out.get('documents', [])
+                        _logger.info(f"QNB: {api_type} giden belgeler ({current_start.strftime('%Y-%m-%d')} - {current_end.strftime('%Y-%m-%d')}): {len(documents)} belge")
+                    else:
+                        documents = []
+                        _logger.warning(f"QNB: {api_type} giden belgeler alınamadı: {result_out.get('message')}")
+                        current_start = current_end + timedelta(days=1)
+                        continue
                     for doc in documents:
                         ettn = doc.get('ettn')
                         if not ettn:
