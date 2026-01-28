@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- QNB Document Line Tree View -->
-    <record id="view_qnb_document_line_tree" model="ir.ui.view">
-        <field name="name">qnb.document.line.tree</field>
+    <!-- QNB Document Line List View -->
+    <record id="view_qnb_document_line_list" model="ir.ui.view">
+        <field name="name">qnb.document.line.list</field>
         <field name="model">qnb.document.line</field>
         <field name="arch" type="xml">
-            <tree editable="bottom"
+            <list editable="bottom"
                   decoration-success="match_status in ('matched_barcode', 'matched_code', 'matched_name')"
                   decoration-warning="match_status == 'matched_fuzzy'"
                   decoration-danger="match_status == 'not_matched'"
@@ -23,7 +23,7 @@
                 <field name="match_score" optional="hide"/>
                 <button name="action_match_product" type="object" string="🔍 Eşleştir"
                         class="btn-sm btn-primary" invisible="product_id"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -75,7 +75,7 @@
                     </group>
                     <notebook>
                         <page string="Fatura İçeriği" name="invoice_lines">
-                            <field name="line_ids" nolabel="1" context="{'tree_view_ref': 'mobilsoft_qnb_efatura.view_qnb_document_line_tree'}"/>
+                            <field name="line_ids" nolabel="1" context="{'tree_view_ref': 'mobilsoft_qnb_efatura.view_qnb_document_line_list'}"/>
                             <div class="oe_form_box_info oe_text_center" invisible="line_ids">
                                 <p>
                                     <i class="fa fa-info-circle"/> Bu belgede henüz fatura içeriği yok.
