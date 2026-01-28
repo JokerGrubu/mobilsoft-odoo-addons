@@ -829,6 +829,27 @@ class QnbDocument(models.Model):
                 }
             }
 
+        # ===== 2025 YILI İÇİN YENİ FATURA OLUŞTURMA! =====
+        # 2025 yılı faturaları zaten yevmiye kayıtlarında var
+        # Eşleşmedi ise hata ver, yeni fatura oluşturma!
+        if self.document_date and self.document_date.year == 2025:
+            _logger.warning(f"⚠️ 2025 yılı belgesi eşleşmedi: {self.name} - Partner: {self.partner_id.name if self.partner_id else 'N/A'} - Tarih: {self.document_date}")
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': '⚠️ Yevmiye Eşleşmedi',
+                    'message': f'2025 yılı belgesi için yevmiye kaydı bulunamadı!\n'
+                               f'Belge: {self.name}\n'
+                               f'Partner: {self.partner_id.name if self.partner_id else "N/A"}\n'
+                               f'Tarih: {self.document_date}\n'
+                               f'Manuel kontrol gerekli.',
+                    'type': 'warning',
+                    'sticky': True,
+                }
+            }
+
+        # ===== 2026 ve SONRASI İÇİN YENİ FATURA OLUŞTUR =====
         # Fatura tipi
         if self.direction == 'incoming':
             move_type = 'in_invoice'  # Satın Alma Faturası
