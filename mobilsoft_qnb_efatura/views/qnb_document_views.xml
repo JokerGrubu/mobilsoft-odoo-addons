@@ -69,8 +69,8 @@
     </record>
 
     <!-- QNB Document List View -->
-    <record id="view_qnb_document_tree" model="ir.ui.view">
-        <field name="name">qnb.document.tree</field>
+    <record id="view_qnb_document_list" model="ir.ui.view">
+        <field name="name">qnb.document.list</field>
         <field name="model">qnb.document</field>
         <field name="arch" type="xml">
             <list string="e-Belgeler" decoration-danger="state == 'error'"
