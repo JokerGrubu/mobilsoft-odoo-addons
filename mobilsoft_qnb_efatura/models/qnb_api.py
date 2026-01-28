@@ -47,7 +47,7 @@ class QnbApiClient(models.AbstractModel):
     WSDL_TEST2 = 'https://erpefaturatest2.qnbesolutions.com.tr/efatura/ws/connectorService?wsdl'
     # Canlı ortam - QNB eFinans
     WSDL_PROD = 'https://connector.qnbefinans.com/connector/ws/connectorService?wsdl'
-    
+
     # User Service WSDL (kullanıcı sorgulamaları için)
     USER_WSDL_TEST1 = 'https://erpefaturatest1.qnbesolutions.com.tr/efatura/ws/userService?wsdl'
     USER_WSDL_TEST2 = 'https://erpefaturatest2.qnbesolutions.com.tr/efatura/ws/userService?wsdl'
@@ -56,7 +56,7 @@ class QnbApiClient(models.AbstractModel):
         """WSDL URL'sini döndür"""
         if not company:
             company = self.env.company
-        
+
         if company.qnb_environment == 'test':
             # Şirket ayarlarından özel URL varsa onu kullan
             if hasattr(company, 'qnb_wsdl_url') and company.qnb_wsdl_url:
@@ -117,6 +117,36 @@ class QnbApiClient(models.AbstractModel):
         if isinstance(content, str):
             content = content.encode('utf-8')
         return hashlib.md5(content).hexdigest()
+
+    def test_connection(self, company=None):
+        """
+        QNB e-Solutions bağlantı testi
+        WSDL'e bağlanıp kullanılabilir metodları kontrol et
+        """
+        try:
+            client, history = self._get_client(company)
+
+            # WSDL başarıyla yüklendiyse bağlantı başarılı
+            services = list(client.wsdl.services.keys())
+            operations = []
+
+            for service in client.wsdl.services.values():
+                for port in service.ports.values():
+                    operations.extend(list(port.binding._operations.keys()))
+
+            return {
+                'success': True,
+                'message': 'QNB e-Solutions bağlantısı başarılı',
+                'services': services,
+                'operations_count': len(operations),
+                'sample_operations': sorted(operations)[:10]  # İlk 10 metod
+            }
+        except Exception as e:
+            _logger.error(f"QNB bağlantı testi hatası: {str(e)}")
+            return {
+                'success': False,
+                'message': f'Bağlantı hatası: {str(e)}'
+            }
 
     # ============================================
     # KAYITLI KULLANICI İŞLEMLERİ
@@ -410,16 +440,16 @@ class QnbApiClient(models.AbstractModel):
             # VKN şirketten al
             if not company:
                 company = self.env.company
-            
+
             vkn = company.vat or company.qnb_username or ''
             if vkn:
                 # Sadece rakamları al
                 vkn = ''.join(filter(str.isdigit, str(vkn)))
-            
+
             # QNB API belge türü: 'FATURA', 'IRSALIYE', 'UYGULAMA_YANITI', 'IRSALIYE_YANITI'
             # 'EFATURA' değil, 'FATURA' kullanılmalı
             belge_turu = 'FATURA' if document_type == 'EFATURA' else document_type
-            
+
             result = client.service.gelenBelgeleriListele(
                 vergiTcKimlikNo=vkn,
                 sonAlinanBelgeSiraNumarasi='0',  # 0 = tüm belgeler
@@ -431,7 +461,7 @@ class QnbApiClient(models.AbstractModel):
                 # result bir liste veya tek bir obje olabilir
                 if not isinstance(result, list):
                     result = [result]
-                
+
                 for doc in result:
                     # doc bir dict veya obje olabilir
                     if hasattr(doc, '__dict__'):
@@ -448,7 +478,7 @@ class QnbApiClient(models.AbstractModel):
                                     doc_dict[attr] = getattr(doc, attr)
                                 except:
                                     pass
-                    
+
                     documents.append({
                         'ettn': doc_dict.get('ettn', '') or getattr(doc, 'ettn', ''),
                         'belge_no': doc_dict.get('belgeNo', '') or getattr(doc, 'belgeNo', '') or doc_dict.get('belge_no', ''),
@@ -480,13 +510,13 @@ class QnbApiClient(models.AbstractModel):
             # QNB API signature: vergiTcKimlikNo, belgeEttn, belgeTuru, belgeFormati
             if not company:
                 company = self.env.company
-            
+
             vkn = company.vat or company.qnb_username or ''
             if vkn:
                 vkn = ''.join(filter(str.isdigit, str(vkn)))
-            
+
             belge_turu = 'FATURA' if document_type == 'EFATURA' else document_type
-            
+
             result = client.service.gelenBelgeIndirExt(
                 vergiTcKimlikNo=vkn,
                 belgeEttn=ettn,
@@ -622,10 +652,25 @@ class QnbApiClient(models.AbstractModel):
     def get_credit_status(self, company=None):
         """
         Kontör (kredi) durumu sorgula
+        Not: Bu metod QNB sunucusunda mevcut olmayabilir
         """
         client, history = self._get_client(company)
 
         try:
+            # Önce metodun varlığını kontrol et
+            operations = []
+            for service in client.wsdl.services.values():
+                for port in service.ports.values():
+                    operations.extend(list(port.binding._operations.keys()))
+
+            if 'kontorDurumSorgula' not in operations:
+                _logger.warning("kontorDurumSorgula metodu QNB servisinde bulunamadı")
+                return {
+                    'success': False,
+                    'message': 'Kontör sorgulama metodu bu WSDL versiyonunda desteklenmiyor',
+                    'available_operations': sorted(operations)[:20]
+                }
+
             result = client.service.kontorDurumSorgula()
 
             if result:
