@@ -837,7 +837,6 @@ class QnbDocument(models.Model):
                     invoice_line_vals['tax_ids'] = [(6, 0, [tax.id])]
 
             invoice_lines.append((0, 0, invoice_line_vals))
-invoice_lines.append((0, 0, invoice_line_vals))
 
         if not invoice_lines:
             raise UserError(_("Fatura satırı bulunamadı! XML'den ürün bilgileri çıkarılamamış olabilir."))
