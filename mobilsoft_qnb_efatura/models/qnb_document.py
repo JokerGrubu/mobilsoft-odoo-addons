@@ -1643,6 +1643,150 @@ class QnbDocument(models.Model):
             }
         }
 
+    @api.model
+    def action_sync_partners_from_documents(self):
+        """
+        QNB belgelerinin XML içeriğinden partner bilgilerini okuyup Odoo partnerlarını güncelle.
+        - Öncelik: VKN/TCKN (vat) ile eşleştir
+        - VAT yoksa: belge üzerindeki mevcut partner_id korunur
+        """
+        company = self.env.company
+
+        docs = self.search([
+            ('company_id', '=', company.id),
+            ('xml_content', '!=', False),
+        ], order='document_date asc, id asc')
+
+        if not docs:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'QNB Partner',
+                    'message': 'XML içeriği olan QNB belgesi bulunamadı.',
+                    'type': 'info',
+                    'sticky': False,
+                }
+            }
+
+        Partner = self.env['res.partner']
+
+        updated = 0
+        created = 0
+        linked = 0
+        skipped = 0
+
+        for doc in docs:
+            try:
+                raw = doc.xml_content
+                if not raw:
+                    skipped += 1
+                    continue
+
+                if isinstance(raw, str):
+                    raw = raw.encode('utf-8')
+
+                # attachment=True Binary alanlar base64 dönebilir; güvenli decode
+                xml_bytes = raw
+                try:
+                    decoded = base64.b64decode(raw, validate=True)
+                    if decoded.strip().startswith(b'<'):
+                        xml_bytes = decoded
+                except Exception:
+                    pass
+
+                parsed = doc._parse_invoice_xml_full(xml_bytes, direction=doc.direction)
+                partner_data = (parsed or {}).get('partner') or {}
+                vat_raw = partner_data.get('vat') or ''
+                name_raw = (partner_data.get('name') or '').strip()
+
+                digits = ''.join(filter(str.isdigit, str(vat_raw)))
+                vat_number = f"TR{digits}" if digits else False
+
+                partner = False
+                if vat_number:
+                    partner = Partner.search([('vat', '=', vat_number)], limit=1)
+                    if not partner:
+                        partner = Partner.search([('vat', 'ilike', digits)], limit=1)
+
+                # VAT yoksa ve belgede partner varsa onu kullan
+                if not partner and doc.partner_id:
+                    partner = doc.partner_id
+
+                # Partner yoksa oluştur
+                if not partner:
+                    partner_vals = {
+                        'name': name_raw or (f"Firma {digits}" if digits else (doc.partner_id.name if doc.partner_id else 'Firma')),
+                        'vat': vat_number or False,
+                        'is_company': True,
+                    }
+                    if doc.direction == 'incoming':
+                        partner_vals['supplier_rank'] = 1
+                    else:
+                        partner_vals['customer_rank'] = 1
+
+                    partner = Partner.create(partner_vals)
+                    created += 1
+
+                # Partner güncelle (boş alanları doldur; placeholder isimleri düzelt)
+                update_vals = {}
+                if vat_number and not partner.vat:
+                    update_vals['vat'] = vat_number
+
+                if name_raw:
+                    current_name = (partner.name or '').strip()
+                    is_placeholder = (
+                        not current_name
+                        or current_name.startswith('Firma ')
+                        or current_name.startswith('Tedarikçi ')
+                        or current_name.startswith('VKN:')
+                        or current_name == vat_number
+                    )
+                    if is_placeholder and current_name != name_raw:
+                        update_vals['name'] = name_raw
+
+                for src_key, dst_key in [
+                    ('street', 'street'),
+                    ('street2', 'street2'),
+                    ('city', 'city'),
+                    ('zip', 'zip'),
+                    ('phone', 'phone'),
+                    ('email', 'email'),
+                ]:
+                    val = partner_data.get(src_key)
+                    if val and not partner[dst_key]:
+                        update_vals[dst_key] = val
+
+                if update_vals:
+                    partner.write(update_vals)
+                    updated += 1
+
+                # Belgeye bağla
+                if doc.partner_id != partner:
+                    doc.partner_id = partner.id
+                    linked += 1
+
+            except Exception:
+                skipped += 1
+                continue
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'QNB Partner',
+                'message': (
+                    f'Belgeler: {len(docs)}\n'
+                    f'Güncellendi: {updated}\n'
+                    f'Oluşturuldu: {created}\n'
+                    f'Bağlandı: {linked}\n'
+                    f'Atlandı: {skipped}'
+                ),
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
     def _find_or_create_partner(self, doc_data, company):
         """Partneri bul veya oluştur"""
         vat = doc_data.get('sender_vat') or doc_data.get('sender_vkn') or ''

@@ -12,6 +12,17 @@
             <field name="active" eval="False"/>
         </record>
 
+        <!-- Giden Belgeleri Otomatik Çek -->
+        <record id="ir_cron_qnb_fetch_outgoing" model="ir.cron">
+            <field name="name">QNB: Giden Belgeleri Çek</field>
+            <field name="model_id" ref="model_qnb_document"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_fetch_outgoing_documents()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="False"/>
+        </record>
+
         <!-- Belge Durumlarını Otomatik Kontrol -->
         <record id="ir_cron_qnb_check_status" model="ir.cron">
             <field name="name">QNB: Belge Durumlarını Kontrol Et</field>
