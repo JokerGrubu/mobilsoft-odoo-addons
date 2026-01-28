@@ -111,12 +111,17 @@
         </field>
     </record>
 
-    <!-- Menü -->
+    <!-- Ana Menü -->
+    <menuitem id="menu_fatura_entegrator_root"
+              name="Fatura Entegratör"
+              sequence="60"/>
+
+    <!-- Alt Menü: Faturalar -->
     <menuitem id="menu_fe_invoice"
-              name="FT: Faturalar"
-              parent="account.menu_finance_receivables"
+              name="Faturalar"
+              parent="menu_fatura_entegrator_root"
               action="action_fe_invoice"
-              sequence="100"/>
+              sequence="10"/>
 
     <!-- Kanban View (opsiyonel) -->
     <record id="view_fe_invoice_kanban" model="ir.ui.view">
