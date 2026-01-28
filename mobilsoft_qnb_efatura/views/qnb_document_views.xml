@@ -76,12 +76,6 @@
             <list string="e-Belgeler" decoration-danger="state == 'error'"
                   decoration-muted="state == 'draft'"
                   decoration-success="state in ('accepted', 'delivered')">
-                <header>
-                    <button name="action_fetch_incoming_documents"
-                            string="Gelen Belgeleri Al"
-                            type="object"
-                            class="btn-primary"/>
-                </header>
                 <field name="name"/>
                 <field name="document_type"/>
                 <field name="direction"/>
@@ -135,4 +129,29 @@
             </form>
         </field>
     </record>
+
+    <!-- Gelen + Giden TÜM Belgeleri Al Action -->
+    <record id="action_qnb_fetch_all_documents" model="ir.actions.server">
+        <field name="name">Tüm Belgeleri Al (Gelen + Giden)</field>
+        <field name="model_id" ref="model_qnb_document"/>
+        <field name="state">code</field>
+        <field name="code">
+env['qnb.document'].action_fetch_all_documents()
+        </field>
+    </record>
+
+    <!-- QNB Menü Öğesi -->
+    <menuitem
+        id="menu_qnb_solutions"
+        name="QNB e-Solutions"
+        parent="base.menu_administration"
+        sequence="90"/>
+
+    <menuitem
+        id="menu_qnb_documents"
+        name="Gelen e-Belgeler"
+        parent="menu_qnb_solutions"
+        action="action_qnb_fetch_all_documents"
+        sequence="10"/>
+
 </odoo>
