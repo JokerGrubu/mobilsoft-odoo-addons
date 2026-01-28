@@ -465,6 +465,19 @@ class QnbDocument(models.Model):
         """Manuel olarak gelen belgeleri çek"""
         company = self.env.company
 
+        # Sadece JOKER GRUBU için QNB aktif
+        if company.id != 1:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'QNB Hatası',
+                    'message': f'QNB e-Solutions sadece JOKER GRUBU için aktiftir. Şu anda: {company.name}',
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
+
         if not company.qnb_enabled:
             return {
                 'type': 'ir.actions.client',
@@ -561,7 +574,9 @@ class QnbDocument(models.Model):
     @api.model
     def _cron_fetch_incoming_documents(self):
         """Gelen belgeleri otomatik çek (Cron Job)"""
+        # Sadece JOKER GRUBU (company_id=1) için QNB belgelerini çek
         companies = self.env['res.company'].search([
+            ('id', '=', 1),  # JOKER GRUBU
             ('qnb_enabled', '=', True),
             ('qnb_auto_fetch_incoming', '=', True)
         ])
