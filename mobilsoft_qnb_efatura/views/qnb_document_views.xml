@@ -76,6 +76,9 @@
             <list string="e-Belgeler" decoration-danger="state == 'error'"
                   decoration-muted="state == 'draft'"
                   decoration-success="state in ('accepted', 'delivered')">
+                <header>
+                    <button name="action_fetch_all_documents" type="object" string="Tüm Belgeleri Al (Gelen+Giden)" class="btn-primary"/>
+                </header>
                 <field name="name"/>
                 <field name="document_type"/>
                 <field name="direction"/>

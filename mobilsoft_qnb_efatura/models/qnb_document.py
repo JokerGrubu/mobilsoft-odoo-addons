@@ -598,6 +598,165 @@ class QnbDocument(models.Model):
 
         return new_count
 
+    def action_fetch_all_documents(self):
+        """Gelen + Giden TÜM Belgeleri Al (2025'ten itibaren)"""
+        company = self.env.company
+
+        # Sadece JOKER GRUBU için QNB aktif
+        if company.id != 1:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'QNB Hatası',
+                    'message': f'QNB e-Solutions sadece JOKER GRUBU için aktiftir. Şu anda: {company.name}',
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
+
+        if not company.qnb_enabled:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'QNB Hatası',
+                    'message': 'QNB e-Solutions entegrasyonu aktif değil!',
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
+
+        try:
+            api_client = self.env['qnb.api.client'].with_company(company)
+
+            # 2025 Ocak 1'den itibaren tüm belgeler (GELEN + GİDEN)
+            from datetime import datetime
+            from dateutil.parser import parse as parse_date
+            start_date = parse_date('2025-01-01')
+            end_date = datetime.now()
+
+            incoming_count = 0
+            outgoing_count = 0
+
+            # ===== GELEN BELGELERİ ÇEK =====
+            result_in = api_client.get_incoming_documents(start_date, end_date, company=company)
+            if result_in.get('success'):
+                documents = result_in.get('documents', [])
+                for doc in documents:
+                    ettn = doc.get('ettn')
+                    if not ettn:
+                        continue
+
+                    # Daha önce alınmış mı kontrol et
+                    existing = self.search([
+                        ('ettn', '=', ettn),
+                        ('direction', '=', 'incoming'),
+                        ('company_id', '=', company.id)
+                    ])
+
+                    if not existing:
+                        # Partner bul veya oluştur
+                        partner = None
+                        sender_vkn = doc.get('sender_vkn')
+                        if sender_vkn:
+                            partner = self.env['res.partner'].search([
+                                ('vat', '=', f'TR{sender_vkn}')
+                            ], limit=1)
+                            if not partner:
+                                partner = self.env['res.partner'].create({
+                                    'name': doc.get('sender_title', f'Firma {sender_vkn}'),
+                                    'vat': f'TR{sender_vkn}',
+                                    'is_company': True,
+                                })
+
+                        self.create({
+                            'name': doc.get('belge_no', 'Yeni Belge'),
+                            'ettn': ettn,
+                            'document_type': 'efatura',
+                            'direction': 'incoming',
+                            'state': 'delivered',
+                            'partner_id': partner.id if partner else False,
+                            'company_id': company.id,
+                            'document_date': doc.get('date'),
+                            'amount_total': doc.get('total', 0),
+                            'currency_id': self.env['res.currency'].search([
+                                ('name', '=', doc.get('currency', 'TRY'))
+                            ], limit=1).id,
+                        })
+                        incoming_count += 1
+
+            # ===== GİDEN BELGELERİ ÇEK =====
+            result_out = api_client.get_outgoing_documents(start_date, end_date, company=company)
+            if result_out.get('success'):
+                documents = result_out.get('documents', [])
+                for doc in documents:
+                    ettn = doc.get('ettn')
+                    if not ettn:
+                        continue
+
+                    # Daha önce alınmış mı kontrol et
+                    existing = self.search([
+                        ('ettn', '=', ettn),
+                        ('direction', '=', 'outgoing'),
+                        ('company_id', '=', company.id)
+                    ])
+
+                    if not existing:
+                        # Partner bul veya oluştur
+                        partner = None
+                        recipient_vkn = doc.get('recipient_vkn')
+                        if recipient_vkn:
+                            partner = self.env['res.partner'].search([
+                                ('vat', '=', f'TR{recipient_vkn}')
+                            ], limit=1)
+                            if not partner:
+                                partner = self.env['res.partner'].create({
+                                    'name': doc.get('recipient_title', f'Firma {recipient_vkn}'),
+                                    'vat': f'TR{recipient_vkn}',
+                                    'is_company': True,
+                                })
+
+                        self.create({
+                            'name': doc.get('belge_no', 'Yeni Belge'),
+                            'ettn': ettn,
+                            'document_type': 'efatura',
+                            'direction': 'outgoing',
+                            'state': 'sent',
+                            'partner_id': partner.id if partner else False,
+                            'company_id': company.id,
+                            'document_date': doc.get('date'),
+                            'amount_total': doc.get('total', 0),
+                            'currency_id': self.env['res.currency'].search([
+                                ('name', '=', doc.get('currency', 'TRY'))
+                            ], limit=1).id,
+                        })
+                        outgoing_count += 1
+
+            total_count = incoming_count + outgoing_count
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Başarılı',
+                    'message': f'{incoming_count} gelen + {outgoing_count} giden = {total_count} toplam belge indirildi!',
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+
+        except Exception as e:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Hata',
+                    'message': f'Belgeler indirilemedi: {str(e)}',
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+
     @api.model
     def _cron_fetch_incoming_documents(self):
         """Gelen belgeleri otomatik çek (Cron Job - 2025'ten itibaren TÜM belgeler)"""
