@@ -63,7 +63,7 @@ class QnbDocument(models.Model):
     partner_id = fields.Many2one(
         'res.partner',
         string='İş Ortağı',
-        required=True
+        required=False  # QNB'den gelen bazı belgelerde partner bilgisi olmayabilir
     )
     company_id = fields.Many2one(
         'res.company',
@@ -580,6 +580,11 @@ class QnbDocument(models.Model):
                             'is_company': True,
                         })
 
+                # Tarih formatını düzelt (20250115 → 2025-01-15)
+                doc_date = doc.get('date')
+                if doc_date and isinstance(doc_date, str) and len(doc_date) == 8:
+                    doc_date = f"{doc_date[:4]}-{doc_date[4:6]}-{doc_date[6:8]}"
+
                 self.create({
                     'name': doc.get('belge_no', 'Yeni Belge'),
                     'ettn': ettn,
@@ -588,7 +593,7 @@ class QnbDocument(models.Model):
                     'state': 'delivered',
                     'partner_id': partner.id if partner else False,
                     'company_id': company.id,
-                    'document_date': doc.get('date'),
+                    'document_date': doc_date,
                     'amount_total': doc.get('total', 0),
                     'currency_id': self.env['res.currency'].search([
                         ('name', '=', doc.get('currency', 'TRY'))
@@ -670,6 +675,11 @@ class QnbDocument(models.Model):
                                     'is_company': True,
                                 })
 
+                        # Tarih formatını düzelt (20250115 → 2025-01-15)
+                        doc_date = doc.get('date')
+                        if doc_date and isinstance(doc_date, str) and len(doc_date) == 8:
+                            doc_date = f"{doc_date[:4]}-{doc_date[4:6]}-{doc_date[6:8]}"
+
                         self.create({
                             'name': doc.get('belge_no', 'Yeni Belge'),
                             'ettn': ettn,
@@ -678,7 +688,7 @@ class QnbDocument(models.Model):
                             'state': 'delivered',
                             'partner_id': partner.id if partner else False,
                             'company_id': company.id,
-                            'document_date': doc.get('date'),
+                            'document_date': doc_date,
                             'amount_total': doc.get('total', 0),
                             'currency_id': self.env['res.currency'].search([
                                 ('name', '=', doc.get('currency', 'TRY'))
@@ -717,6 +727,11 @@ class QnbDocument(models.Model):
                                     'is_company': True,
                                 })
 
+                        # Tarih formatını düzelt (20250115 → 2025-01-15)
+                        doc_date = doc.get('date')
+                        if doc_date and isinstance(doc_date, str) and len(doc_date) == 8:
+                            doc_date = f"{doc_date[:4]}-{doc_date[4:6]}-{doc_date[6:8]}"
+
                         self.create({
                             'name': doc.get('belge_no', 'Yeni Belge'),
                             'ettn': ettn,
@@ -725,7 +740,7 @@ class QnbDocument(models.Model):
                             'state': 'sent',
                             'partner_id': partner.id if partner else False,
                             'company_id': company.id,
-                            'document_date': doc.get('date'),
+                            'document_date': doc_date,
                             'amount_total': doc.get('total', 0),
                             'currency_id': self.env['res.currency'].search([
                                 ('name', '=', doc.get('currency', 'TRY'))
