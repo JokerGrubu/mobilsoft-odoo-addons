@@ -37,7 +37,7 @@
             'mobilsoft_fatura_entegrator/static/description/icon.png',
         ],
     },
-    'application': False,
+    'application': True,
     'installable': True,
     'images': [
         'static/description/icon.png',
