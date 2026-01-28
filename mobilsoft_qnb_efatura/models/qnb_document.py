@@ -1447,7 +1447,7 @@ class QnbDocument(models.Model):
 
         # ===== STRATEJİ A: Belge No ile Yevmiye (entry) eşleştir =====
         if self.name:
-            line_domain = [
+            base_line_domain = [
                 ('move_id.move_type', '=', 'entry'),
                 ('company_id', '=', self.company_id.id),
                 ('move_id.state', 'in', ['draft', 'posted']),
@@ -1457,17 +1457,24 @@ class QnbDocument(models.Model):
             ]
 
             # Tarih aralığı ile daralt (performans + yanlış eşleşme azaltma)
+            date_domain = []
             if self.document_date:
                 from datetime import timedelta
                 date_from = self.document_date - timedelta(days=7)
                 date_to = self.document_date + timedelta(days=7)
-                line_domain += [('date', '>=', date_from), ('date', '<=', date_to)]
+                date_domain = [('date', '>=', date_from), ('date', '<=', date_to)]
 
-            lines = MoveLine.search(line_domain, limit=50)
+            # Önce dar aralıkta dene, bulunamazsa tarih filtresiz tekrar dene (bazı yevmiye tarihleri farklı olabiliyor)
+            lines = MoveLine.search(base_line_domain + date_domain, limit=50) if date_domain else MoveLine.search(base_line_domain, limit=50)
+            if not lines and date_domain:
+                lines = MoveLine.search(base_line_domain, limit=50)
             candidate_moves = lines.mapped('move_id')
 
-            # Partner doğrulaması varsa uygula
-            candidate_moves = candidate_moves.filtered(_entry_has_partner) if candidate_moves else candidate_moves
+            # Partner varsa: önce partner uyumlu olanları tercih et (yoksa belge no eşleşmesi yeterli)
+            if candidate_moves and self.partner_id:
+                partner_moves = candidate_moves.filtered(_entry_has_partner)
+                if partner_moves:
+                    candidate_moves = partner_moves
 
             # En yakın tarihlisini seç
             if candidate_moves:
