@@ -33,7 +33,7 @@
     ],
     'assets': {
         'web.assets_backend': [
-            'faturaentegrator_odoo/static/description/icon.png',
+            'mobilsoft_fatura_entegrator/static/description/icon.png',
         ],
     },
     'application': False,
