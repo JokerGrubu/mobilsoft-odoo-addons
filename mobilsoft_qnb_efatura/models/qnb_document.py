@@ -493,10 +493,11 @@ class QnbDocument(models.Model):
         try:
             api_client = self.env['qnb.api.client'].with_company(company)
 
-            # Son 7 günün belgelerini çek
-            from datetime import datetime, timedelta
+            # 2025 Ocak 1'den itibaren tüm belgeleri çek
+            from datetime import datetime
+            from dateutil.parser import parse as parse_date
+            start_date = parse_date('2025-01-01')
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=7)
 
             result = api_client.get_incoming_documents(start_date, end_date, company=company)
 
