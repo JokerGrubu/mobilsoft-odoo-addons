@@ -160,12 +160,30 @@ class QnbDocument(models.Model):
         ('HKSKOMISYONCU', 'HKS Komisyoncu'),
     ], string='Fatura Tipi', default='SATIS')
 
+    # Fatura Satırları (Ürünler)
+    line_ids = fields.One2many(
+        'qnb.document.line',
+        'document_id',
+        string='Fatura İçeriği',
+        help='XML\'den parse edilen ürün/hizmet satırları'
+    )
+
+    line_count = fields.Integer(
+        string='Satır Sayısı',
+        compute='_compute_line_count'
+    )
+
     # Tarihçe
     status_history = fields.One2many(
         'qnb.document.history',
         'document_id',
-        string='Tarihçe'
+        'Tarihçe'
     )
+
+    @api.depends('line_ids')
+    def _compute_line_count(self):
+        for doc in self:
+            doc.line_count = len(doc.line_ids)
 
     def action_send(self):
         """Belgeyi gönder"""
@@ -1035,7 +1053,26 @@ class QnbDocument(models.Model):
 
                             # Belgeyi oluştur
                             import json
-                            self.create({
+
+                            # Fatura satırları için line_ids hazırla
+                            line_vals = []
+                            if invoice_lines:
+                                for idx, line_data in enumerate(invoice_lines, 1):
+                                    line_vals.append((0, 0, {
+                                        'sequence': idx * 10,
+                                        'product_name': line_data.get('product_name') or line_data.get('product_description') or 'Ürün',
+                                        'product_description': line_data.get('product_description'),
+                                        'product_code': line_data.get('product_code'),
+                                        'barcode': line_data.get('barcode'),
+                                        'quantity': line_data.get('quantity', 1.0),
+                                        'uom_code': line_data.get('unit_code'),
+                                        'price_unit': line_data.get('unit_price', 0.0),
+                                        'price_subtotal': line_data.get('line_total', 0.0),
+                                        'tax_percent': line_data.get('tax_percent', 0.0),
+                                        'tax_amount': line_data.get('tax_amount', 0.0),
+                                    }))
+
+                            new_document = self.create({
                                 'name': doc.get('belge_no', 'Yeni Belge'),
                                 'ettn': ettn,
                                 'document_type': odoo_type,
@@ -1050,6 +1087,7 @@ class QnbDocument(models.Model):
                                 'xml_content': xml_result.get('content') if xml_result and xml_result.get('success') else None,
                                 'xml_filename': f"{ettn}.xml" if xml_result and xml_result.get('success') else None,
                                 'invoice_lines_data': json.dumps(invoice_lines, ensure_ascii=False) if invoice_lines else None,
+                                'line_ids': line_vals,
                                 'currency_id': self.env['res.currency'].search([
                                     ('name', '=', doc.get('currency', 'TRY'))
                                 ], limit=1).id,

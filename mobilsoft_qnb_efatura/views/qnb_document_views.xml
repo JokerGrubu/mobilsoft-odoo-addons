@@ -47,6 +47,32 @@
                         </group>
                     </group>
                     <notebook>
+                        <page string="Fatura İçeriği" name="invoice_lines">
+                            <field name="line_ids" nolabel="1">
+                                <tree editable="bottom" decoration-success="match_status in ('matched_barcode', 'matched_code', 'matched_name')" decoration-warning="match_status == 'matched_fuzzy'" decoration-danger="match_status == 'not_matched'" decoration-info="match_status == 'created'">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="product_name"/>
+                                    <field name="product_code"/>
+                                    <field name="barcode"/>
+                                    <field name="quantity"/>
+                                    <field name="uom_code"/>
+                                    <field name="price_unit"/>
+                                    <field name="price_subtotal" sum="Toplam"/>
+                                    <field name="tax_percent"/>
+                                    <field name="product_id"/>
+                                    <field name="match_status" widget="badge"/>
+                                    <field name="match_score" optional="hide"/>
+                                    <button name="action_match_product" type="object" string="🔍 Eşleştir" class="btn-sm btn-primary" invisible="product_id"/>
+                                </tree>
+                            </field>
+                            <div class="oe_form_box_info oe_text_center" invisible="line_ids">
+                                <p>
+                                    <i class="fa fa-info-circle"/> Bu belgede henüz fatura içeriği yok.
+                                    <br/>
+                                    "Tüm Belgeleri Al" butonuna tıklayarak XML'den fatura içeriklerini alabilirsiniz.
+                                </p>
+                            </div>
+                        </page>
                         <page string="Durum Geçmişi" name="status_history">
                             <field name="status_history" nolabel="1" readonly="1">
                                 <list>
