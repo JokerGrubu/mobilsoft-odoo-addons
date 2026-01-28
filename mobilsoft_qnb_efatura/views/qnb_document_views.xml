@@ -124,6 +124,7 @@
                 <field name="document_type"/>
                 <field name="direction"/>
                 <field name="partner_id"/>
+                <field name="move_id" optional="hide"/>
                 <field name="document_date"/>
                 <field name="amount_total" sum="Toplam"/>
                 <field name="currency_id" column_invisible="1"/>
@@ -146,6 +147,8 @@
                 <field name="name"/>
                 <field name="ettn"/>
                 <field name="partner_id"/>
+                <filter string="Eşleşti" name="matched" domain="[('move_id', '!=', False)]"/>
+                <filter string="Eşleşmedi" name="not_matched" domain="[('move_id', '=', False)]"/>
                 <filter string="Giden" name="outgoing" domain="[('direction', '=', 'outgoing')]"/>
                 <filter string="Gelen" name="incoming" domain="[('direction', '=', 'incoming')]"/>
                 <filter string="e-Fatura" name="efatura" domain="[('document_type', '=', 'efatura')]"/>
