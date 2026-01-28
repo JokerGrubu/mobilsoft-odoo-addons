@@ -8,25 +8,25 @@
         <field name="arch" type="xml">
             <!-- e-Belge butonu -->
             <xpath expr="//header" position="inside">
-                <button name="action_open_send_wizard" 
-                        string="e-Belge Gönder" 
-                        type="object" 
+                <button name="action_open_send_wizard"
+                        string="e-Fatura Gönder"
+                        type="object"
                         class="btn-primary"
-                        invisible="state != 'posted' or move_type not in ('out_invoice', 'out_refund') or qnb_state not in ('not_sent', 'error')"
-                        groups="account.group_account_invoice"/>
-                <button name="action_check_qnb_status" 
-                        string="Durum Kontrol" 
-                        type="object" 
+                        invisible="state != 'posted' or move_type not in ('out_invoice', 'out_refund')"
+                        groups="mobilsoft_qnb_efatura.group_qnb_user"/>
+                <button name="action_check_qnb_status"
+                        string="QNB Durum Kontrol"
+                        type="object"
                         class="btn-secondary"
                         invisible="not qnb_ettn"
-                        groups="account.group_account_invoice"/>
+                        groups="mobilsoft_qnb_efatura.group_qnb_user"/>
             </xpath>
 
             <!-- e-Belge Durumu Badge -->
             <xpath expr="//div[@name='button_box']" position="inside">
-                <button name="action_view_qnb_documents" 
-                        type="object" 
-                        class="oe_stat_button" 
+                <button name="action_view_qnb_documents"
+                        type="object"
+                        class="oe_stat_button"
                         icon="fa-file-text-o"
                         invisible="qnb_document_count == 0">
                     <field name="qnb_document_count" widget="statinfo" string="e-Belgeler"/>
@@ -35,11 +35,11 @@
 
             <!-- e-Belge Bilgileri Tab -->
             <xpath expr="//page[@id='other_tab']" position="after">
-                <page string="e-Belge" name="qnb_info" 
+                <page string="e-Belge" name="qnb_info"
                       invisible="move_type not in ('out_invoice', 'out_refund', 'in_invoice', 'in_refund')">
                     <group>
                         <group string="e-Belge Durumu">
-                            <field name="qnb_state" widget="badge" 
+                            <field name="qnb_state" widget="badge"
                                    decoration-info="qnb_state == 'sending'"
                                    decoration-success="qnb_state in ('sent', 'delivered', 'accepted')"
                                    decoration-danger="qnb_state in ('rejected', 'error')"
