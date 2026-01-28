@@ -1182,6 +1182,9 @@ class QnbDocument(models.Model):
                             })
                             outgoing_count += 1
 
+                    # Sonraki döneme geç
+                    current_start = current_end + timedelta(days=1)
+
             total_count = incoming_count + outgoing_count
             return {
                 'type': 'ir.actions.client',
