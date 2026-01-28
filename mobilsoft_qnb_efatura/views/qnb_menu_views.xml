@@ -2,7 +2,7 @@
 <odoo>
     <!-- Actions - Önce action'lar tanımlanmalı -->
     <record id="action_qnb_document_all" model="ir.actions.act_window">
-        <field name="name">Tüm e-Belgeler</field>
+        <field name="name" translatable="False">Tüm e-Belgeler</field>
         <field name="res_model">qnb.document</field>
         <field name="view_mode">list,form</field>
         <field name="context">{}</field>
@@ -18,7 +18,7 @@
     </record>
 
     <record id="action_qnb_document_outgoing" model="ir.actions.act_window">
-        <field name="name">Giden e-Belgeler</field>
+        <field name="name" translatable="False">Giden e-Belgeler</field>
         <field name="res_model">qnb.document</field>
         <field name="view_mode">list,form</field>
         <field name="domain">[('direction', '=', 'outgoing')]</field>
@@ -26,7 +26,7 @@
     </record>
 
     <record id="action_qnb_document_incoming" model="ir.actions.act_window">
-        <field name="name">Gelen e-Belgeler</field>
+        <field name="name" translatable="False">Gelen e-Belgeler</field>
         <field name="res_model">qnb.document</field>
         <field name="view_mode">list,form</field>
         <field name="domain">[('direction', '=', 'incoming')]</field>
@@ -34,7 +34,7 @@
     </record>
 
     <record id="action_qnb_document_efatura" model="ir.actions.act_window">
-        <field name="name">e-Faturalar</field>
+        <field name="name" translatable="False">e-Faturalar</field>
         <field name="res_model">qnb.document</field>
         <field name="view_mode">list,form</field>
         <field name="domain">[('document_type', '=', 'efatura')]</field>
@@ -42,7 +42,7 @@
     </record>
 
     <record id="action_qnb_document_earsiv" model="ir.actions.act_window">
-        <field name="name">e-Arşiv Faturaları</field>
+        <field name="name" translatable="False">e-Arşiv Faturaları</field>
         <field name="res_model">qnb.document</field>
         <field name="view_mode">list,form</field>
         <field name="domain">[('document_type', '=', 'earsiv')]</field>
@@ -50,7 +50,7 @@
     </record>
 
     <record id="action_qnb_document_eirsaliye" model="ir.actions.act_window">
-        <field name="name">e-İrsaliyeler</field>
+        <field name="name" translatable="False">e-İrsaliyeler</field>
         <field name="res_model">qnb.document</field>
         <field name="view_mode">list,form</field>
         <field name="domain">[('document_type', '=', 'eirsaliye')]</field>
@@ -58,7 +58,7 @@
     </record>
 
     <record id="action_qnb_document_draft" model="ir.actions.act_window">
-        <field name="name">Bekleyen Belgeler</field>
+        <field name="name" translatable="False">Bekleyen Belgeler</field>
         <field name="res_model">qnb.document</field>
         <field name="view_mode">list,form</field>
         <field name="domain">[('state', 'in', ['draft', 'sending'])]</field>
@@ -66,7 +66,7 @@
     </record>
 
     <record id="action_qnb_document_error" model="ir.actions.act_window">
-        <field name="name">Hatalı Belgeler</field>
+        <field name="name" translatable="False">Hatalı Belgeler</field>
         <field name="res_model">qnb.document</field>
         <field name="view_mode">list,form</field>
         <field name="domain">[('state', '=', 'error')]</field>
@@ -106,72 +106,72 @@
               sequence="55"/>
 
     <!-- e-Belge Alt Menü -->
-    <menuitem id="menu_qnb_root" 
+    <menuitem id=" translatable="False"menu_qnb_root" 
               name="e-Belge" 
               parent="mobilsoft_qnb_efatura_menu_root"
               sequence="10"/>
 
     <!-- Sub Menus -->
-    <menuitem id="menu_qnb_documents" 
+    <menuitem id=" translatable="False"menu_qnb_documents" 
               name="e-Belgeler" 
               parent="menu_qnb_root" 
               sequence="10"/>
 
-    <menuitem id="menu_qnb_reports" 
+    <menuitem id=" translatable="False"menu_qnb_reports" 
               name="Raporlar" 
               parent="menu_qnb_root" 
               sequence="20"/>
 
-    <menuitem id="menu_qnb_config" 
+    <menuitem id=" translatable="False"menu_qnb_config" 
               name="Ayarlar" 
               parent="menu_qnb_root" 
               sequence="90"
               groups="base.group_system"/>
 
     <!-- e-Belgeler Alt Menüleri -->
-    <menuitem id="menu_qnb_all_documents" 
+    <menuitem id=" translatable="False"menu_qnb_all_documents" 
               name="Tüm e-Belgeler" 
               parent="menu_qnb_documents" 
               action="action_qnb_document_all"
               sequence="1"/>
 
-    <menuitem id="menu_qnb_outgoing_documents" 
+    <menuitem id=" translatable="False"menu_qnb_outgoing_documents" 
               name="Giden e-Belgeler" 
               parent="menu_qnb_documents" 
               action="action_qnb_document_outgoing"
               sequence="10"/>
 
-    <menuitem id="menu_qnb_incoming_documents" 
+    <menuitem id=" translatable="False"menu_qnb_incoming_documents" 
               name="Gelen e-Belgeler" 
               parent="menu_qnb_documents" 
               action="action_qnb_document_incoming"
               sequence="20"/>
 
-    <menuitem id="menu_qnb_efatura" 
+    <menuitem id=" translatable="False"menu_qnb_efatura" 
               name="e-Faturalar" 
               parent="menu_qnb_documents" 
               action="action_qnb_document_efatura"
               sequence="30"/>
 
-    <menuitem id="menu_qnb_earsiv" 
+    <menuitem id=" translatable="False"menu_qnb_earsiv" 
               name="e-Arşiv Faturaları" 
               parent="menu_qnb_documents" 
               action="action_qnb_document_earsiv"
               sequence="40"/>
 
-    <menuitem id="menu_qnb_eirsaliye" 
+    <menuitem id=" translatable="False"menu_qnb_eirsaliye" 
               name="e-İrsaliyeler" 
               parent="menu_qnb_documents" 
               action="action_qnb_document_eirsaliye"
               sequence="50"/>
 
-    <menuitem id="menu_qnb_draft_documents" 
+    <menuitem id=" translatable="False"menu_qnb_draft_documents" 
               name="Bekleyen Belgeler" 
               parent="menu_qnb_documents" 
               action="action_qnb_document_draft"
               sequence="60"/>
 
-    <menuitem id="menu_qnb_error_documents" 
+    <menuitem id=" translatable="False"menu_qnb_error_documents" 
               name="Hatalı Belgeler" 
               parent="menu_qnb_documents" 
               action="action_qnb_document_error"
@@ -196,25 +196,25 @@
               sequence="20"/>
 
     <!-- Ayarlar Menüsü -->
-    <menuitem id="menu_qnb_settings" 
+    <menuitem id=" translatable="False"menu_qnb_settings" 
               name="QNB e-Solutions Ayarları" 
               parent="menu_qnb_config" 
               action="mobilsoft_qnb_efatura.action_qnb_config_settings"
               sequence="10"/>
 
-    <menuitem id="menu_qnb_check_partner" 
+    <menuitem id=" translatable="False"menu_qnb_check_partner" 
               name="e-Fatura Mükellefi Sorgula" 
               parent="menu_qnb_config" 
               action="action_check_partner_efatura"
               sequence="20"/>
 
-    <menuitem id="menu_qnb_batch_check" 
+    <menuitem id=" translatable="False"menu_qnb_batch_check" 
               name="Toplu Mükellefi Kontrol" 
               parent="menu_qnb_config" 
               action="action_batch_check_partners"
               sequence="30"/>
 
-    <menuitem id="menu_qnb_credit_info" 
+    <menuitem id=" translatable="False"menu_qnb_credit_info" 
               name="Kontör Bilgisi" 
               parent="menu_qnb_config" 
               action="action_credit_info"
