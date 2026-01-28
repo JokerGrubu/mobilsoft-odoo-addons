@@ -163,6 +163,22 @@ class QnbApiClient(models.AbstractModel):
             return {
                 'success': False,
                 'message': f'❌ Bağlantı hatası: {str(e)[:200]}'
+            }
+
+    # ============================================
+    # KAYITLI KULLANICI İŞLEMLERİ
+    # ============================================
+
+    def check_registered_user(self, vkn_tckn, company=None):
+        """
+        GİB'e kayıtlı e-Fatura kullanıcısı kontrolü
+        :param vkn_tckn: VKN veya TCKN
+        :param company: Şirket kaydı
+        :return: dict - Kullanıcı bilgileri
+        """
+        client, history = self._get_client(company)
+
+        try:
             result = client.service.kayitliKullaniciListele(
                 parametreler={
                     'urun': 'EFATURA',

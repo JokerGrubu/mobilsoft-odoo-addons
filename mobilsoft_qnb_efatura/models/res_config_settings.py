@@ -98,22 +98,29 @@ class ResConfigSettings(models.TransientModel):
         api_client = self.env['qnb.api.client']
 
         try:
-            # Kontör durumu sorgulayarak bağlantı testi
-            result = api_client.get_credit_status(self.company_id)
+            # Test bağlantı metodunu kullan
+            result = api_client.test_connection(self.company_id)
 
             if result.get('success'):
+                available_ops = result.get('available_operations', [])
+                ops_text = '\n'.join([f"  • {op}" for op in available_ops[:10]])
+                if len(available_ops) > 10:
+                    ops_text += f"\n  ... ve {len(available_ops) - 10} daha"
+
                 message = (
-                    f"✅ Bağlantı başarılı!\n\n"
-                    f"Kontör Durumu:\n"
-                    f"• e-Fatura: {result.get('efatura_credit', 0)}\n"
-                    f"• e-Arşiv: {result.get('earchive_credit', 0)}\n"
-                    f"• e-İrsaliye: {result.get('edespatch_credit', 0)}"
+                    f"✅ QNB e-Solutions Bağlantısı Başarılı\n\n"
+                    f"WSDL: {result.get('wsdl_url', 'N/A')}\n"
+                    f"Toplam Metod: {result.get('total_operations', 0)}\n\n"
+                    f"Kullanılabilir Metodlar:\n{ops_text}"
                 )
+                msg_type = 'success'
             else:
-                message = f"❌ Bağlantı hatası: {result.get('message', 'Bilinmeyen hata')}"
+                message = f"❌ Bağlantı Hatası\n\n{result.get('message', 'Bilinmeyen hata')}"
+                msg_type = 'danger'
 
         except Exception as e:
-            message = f"❌ Bağlantı hatası: {str(e)}"
+            message = f"❌ Bağlantı Hatası\n\n{str(e)}"
+            msg_type = 'danger'
 
         return {
             'type': 'ir.actions.client',
@@ -121,7 +128,7 @@ class ResConfigSettings(models.TransientModel):
             'params': {
                 'title': 'QNB e-Solutions Bağlantı Testi',
                 'message': message,
-                'type': 'success' if 'başarılı' in message else 'danger',
+                'type': msg_type,
                 'sticky': True,
             }
         }
