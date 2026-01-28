@@ -50,7 +50,7 @@
                         <page string="Fatura İçeriği" name="invoice_lines">
                             <field name="line_ids" nolabel="1">
                                 <tree editable="bottom" decoration-success="match_status in ('matched_barcode', 'matched_code', 'matched_name')" decoration-warning="match_status == 'matched_fuzzy'" decoration-danger="match_status == 'not_matched'" decoration-info="match_status == 'created'">
-                                    <field name="sequence" widget="handle"/>
+                                    <!-- <field name="sequence" widget="handle"/> -->
                                     <field name="product_name"/>
                                     <field name="product_code"/>
                                     <field name="barcode"/>
