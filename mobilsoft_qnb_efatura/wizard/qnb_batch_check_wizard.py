@@ -21,45 +21,43 @@ class QNBBatchCheckWizard(models.TransientModel):
     def action_check(self):
         """Seçili müşterileri kontrol et"""
         self.ensure_one()
-        
+
         if not self.partner_ids:
             raise UserError(_('Lütfen en az bir müşteri seçin.'))
-        
+
         return self._check_partners(self.partner_ids)
 
     def action_check_all(self):
         """Tüm şirket müşterilerini kontrol et"""
         self.ensure_one()
-        
+
         partners = self.env['res.partner'].search([
             ('is_company', '=', True),
             ('vat', '!=', False),
             ('vat', '!=', ''),
         ])
-        
+
         if not partners:
             raise UserError(_('VKN/TCKN bilgisi olan müşteri bulunamadı.'))
-        
+
         return self._check_partners(partners)
 
     def _check_partners(self, partners):
         """Müşterileri kontrol et ve sonucu göster"""
-        from ..models.qnb_api import QNBeSolutionsAPI
-        
         company = self.env.company
-        api = QNBeSolutionsAPI(company)
-        
+        api_client = self.env['qnb.api.client'].with_company(company)
+
         results = {
             'registered': [],
             'not_registered': [],
             'error': []
         }
-        
+
         for partner in partners:
             try:
                 vkn = partner.vat.replace('TR', '').replace(' ', '')
-                result = api.check_registered_user(vkn)
-                
+                result = api_client.check_registered_user(vkn)
+
                 if result.get('is_registered'):
                     partner.write({
                         'is_efatura_registered': True,
@@ -90,11 +88,11 @@ class QNBBatchCheckWizard(models.TransientModel):
                     'error': str(e)
                 })
                 _logger.error(f"Partner check error for {partner.name}: {e}")
-        
+
         # Sonuç HTML'i oluştur
         html = self._generate_result_html(results)
         self.result_text = html
-        
+
         return {
             'type': 'ir.actions.act_window',
             'res_model': 'qnb.batch.check.wizard',
@@ -106,7 +104,7 @@ class QNBBatchCheckWizard(models.TransientModel):
     def _generate_result_html(self, results):
         """Sonuç HTML'i oluştur"""
         html = '<div class="container">'
-        
+
         # Özet
         total = len(results['registered']) + len(results['not_registered']) + len(results['error'])
         html += f'''
@@ -117,7 +115,7 @@ class QNBBatchCheckWizard(models.TransientModel):
             </div>
         </div>
         '''
-        
+
         # Kayıtlı olanlar
         if results['registered']:
             html += '''
@@ -128,7 +126,7 @@ class QNBBatchCheckWizard(models.TransientModel):
             for r in results['registered']:
                 html += f'<li><strong>{r["name"]}</strong> ({r["vkn"]}) - Alias: {r["alias"]}</li>'
             html += '</ul></div>'
-        
+
         # Kayıtlı olmayanlar
         if results['not_registered']:
             html += '''
@@ -139,7 +137,7 @@ class QNBBatchCheckWizard(models.TransientModel):
             for r in results['not_registered']:
                 html += f'<li><strong>{r["name"]}</strong> ({r["vkn"]})</li>'
             html += '</ul></div>'
-        
+
         # Hatalar
         if results['error']:
             html += '''
@@ -150,6 +148,6 @@ class QNBBatchCheckWizard(models.TransientModel):
             for r in results['error']:
                 html += f'<li><strong>{r["name"]}</strong> ({r["vkn"]}) - Hata: {r["error"]}</li>'
             html += '</ul></div>'
-        
+
         html += '</div>'
         return html
