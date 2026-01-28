@@ -120,6 +120,12 @@ class QnbDocument(models.Model):
         string='PDF Dosya Adı'
     )
 
+    # XML'den parse edilen ürün satırları (JSON)
+    invoice_lines_data = fields.Text(
+        string='Fatura Satırları (JSON)',
+        help='XML\'den çıkarılan ürün/hizmet satırları'
+    )
+
     # Yanıt/Hata Bilgileri
     response_code = fields.Char(
         string='Yanıt Kodu'
@@ -603,6 +609,279 @@ class QnbDocument(models.Model):
 
         return new_count
 
+    def _parse_invoice_xml_full(self, xml_content, direction='incoming'):
+        """
+        XML'den TÜM bilgileri çıkar ve dict olarak döndür
+        - Müşteri/Tedarikçi bilgileri (VKN, isim, adres, vergi dairesi, telefon, email)
+        - Tutarlar (toplam, vergisiz, vergi)
+        - Fatura satırları (ürünler, barkod, miktar, birim fiyat, vergi)
+        - Ödeme bilgileri
+        """
+        from lxml import etree
+
+        result = {
+            'amounts': {},
+            'partner': {},
+            'lines': [],
+            'payment': {},
+            'document_info': {}
+        }
+
+        try:
+            root = etree.fromstring(xml_content.encode() if isinstance(xml_content, str) else xml_content)
+
+            # Namespace
+            ns = {
+                'inv': 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
+                'cac': 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cbc': 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2'
+            }
+
+            # === BELGE BİLGİLERİ ===
+            result['document_info']['invoice_id'] = self._get_xml_text(root, './/cbc:ID', ns)
+            result['document_info']['uuid'] = self._get_xml_text(root, './/cbc:UUID', ns)
+            result['document_info']['issue_date'] = self._get_xml_text(root, './/cbc:IssueDate', ns)
+            result['document_info']['issue_time'] = self._get_xml_text(root, './/cbc:IssueTime', ns)
+            result['document_info']['invoice_type'] = self._get_xml_text(root, './/cbc:InvoiceTypeCode', ns)
+            result['document_info']['currency'] = self._get_xml_text(root, './/cbc:DocumentCurrencyCode', ns)
+            result['document_info']['profile'] = self._get_xml_text(root, './/cbc:ProfileID', ns)
+
+            # === TUTARLAR ===
+            result['amounts']['total'] = float(self._get_xml_text(root, './/cac:LegalMonetaryTotal/cbc:PayableAmount', ns) or 0)
+            result['amounts']['untaxed'] = float(self._get_xml_text(root, './/cac:LegalMonetaryTotal/cbc:LineExtensionAmount', ns) or 0)
+            result['amounts']['tax'] = float(self._get_xml_text(root, './/cac:TaxTotal/cbc:TaxAmount', ns) or 0)
+
+            # === PARTNER BİLGİLERİ (Tedarikçi veya Müşteri) ===
+            if direction == 'incoming':
+                # Gelen faturalarda SUPPLIER (tedarikçi) bilgisi
+                party_path = './/cac:AccountingSupplierParty/cac:Party'
+            else:
+                # Giden faturalarda CUSTOMER (müşteri) bilgisi
+                party_path = './/cac:AccountingCustomerParty/cac:Party'
+
+            party = root.find(party_path, ns)
+            if party is not None:
+                # VKN/TCKN
+                vkn_elem = party.find('.//cac:PartyIdentification/cbc:ID[@schemeID="VKN"]', ns)
+                if vkn_elem is None:
+                    vkn_elem = party.find('.//cac:PartyIdentification/cbc:ID[@schemeID="TCKN"]', ns)
+                if vkn_elem is None:
+                    vkn_elem = party.find('.//cac:PartyIdentification/cbc:ID', ns)
+
+                if vkn_elem is not None and vkn_elem.text:
+                    result['partner']['vat'] = vkn_elem.text.strip()
+
+                # Firma İsmi
+                result['partner']['name'] = self._get_xml_text(party, './/cac:PartyName/cbc:Name', ns)
+
+                # Adres
+                address = party.find('.//cac:PostalAddress', ns)
+                if address is not None:
+                    result['partner']['street'] = self._get_xml_text(address, './/cbc:StreetName', ns)
+                    result['partner']['street2'] = self._get_xml_text(address, './/cbc:BuildingNumber', ns)
+                    result['partner']['city'] = self._get_xml_text(address, './/cbc:CityName', ns)
+                    result['partner']['state'] = self._get_xml_text(address, './/cbc:CitySubdivisionName', ns)
+                    result['partner']['zip'] = self._get_xml_text(address, './/cbc:PostalZone', ns)
+                    result['partner']['country'] = self._get_xml_text(address, './/cac:Country/cbc:Name', ns)
+
+                # Vergi Dairesi
+                result['partner']['tax_office'] = self._get_xml_text(party, './/cac:PartyTaxScheme/cac:TaxScheme/cbc:Name', ns)
+
+                # İletişim
+                contact = party.find('.//cac:Contact', ns)
+                if contact is not None:
+                    result['partner']['phone'] = self._get_xml_text(contact, './/cbc:Telephone', ns)
+                    result['partner']['email'] = self._get_xml_text(contact, './/cbc:ElectronicMail', ns)
+
+            # === ÖDEME BİLGİLERİ ===
+            payment = root.find('.//cac:PaymentMeans', ns)
+            if payment is not None:
+                result['payment']['means_code'] = self._get_xml_text(payment, './/cbc:PaymentMeansCode', ns)
+                result['payment']['instruction'] = self._get_xml_text(payment, './/cbc:InstructionNote', ns)
+
+            # === FATURA SATIRLARI (Ürünler) ===
+            invoice_lines = root.findall('.//cac:InvoiceLine', ns)
+            for line in invoice_lines:
+                line_data = {}
+
+                # Satır No
+                line_data['line_id'] = self._get_xml_text(line, './/cbc:ID', ns)
+
+                # Miktar ve Birim
+                qty_elem = line.find('.//cbc:InvoicedQuantity', ns)
+                if qty_elem is not None:
+                    line_data['quantity'] = float(qty_elem.text or 0)
+                    line_data['unit_code'] = qty_elem.get('unitCode', 'C62')
+
+                # Tutar
+                line_data['line_total'] = float(self._get_xml_text(line, './/cbc:LineExtensionAmount', ns) or 0)
+
+                # Ürün Bilgileri
+                item = line.find('.//cac:Item', ns)
+                if item is not None:
+                    line_data['product_name'] = self._get_xml_text(item, './/cbc:Name', ns)
+                    line_data['product_description'] = self._get_xml_text(item, './/cbc:Description', ns)
+
+                    # Ürün Kodu (internal_reference)
+                    line_data['product_code'] = self._get_xml_text(item, './/cac:SellersItemIdentification/cbc:ID', ns)
+
+                    # Barkod (GTIN)
+                    line_data['barcode'] = self._get_xml_text(item, './/cac:StandardItemIdentification/cbc:ID[@schemeID="GTIN"]', ns)
+                    if not line_data['barcode']:
+                        line_data['barcode'] = self._get_xml_text(item, './/cac:StandardItemIdentification/cbc:ID', ns)
+
+                # Birim Fiyat
+                price = line.find('.//cac:Price', ns)
+                if price is not None:
+                    line_data['unit_price'] = float(self._get_xml_text(price, './/cbc:PriceAmount', ns) or 0)
+
+                # Vergi (KDV)
+                tax = line.find('.//cac:TaxTotal/cac:TaxSubtotal', ns)
+                if tax is not None:
+                    line_data['tax_amount'] = float(self._get_xml_text(tax, './/cbc:TaxAmount', ns) or 0)
+                    line_data['tax_percent'] = float(self._get_xml_text(tax, './/cbc:Percent', ns) or 0)
+
+                result['lines'].append(line_data)
+
+        except Exception as e:
+            _logger.error(f"XML parsing hatası: {e}")
+
+        return result
+
+    def _get_xml_text(self, element, xpath, namespaces):
+        """XML element'ten text çıkar"""
+        elem = element.find(xpath, namespaces)
+        return elem.text.strip() if elem is not None and elem.text else None
+
+    def action_create_invoice(self):
+        """
+        QNB Belgesinden Odoo Faturası Oluştur
+        - Partner eşleştirmesi yapılmış olmalı
+        - XML'den gelen ürünleri eşleştirir (barkod/kod/isim)
+        - Fatura satırlarını oluşturur
+        - Vergiler otomatik hesaplanır
+        """
+        self.ensure_one()
+
+        if self.move_id:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Fatura Mevcut',
+                    'message': f'Bu belge için zaten fatura oluşturulmuş: {self.move_id.name}',
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
+
+        if not self.partner_id:
+            raise UserError(_("Partner bilgisi eksik! Önce XML'den partner eşleştirmesi yapılmalı."))
+
+        # Fatura tipi
+        if self.direction == 'incoming':
+            move_type = 'in_invoice'  # Satın Alma Faturası
+        else:
+            move_type = 'out_invoice'  # Satış Faturası
+
+        # Fatura satırlarını hazırla
+        invoice_lines = []
+
+        if self.invoice_lines_data:
+            import json
+            lines_data = json.loads(self.invoice_lines_data)
+
+            for line_data in lines_data:
+                product = None
+
+                # Ürün eşleştirme: 1) Barkod, 2) Ürün Kodu, 3) İsim
+                if line_data.get('barcode'):
+                    product = self.env['product.product'].search([
+                        ('barcode', '=', line_data['barcode'])
+                    ], limit=1)
+
+                if not product and line_data.get('product_code'):
+                    product = self.env['product.product'].search([
+                        ('default_code', '=', line_data['product_code'])
+                    ], limit=1)
+
+                if not product and line_data.get('product_name'):
+                    product = self.env['product.product'].search([
+                        ('name', '=ilike', line_data['product_name'])
+                    ], limit=1)
+
+                # Ürün bulunamazsa yeni oluştur
+                if not product:
+                    product_vals = {
+                        'name': line_data.get('product_name') or line_data.get('product_description') or 'Bilinmeyen Ürün',
+                        'type': 'consu',  # Tüketilebilir (stok takipsiz)
+                        'purchase_ok': True if self.direction == 'incoming' else False,
+                        'sale_ok': True if self.direction == 'outgoing' else False,
+                    }
+
+                    if line_data.get('barcode'):
+                        product_vals['barcode'] = line_data['barcode']
+                    if line_data.get('product_code'):
+                        product_vals['default_code'] = line_data['product_code']
+
+                    product = self.env['product.product'].create(product_vals)
+                    _logger.info(f"✅ Yeni ürün oluşturuldu: {product.name}")
+
+                # Fatura satırı
+                invoice_line_vals = {
+                    'product_id': product.id,
+                    'name': line_data.get('product_description') or product.name,
+                    'quantity': line_data.get('quantity', 1),
+                    'price_unit': line_data.get('unit_price', 0),
+                }
+
+                # Vergi (KDV)
+                if line_data.get('tax_percent'):
+                    tax_percent = line_data['tax_percent']
+                    # Türkiye KDV oranları: %1, %10, %20
+                    tax = self.env['account.tax'].search([
+                        ('type_tax_use', '=', 'purchase' if self.direction == 'incoming' else 'sale'),
+                        ('amount', '=', tax_percent),
+                        ('company_id', '=', self.company_id.id)
+                    ], limit=1)
+
+                    if tax:
+                        invoice_line_vals['tax_ids'] = [(6, 0, [tax.id])]
+
+                invoice_lines.append((0, 0, invoice_line_vals))
+
+        # Fatura oluştur
+        invoice_vals = {
+            'partner_id': self.partner_id.id,
+            'move_type': move_type,
+            'invoice_date': self.document_date,
+            'ref': self.name,  # Belge No
+            'company_id': self.company_id.id,
+            'currency_id': self.currency_id.id,
+            'invoice_line_ids': invoice_lines,
+        }
+
+        invoice = self.env['account.move'].create(invoice_vals)
+        self.move_id = invoice.id
+        self.state = 'delivered'
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': '✅ Fatura Oluşturuldu',
+                'message': f'Fatura oluşturuldu: {invoice.name} ({len(invoice_lines)} satır)',
+                'type': 'success',
+                'sticky': False,
+                'next': {
+                    'type': 'ir.actions.act_window',
+                    'res_model': 'account.move',
+                    'res_id': invoice.id,
+                    'views': [[False, 'form']],
+                }
+            }
+        }
+
     def action_fetch_all_documents(self):
         """Gelen + Giden TÜM Belgeleri Al (2025'ten itibaren)"""
         company = self.env.company
@@ -671,85 +950,91 @@ class QnbDocument(models.Model):
                             # XML içeriğini indir ve parse et
                             xml_result = api_client.download_incoming_document(ettn, api_type, company)
 
-                            # Partner bilgileri XML'den gelecek
-                            partner = None
-                            sender_vkn = None
-                            sender_title = None
-
                             # Tarih formatını düzelt (20250115 → 2025-01-15)
                             doc_date = doc.get('date')
                             if doc_date and isinstance(doc_date, str) and len(doc_date) == 8:
                                 doc_date = f"{doc_date[:4]}-{doc_date[4:6]}-{doc_date[6:8]}"
 
-                            # XML'den tutarları parse et
+                            # Varsayılan değerler
+                            partner = None
                             amount_total = doc.get('total', 0)
                             amount_untaxed = 0
                             amount_tax = 0
+                            invoice_lines = []
 
-                            # XML içeriği varsa parse et
+                            # XML içeriği varsa KAPSAMLI PARSE ET
                             if xml_result and xml_result.get('success'):
                                 xml_content = xml_result.get('content')
                                 if xml_content:
-                                    try:
-                                        from lxml import etree
-                                        root = etree.fromstring(xml_content.encode() if isinstance(xml_content, str) else xml_content)
+                                    # Yeni metod ile tam parsing
+                                    parsed_data = self._parse_invoice_xml_full(xml_content, direction='incoming')
 
-                                        # UBL namespace
-                                        ns = {'cac': 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
-                                              'cbc': 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2'}
+                                    # Tutarları al
+                                    if parsed_data.get('amounts'):
+                                        amount_total = parsed_data['amounts'].get('total', amount_total)
+                                        amount_untaxed = parsed_data['amounts'].get('untaxed', amount_untaxed)
+                                        amount_tax = parsed_data['amounts'].get('tax', amount_tax)
 
-                                        # Toplam tutar
-                                        total_elem = root.find('.//cac:LegalMonetaryTotal/cbc:PayableAmount', ns)
-                                        if total_elem is not None and total_elem.text:
-                                            amount_total = float(total_elem.text)
+                                    # Partner bilgilerini al ve eşleştir/güncelle
+                                    if parsed_data.get('partner') and parsed_data['partner'].get('vat'):
+                                        partner_data = parsed_data['partner']
+                                        vat_number = f"TR{partner_data['vat']}"
 
-                                        # Vergisiz tutar
-                                        untaxed_elem = root.find('.//cac:LegalMonetaryTotal/cbc:LineExtensionAmount', ns)
-                                        if untaxed_elem is not None and untaxed_elem.text:
-                                            amount_untaxed = float(untaxed_elem.text)
+                                        # Partner ara
+                                        partner = self.env['res.partner'].search([
+                                            ('vat', '=', vat_number)
+                                        ], limit=1)
 
-                                        # Vergi tutarı
-                                        tax_elem = root.find('.//cac:TaxTotal/cbc:TaxAmount', ns)
-                                        if tax_elem is not None and tax_elem.text:
-                                            amount_tax = float(tax_elem.text)
+                                        # Partner güncellenecek değerler
+                                        partner_vals = {
+                                            'name': partner_data.get('name') or f"Tedarikçi {partner_data['vat']}",
+                                            'vat': vat_number,
+                                            'is_company': True,
+                                            'supplier_rank': 1,
+                                        }
 
-                                        # Sender VKN ve isim bilgilerini XML'den al
-                                        supplier_party = root.find('.//cac:AccountingSupplierParty/cac:Party', ns)
-                                        if supplier_party is not None:
-                                            # VKN
-                                            vkn_elem = supplier_party.find('.//cac:PartyIdentification/cbc:ID[@schemeID="VKN"]', ns)
-                                            if vkn_elem is None:
-                                                vkn_elem = supplier_party.find('.//cac:PartyIdentification/cbc:ID[@schemeID="TCKN"]', ns)
-                                            if vkn_elem is None:
-                                                vkn_elem = supplier_party.find('.//cac:PartyIdentification/cbc:ID', ns)
+                                        # Ek bilgiler varsa ekle
+                                        if partner_data.get('street'):
+                                            partner_vals['street'] = partner_data['street']
+                                        if partner_data.get('street2'):
+                                            partner_vals['street2'] = partner_data['street2']
+                                        if partner_data.get('city'):
+                                            partner_vals['city'] = partner_data['city']
+                                        if partner_data.get('zip'):
+                                            partner_vals['zip'] = partner_data['zip']
+                                        if partner_data.get('phone'):
+                                            partner_vals['phone'] = partner_data['phone']
+                                        if partner_data.get('email'):
+                                            partner_vals['email'] = partner_data['email']
 
-                                            if vkn_elem is not None and vkn_elem.text:
-                                                sender_vkn = vkn_elem.text.strip()
-                                                # Partner ara veya oluştur
-                                                partner = self.env['res.partner'].search([
-                                                    ('vat', '=', f'TR{sender_vkn}')
-                                                ], limit=1)
+                                        # Country (Türkiye)
+                                        if partner_data.get('country'):
+                                            country = self.env['res.country'].search([
+                                                ('name', 'ilike', partner_data['country'])
+                                            ], limit=1)
+                                            if country:
+                                                partner_vals['country_id'] = country.id
 
-                                            # İsim
-                                            name_elem = supplier_party.find('.//cac:PartyName/cbc:Name', ns)
-                                            if name_elem is not None and name_elem.text:
-                                                sender_title = name_elem.text.strip()
+                                        # Partner yoksa oluştur, varsa güncelle
+                                        if not partner:
+                                            partner = self.env['res.partner'].create(partner_vals)
+                                            _logger.info(f"✅ Yeni partner oluşturuldu: {partner_vals['name']} ({vat_number})")
+                                        else:
+                                            # Mevcut partneri güncelle (eksik bilgileri doldur)
+                                            update_vals = {}
+                                            for key, val in partner_vals.items():
+                                                if val and not partner[key]:  # Sadece boş alanları doldur
+                                                    update_vals[key] = val
+                                            if update_vals:
+                                                partner.write(update_vals)
+                                                _logger.info(f"✅ Partner güncellendi: {partner.name} - {list(update_vals.keys())}")
 
-                                            # Partner yoksa oluştur
-                                            if sender_vkn and not partner:
-                                                partner = self.env['res.partner'].create({
-                                                    'name': sender_title or f'Tedarikçi {sender_vkn}',
-                                                    'vat': f'TR{sender_vkn}',
-                                                    'is_company': True,
-                                                    'supplier_rank': 1,
-                                                })
-                                            # Partner varsa ismini güncelle
-                                            elif partner and sender_title:
-                                                partner.write({'name': sender_title})
+                                    # Fatura satırlarını sakla (ürün eşleştirmesi için)
+                                    if parsed_data.get('lines'):
+                                        invoice_lines = parsed_data['lines']
 
-                                    except Exception as e:
-                                        _logger.warning(f"XML parse hatası {ettn}: {e}")
-
+                            # Belgeyi oluştur
+                            import json
                             self.create({
                                 'name': doc.get('belge_no', 'Yeni Belge'),
                                 'ettn': ettn,
@@ -764,6 +1049,7 @@ class QnbDocument(models.Model):
                                 'amount_tax': amount_tax,
                                 'xml_content': xml_result.get('content') if xml_result and xml_result.get('success') else None,
                                 'xml_filename': f"{ettn}.xml" if xml_result and xml_result.get('success') else None,
+                                'invoice_lines_data': json.dumps(invoice_lines, ensure_ascii=False) if invoice_lines else None,
                                 'currency_id': self.env['res.currency'].search([
                                     ('name', '=', doc.get('currency', 'TRY'))
                                 ], limit=1).id,

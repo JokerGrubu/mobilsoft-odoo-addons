@@ -7,6 +7,10 @@
         <field name="arch" type="xml">
             <form string="e-Belge">
                 <header>
+                    <button name="action_create_invoice" type="object" string="📋 Fatura Oluştur"
+                            class="btn-primary" invisible="move_id or direction == 'outgoing'"/>
+                    <button name="%(account.action_move_in_invoice_type)d" type="action" string="📄 Faturayı Görüntüle"
+                            class="btn-info" invisible="not move_id" context="{'default_move_id': move_id}"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,sending,sent,delivered,accepted"/>
                 </header>
@@ -25,6 +29,7 @@
                         </group>
                         <group string="Taraflar">
                             <field name="partner_id"/>
+                            <field name="move_id" readonly="1"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
