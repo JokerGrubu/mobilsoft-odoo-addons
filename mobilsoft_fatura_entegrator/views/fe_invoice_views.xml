@@ -86,12 +86,10 @@
                 <filter string="Odoo Siparişi Var" name="has_sale_order" domain="[('sale_order_id', '!=', False)]"/>
                 <filter string="Fatura" name="move_type_invoice" domain="[('move_type', '=', 'out_invoice')]"/>
                 <filter string="İade Faturası" name="move_type_refund" domain="[('move_type', '=', 'out_refund')]"/>
-                <group string="Grupla">
-                    <filter string="Durum" name="group_fe_status" context="{'group_by': 'fe_status'}"/>
-                    <filter string="Müşteri" name="group_partner" context="{'group_by': 'partner_id'}"/>
-                    <filter string="Fatura Tarihi" name="group_invoice_date" context="{'group_by': 'invoice_date'}"/>
-                    <filter string="Şirket" name="group_company" context="{'group_by': 'company_id'}"/>
-                </group>
+                <filter string="Durum" name="group_fe_status" context="{'group_by': 'fe_status'}"/>
+                <filter string="Müşteri" name="group_partner" context="{'group_by': 'partner_id'}"/>
+                <filter string="Fatura Tarihi" name="group_invoice_date" context="{'group_by': 'invoice_date'}"/>
+                <filter string="Şirket" name="group_company" context="{'group_by': 'company_id'}"/>
             </search>
         </field>
     </record>
