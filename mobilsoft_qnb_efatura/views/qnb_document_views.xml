@@ -116,11 +116,6 @@
                   decoration-muted="state == 'draft'"
                   decoration-success="state in ('accepted', 'delivered')"
                   multi_edit="1">
-                <header>
-                    <button name="action_fetch_all_documents" type="object" string="📥 Belgeleri Al" class="oe_highlight"/>
-                    <button name="action_sync_partners_from_documents" type="object" string="👤 Partner" class="btn-secondary"/>
-                    <button name="action_bulk_match_documents" type="object" string="🔗 Yevmiye" class="btn-secondary"/>
-                </header>
                 <field name="name"/>
                 <field name="document_type"/>
                 <field name="direction"/>
