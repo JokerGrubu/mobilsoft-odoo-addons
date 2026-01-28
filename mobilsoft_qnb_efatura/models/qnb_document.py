@@ -1046,7 +1046,7 @@ class QnbDocument(models.Model):
 
                                         # Partner güncellenecek değerler
                                         partner_vals = {
-                                            'name': partner_data.get('name') or f"Tedarikçi {partner_data['vat']}",
+                                            'name': partner_data.get('name') or f"Firma {partner_data['vat']}",
                                             'vat': vat_number,
                                             'is_company': True,
                                             'supplier_rank': 1,
@@ -1486,10 +1486,11 @@ class QnbDocument(models.Model):
 
     def _find_or_create_partner(self, doc_data, company):
         """Partneri bul veya oluştur"""
-        vat = doc_data.get('sender_vat', '')
+        vat = doc_data.get('sender_vat') or doc_data.get('sender_vkn') or ''
         if vat:
+            vat_number = vat if str(vat).upper().startswith('TR') else f"TR{vat}"
             partner = self.env['res.partner'].search([
-                ('vat', 'ilike', vat),
+                ('vat', 'ilike', vat_number),
                 '|',
                 ('company_id', '=', company.id),
                 ('company_id', '=', False)
@@ -1500,8 +1501,8 @@ class QnbDocument(models.Model):
 
             # Yeni partner oluştur
             return self.env['res.partner'].create({
-                'name': doc_data.get('sender_name', f'VKN: {vat}'),
-                'vat': vat,
+                'name': doc_data.get('sender_name') or doc_data.get('sender_title') or f'Firma {vat}',
+                'vat': vat_number,
                 'is_company': True,
                 'is_efatura_registered': True,
             }).id
