@@ -58,7 +58,7 @@ class QnbDocument(models.Model):
     move_id = fields.Many2one(
         'account.move',
         string='Fatura',
-        ondelete='cascade'
+        ondelete='set null'
     )
     partner_id = fields.Many2one(
         'res.partner',
@@ -1408,10 +1408,11 @@ class QnbDocument(models.Model):
         Mevcut yevmiye kayıtları ile eşleştirme
 
         Eşleştirme Stratejisi:
-        1. Fatura numarası varsa → ref veya name ile eşleştir
-        2. Fatura numarası yoksa → Partner + Tarih ile eşleştir
-        3. Eşleşen yevmiye varsa → QNB belgesini ona bağla (move_id set et)
-        4. Eşleşme yoksa → None döndür (yeni fatura oluşturulacak)
+        1. (2025 ve öncesi) Önce yevmiye (account.move: entry) içinde ara:
+           - account.move.line.name/ref içinde belge numarası geçiyor mu?
+        2. (2026+) Önce fatura hareketlerinde (in/out invoice/refund) ref/name ile ara
+        3. Bulunamazsa Partner + Tarih (+/- 3 gün) + Tutar ile entry satırlarından eşleştir
+        4. Eşleşme yoksa → None
 
         :return: account.move kaydı veya None
         """
@@ -1422,67 +1423,225 @@ class QnbDocument(models.Model):
             return self.move_id
 
         AccountMove = self.env['account.move']
+        MoveLine = self.env['account.move.line']
 
-        # STRATEJİ 1: Fatura Numarası ile Eşleştirme
+        # 2025 ve öncesi: mevcut yevmiye kayıtları zaten yüklü.
+        legacy_mode = bool(self.document_date and self.document_date.year <= 2025)
+
+        # Yardımcı: entry move içinde partner var mı?
+        def _entry_has_partner(move):
+            if not self.partner_id:
+                return True
+            return bool(MoveLine.search([
+                ('move_id', '=', move.id),
+                ('partner_id', '=', self.partner_id.id),
+            ], limit=1))
+
+        # Yardımcı: entry move'dan partner çıkar (QNB partner boşsa doldurmak için)
+        def _entry_guess_partner(move):
+            partner_line = MoveLine.search([
+                ('move_id', '=', move.id),
+                ('partner_id', '!=', False),
+            ], limit=1)
+            return partner_line.partner_id if partner_line else False
+
+        # ===== STRATEJİ A: Belge No ile Yevmiye (entry) eşleştir =====
         if self.name:
-            # QNB belge numarası ile ara (ref veya name alanında)
-            domain = [
-                ('move_type', 'in', ['in_invoice', 'in_refund', 'out_invoice', 'out_refund']),
-                ('state', '=', 'draft'),  # Sadece draft kayıtlarda ara
+            line_domain = [
+                ('move_id.move_type', '=', 'entry'),
+                ('company_id', '=', self.company_id.id),
+                ('move_id.state', 'in', ['draft', 'posted']),
                 '|',
+                ('name', 'ilike', self.name),
                 ('ref', 'ilike', self.name),
-                ('name', 'ilike', self.name)
             ]
 
-            if self.company_id:
-                domain.append(('company_id', '=', self.company_id.id))
+            # Tarih aralığı ile daralt (performans + yanlış eşleşme azaltma)
+            if self.document_date:
+                from datetime import timedelta
+                date_from = self.document_date - timedelta(days=7)
+                date_to = self.document_date + timedelta(days=7)
+                line_domain += [('date', '>=', date_from), ('date', '<=', date_to)]
 
-            matching_move = AccountMove.search(domain, limit=1)
+            lines = MoveLine.search(line_domain, limit=50)
+            candidate_moves = lines.mapped('move_id')
 
+            # Partner doğrulaması varsa uygula
+            candidate_moves = candidate_moves.filtered(_entry_has_partner) if candidate_moves else candidate_moves
+
+            # En yakın tarihlisini seç
+            if candidate_moves:
+                if self.document_date:
+                    candidate_moves = candidate_moves.sorted(lambda m: abs((m.date or self.document_date) - self.document_date))
+
+                move = candidate_moves[0]
+                if not self.partner_id:
+                    guessed = _entry_guess_partner(move)
+                    if guessed:
+                        self.partner_id = guessed.id
+                _logger.info(f"✅ Yevmiye eşleşti (Belge No satırda): {self.name} → {move.name}")
+                return move
+
+        # ===== STRATEJİ B: (2026+) Fatura hareketlerinde ref/name ile eşleştir =====
+        if not legacy_mode and self.name:
+            invoice_domain = [
+                ('move_type', 'in', ['in_invoice', 'in_refund', 'out_invoice', 'out_refund']),
+                ('company_id', '=', self.company_id.id),
+                '|',
+                ('ref', 'ilike', self.name),
+                ('name', 'ilike', self.name),
+            ]
+
+            # Tarih ile daralt
+            if self.document_date:
+                from datetime import timedelta
+                date_from = self.document_date - timedelta(days=7)
+                date_to = self.document_date + timedelta(days=7)
+                invoice_domain += ['|', ('invoice_date', '=', False), '&', ('invoice_date', '>=', date_from), ('invoice_date', '<=', date_to)]
+
+            matching_move = AccountMove.search(invoice_domain, limit=1)
             if matching_move:
-                _logger.info(f"✅ Yevmiye eşleşti (Fatura No): {self.name} → {matching_move.name}")
+                _logger.info(f"✅ Fatura eşleşti (Ref/Name): {self.name} → {matching_move.name}")
                 return matching_move
 
-        # STRATEJİ 2: Partner + Tarih ile Eşleştirme
-        if self.partner_id and self.document_date:
-            # Tolerans: ±3 gün
+        # ===== STRATEJİ C: Partner + Tarih (+/-3) + Tutar ile entry eşleştir =====
+        if self.partner_id and self.document_date and self.amount_total:
             from datetime import timedelta
             date_from = self.document_date - timedelta(days=3)
             date_to = self.document_date + timedelta(days=3)
 
-            domain = [
+            # Payable/receivable satırında toplam genelde debit/credit olarak geçer.
+            amount = float(self.amount_total)
+            amount_domain = ['|', ('debit', '=', amount), ('credit', '=', amount)]
+
+            line_domain = [
+                ('move_id.move_type', '=', 'entry'),
+                ('company_id', '=', self.company_id.id),
+                ('move_id.state', 'in', ['draft', 'posted']),
                 ('partner_id', '=', self.partner_id.id),
-                ('invoice_date', '>=', date_from),
-                ('invoice_date', '<=', date_to),
-                ('move_type', 'in', ['in_invoice', 'in_refund']),  # Gelen belgeler için
-                ('state', '=', 'draft'),
-            ]
+                ('date', '>=', date_from),
+                ('date', '<=', date_to),
+            ] + amount_domain
 
-            if self.company_id:
-                domain.append(('company_id', '=', self.company_id.id))
+            lines = MoveLine.search(line_domain, limit=50)
+            candidate_moves = lines.mapped('move_id')
+            if candidate_moves:
+                candidate_moves = candidate_moves.sorted(lambda m: abs((m.date or self.document_date) - self.document_date))
+                move = candidate_moves[0]
+                _logger.info(f"⚠️ Yevmiye eşleşti (Partner+Tarih+Tutar): {self.partner_id.name} [{self.document_date}] → {move.name}")
+                return move
 
-            # Tutar eşleşmesi varsa daha iyi
-            if self.amount_total:
-                domain.append(('amount_total', '=', self.amount_total))
-
-            matching_move = AccountMove.search(domain, limit=1)
-
-            if matching_move:
-                _logger.info(f"✅ Yevmiye eşleşti (Partner+Tarih): {self.partner_id.name} [{self.document_date}] → {matching_move.name}")
-                return matching_move
-
-            # Tutar olmadan dene
-            if self.amount_total:
-                domain_without_amount = [d for d in domain if not (isinstance(d, tuple) and d[0] == 'amount_total')]
-                matching_move = AccountMove.search(domain_without_amount, limit=1)
-
-                if matching_move:
-                    _logger.info(f"⚠️ Yevmiye eşleşti (Partner+Tarih, tutar farklı): {self.partner_id.name} [{self.document_date}] → {matching_move.name}")
-                    return matching_move
-
-        # Eşleşme bulunamadı
-        _logger.info(f"ℹ️ Yevmiye eşleşmesi bulunamadı: {self.name} - Yeni fatura oluşturulacak")
+        _logger.info(f"ℹ️ Yevmiye eşleşmesi bulunamadı: {self.name}")
         return None
+
+    @api.model
+    def action_cleanup_legacy_2025_draft_invoices(self):
+        """
+        2025 (ve öncesi) için QNB tarafından oluşturulmuş taslak vendor bill kayıtlarını temizle.
+        - Yevmiye zaten yüklü olduğu için bu yıllarda yeni in_invoice oluşturulmamalı.
+        - Güvenlik: sadece ref'i qnb_document.name ile eşleşen draft in_invoice'lar silinir.
+        """
+        from datetime import date
+
+        company = self.env.company
+        cutoff_end = date(2025, 12, 31)
+        cutoff_start = date(2025, 1, 1)
+
+        legacy_doc_numbers = self.search([
+            ('company_id', '=', company.id),
+            ('direction', '=', 'incoming'),
+            ('name', '!=', False),
+            ('document_date', '>=', cutoff_start),
+            ('document_date', '<=', cutoff_end),
+        ]).mapped('name')
+
+        if not legacy_doc_numbers:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'QNB Temizlik',
+                    'message': 'Silinecek 2025 QNB belge kaydı bulunamadı.',
+                    'type': 'info',
+                    'sticky': False,
+                }
+            }
+
+        Move = self.env['account.move']
+        draft_moves = Move.search([
+            ('company_id', '=', company.id),
+            ('move_type', '=', 'in_invoice'),
+            ('state', '=', 'draft'),
+            ('invoice_date', '>=', cutoff_start),
+            ('invoice_date', '<=', cutoff_end),
+            ('ref', 'in', legacy_doc_numbers),
+        ])
+
+        # Olası cascade riskine karşı önce ilişkileri kaldır
+        related_docs = self.search([('move_id', 'in', draft_moves.ids)])
+        if related_docs:
+            related_docs.write({'move_id': False})
+
+        deleted_count = len(draft_moves)
+        if draft_moves:
+            draft_moves.unlink()
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'QNB Temizlik',
+                'message': f'2025 için {deleted_count} adet taslak tedarikçi faturası silindi.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    @api.model
+    def action_bulk_match_documents(self):
+        """
+        QNB belgelerini mevcut muhasebe kayıtları ile toplu eşleştir:
+        - 2025 ve öncesi: entry (yevmiye) satırlarından eşleştirip move_id bağlar.
+        - 2026+: varsa mevcut fatura kaydı ile bağlar (ref/name), yoksa dokunmaz.
+        """
+        company = self.env.company
+        docs = self.search([
+            ('company_id', '=', company.id),
+            ('move_id', '=', False),
+            ('name', '!=', False),
+        ], order='document_date asc, id asc')
+
+        matched = 0
+        matched_entry = 0
+        matched_invoice = 0
+        missing = 0
+
+        for doc in docs:
+            move = doc._match_with_existing_journal_entry()
+            if move:
+                doc.write({'move_id': move.id})
+                matched += 1
+                if move.move_type == 'entry':
+                    matched_entry += 1
+                else:
+                    matched_invoice += 1
+            else:
+                missing += 1
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'QNB Eşleştirme',
+                'message': (
+                    f'Toplam: {len(docs)}\n'
+                    f'Eşleşti: {matched} (entry: {matched_entry}, invoice: {matched_invoice})\n'
+                    f'Eşleşmedi: {missing}'
+                ),
+                'type': 'success' if matched else 'warning',
+                'sticky': False,
+            }
+        }
 
     def _find_or_create_partner(self, doc_data, company):
         """Partneri bul veya oluştur"""

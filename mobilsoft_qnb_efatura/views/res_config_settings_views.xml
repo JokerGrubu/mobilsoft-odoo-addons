@@ -85,6 +85,10 @@
                                  help="Gelen e-Fatura ve e-İrsaliyeleri otomatik olarak indir">
                             <field name="qnb_auto_fetch_incoming"/>
                         </setting>
+                        <setting id="qnb_auto_fetch_outgoing" string="Giden Belgeleri Otomatik Al"
+                                 help="Giden e-Fatura ve e-Arşiv faturalarını otomatik olarak indir">
+                            <field name="qnb_auto_fetch_outgoing"/>
+                        </setting>
                         <setting id="qnb_auto_check" string="Durumu Otomatik Kontrol Et"
                                  help="Gönderilen belgelerin durumunu periyodik olarak kontrol et">
                             <field name="qnb_auto_check_status"/>

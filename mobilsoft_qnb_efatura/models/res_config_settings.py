@@ -76,6 +76,10 @@ class ResConfigSettings(models.TransientModel):
         related='company_id.qnb_auto_fetch_incoming',
         readonly=False
     )
+    qnb_auto_fetch_outgoing = fields.Boolean(
+        related='company_id.qnb_auto_fetch_outgoing',
+        readonly=False
+    )
     qnb_auto_check_status = fields.Boolean(
         related='company_id.qnb_auto_check_status',
         readonly=False
