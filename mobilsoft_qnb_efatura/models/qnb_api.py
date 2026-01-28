@@ -587,30 +587,65 @@ class QnbApiClient(models.AbstractModel):
     def get_outgoing_documents(self, start_date, end_date, document_type='EFATURA', company=None):
         """
         Giden belgeleri listele
+        QNB API Signature: parametreler object içinde tüm parametreler
         """
         client, history = self._get_client(company)
+
+        if not company:
+            company = self.env.company
+
+        # VKN'yi al
+        vkn = company.vat or ''
+        if vkn:
+            vkn = ''.join(filter(str.isdigit, str(vkn)))
+
+        # Belge türü: FATURA, IRSALIYE
+        belge_turu = 'FATURA' if document_type == 'EFATURA' else document_type
 
         try:
             result = client.service.gidenBelgeleriListele(
                 parametreler={
-                    'urun': document_type,
-                    'baslangicTarihi': start_date.strftime('%Y-%m-%d'),
-                    'bitisTarihi': end_date.strftime('%Y-%m-%d')
+                    'baslangicBelgeTarihi': start_date.strftime('%Y%m%d'),
+                    'baslangicGonderimTarihi': start_date.strftime('%Y%m%d'),
+                    'belgeTuru': belge_turu,
+                    'bitisBelgeTarihi': end_date.strftime('%Y%m%d'),
+                    'bitisGonderimTarihi': end_date.strftime('%Y%m%d'),
+                    'vkn': vkn
                 }
             )
 
             if result:
                 documents = []
+                # result bir liste veya tek bir obje olabilir
+                if not isinstance(result, list):
+                    result = [result]
+
                 for doc in result:
+                    # Zeep objesi olabilir
+                    if hasattr(doc, '__dict__'):
+                        doc_dict = doc.__dict__ if hasattr(doc, '__dict__') else {}
+                    elif isinstance(doc, dict):
+                        doc_dict = doc
+                    else:
+                        doc_dict = {}
+                        for attr in dir(doc):
+                            if not attr.startswith('_'):
+                                try:
+                                    doc_dict[attr] = getattr(doc, attr)
+                                except:
+                                    pass
+
                     documents.append({
-                        'ettn': doc.get('ettn', ''),
-                        'belge_no': doc.get('belgeNo', ''),
-                        'receiver_vkn': doc.get('aliciVkn', ''),
-                        'receiver_title': doc.get('aliciUnvan', ''),
-                        'date': doc.get('belgeTarihi', ''),
-                        'total': doc.get('toplamTutar', 0),
-                        'currency': doc.get('paraBirimi', 'TRY'),
-                        'status': doc.get('durum', '')
+                        'ettn': doc_dict.get('ettn', '') or getattr(doc, 'ettn', ''),
+                        'belge_no': doc_dict.get('belgeNo', '') or getattr(doc, 'belgeNo', ''),
+                        'recipient_vkn': doc_dict.get('aliciVkn', '') or getattr(doc, 'aliciVkn', ''),
+                        'recipient_title': doc_dict.get('aliciUnvan', '') or getattr(doc, 'aliciUnvan', ''),
+                        'receiver_vkn': doc_dict.get('aliciVkn', '') or getattr(doc, 'aliciVkn', ''),
+                        'receiver_title': doc_dict.get('aliciUnvan', '') or getattr(doc, 'aliciUnvan', ''),
+                        'date': doc_dict.get('belgeTarihi', '') or getattr(doc, 'belgeTarihi', ''),
+                        'total': float(doc_dict.get('toplamTutar', 0) or getattr(doc, 'toplamTutar', 0) or 0),
+                        'currency': doc_dict.get('paraBirimi', 'TRY') or getattr(doc, 'paraBirimi', 'TRY'),
+                        'status': doc_dict.get('durum', '') or getattr(doc, 'durum', '')
                     })
                 return {'success': True, 'documents': documents}
             return {'success': True, 'documents': []}
