@@ -671,21 +671,10 @@ class QnbDocument(models.Model):
                             # XML içeriğini indir ve parse et
                             xml_result = api_client.download_incoming_document(ettn, api_type, company)
 
-                            # Partner bul veya oluştur
+                            # Partner bilgileri XML'den gelecek
                             partner = None
-                            sender_vkn = doc.get('sender_vkn')
-                            sender_title = doc.get('sender_title', '')
-
-                            if sender_vkn:
-                                partner = self.env['res.partner'].search([
-                                    ('vat', '=', f'TR{sender_vkn}')
-                                ], limit=1)
-                                if not partner:
-                                    partner = self.env['res.partner'].create({
-                                        'name': sender_title or f'Firma {sender_vkn}',
-                                        'vat': f'TR{sender_vkn}',
-                                        'is_company': True,
-                                    })
+                            sender_vkn = None
+                            sender_title = None
 
                             # Tarih formatını düzelt (20250115 → 2025-01-15)
                             doc_date = doc.get('date')
@@ -724,13 +713,39 @@ class QnbDocument(models.Model):
                                         if tax_elem is not None and tax_elem.text:
                                             amount_tax = float(tax_elem.text)
 
-                                        # Sender bilgisini XML'den al
-                                        if not sender_title:
-                                            supplier_name = root.find('.//cac:AccountingSupplierParty/cac:Party/cac:PartyName/cbc:Name', ns)
-                                            if supplier_name is not None and supplier_name.text:
-                                                sender_title = supplier_name.text
-                                                if partner:
-                                                    partner.name = sender_title
+                                        # Sender VKN ve isim bilgilerini XML'den al
+                                        supplier_party = root.find('.//cac:AccountingSupplierParty/cac:Party', ns)
+                                        if supplier_party is not None:
+                                            # VKN
+                                            vkn_elem = supplier_party.find('.//cac:PartyIdentification/cbc:ID[@schemeID="VKN"]', ns)
+                                            if vkn_elem is None:
+                                                vkn_elem = supplier_party.find('.//cac:PartyIdentification/cbc:ID[@schemeID="TCKN"]', ns)
+                                            if vkn_elem is None:
+                                                vkn_elem = supplier_party.find('.//cac:PartyIdentification/cbc:ID', ns)
+
+                                            if vkn_elem is not None and vkn_elem.text:
+                                                sender_vkn = vkn_elem.text.strip()
+                                                # Partner ara veya oluştur
+                                                partner = self.env['res.partner'].search([
+                                                    ('vat', '=', f'TR{sender_vkn}')
+                                                ], limit=1)
+
+                                            # İsim
+                                            name_elem = supplier_party.find('.//cac:PartyName/cbc:Name', ns)
+                                            if name_elem is not None and name_elem.text:
+                                                sender_title = name_elem.text.strip()
+
+                                            # Partner yoksa oluştur
+                                            if sender_vkn and not partner:
+                                                partner = self.env['res.partner'].create({
+                                                    'name': sender_title or f'Tedarikçi {sender_vkn}',
+                                                    'vat': f'TR{sender_vkn}',
+                                                    'is_company': True,
+                                                    'supplier_rank': 1,
+                                                })
+                                            # Partner varsa ismini güncelle
+                                            elif partner and sender_title:
+                                                partner.write({'name': sender_title})
 
                                     except Exception as e:
                                         _logger.warning(f"XML parse hatası {ettn}: {e}")
