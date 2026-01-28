@@ -150,96 +150,58 @@ class QnbDocumentLine(models.Model):
 
     def _find_matching_product(self):
         """
-        Geliştirilmiş Ürün Eşleştirme (Powerway özel):
-        1. Barkod
-        2. QNB Ürün Kodu (product_code) → Odoo default_code
-        3. Ürün isminden kod çıkar (POWERWAY CC34 → CC34) → Odoo default_code
-        4. Tam İsim
-        5. Benzer İsim (fuzzy matching)
+        Geliştirilmiş Ürün Eşleştirme:
+        1. Harici Kod (QNB product code) - EN HIZLI
+        2. Barkod
+        3. Odoo Ürün Kodu (default_code)
+        4. Ürün isminden kod çıkar (POWERWAY CC34 → CC34)
+        5. Açıklamadan kod çıkar
+        6. Tam İsim
+        7. Benzer İsim (fuzzy matching)
 
-        Eşleşince: QNB product_code'u Odoo default_code'a kaydet (boşsa)
+        Eşleşme bulunursa: QNB kod kaydedilir ve bir daha arama yapmaz
+        Eşleşme yoksa: None döner (manuel onay gerekir)
         """
         Product = self.env['product.product']
 
-        # 1. Barkod ile ara
-        if self.barcode:
-            product = Product.search([('barcode', '=', self.barcode)], limit=1)
-            if product:
-                self._save_manufacturer_code_to_product(product)
-                return product, 'matched_barcode', 100.0
+        # Harici veri hazırla
+        external_data = {
+            'product_code': self.product_code,
+            'product_name': self.product_name,
+            'barcode': self.barcode,
+            'description': self.product_description
+        }
 
-        # 2. QNB Ürün Kodu (product_code) ile ara
-        if self.product_code:
-            product = Product.search([('default_code', '=', self.product_code)], limit=1)
-            if product:
-                return product, 'matched_code', 100.0
+        # YENİ: match_or_create_from_external kullan
+        product, matched, match_type = Product.match_or_create_from_external('qnb', external_data)
 
-        # 3. Ürün isminden kod çıkar ve Odoo'da ara
-        # Örnek: "POWERWAY CC34 ARAÇ ŞARJ" → ["CC34", "POWERWAY", "ARAÇ", "ŞARJ"]
-        extracted_codes = self._extract_product_codes_from_name()
-        if extracted_codes:
-            for code in extracted_codes:
-                # Önce tam eşleşme
-                product = Product.search([('default_code', '=', code)], limit=1)
-                if product:
-                    self._save_manufacturer_code_to_product(product)
-                    return product, 'matched_code', 95.0
-
-                # Sonra ILIKE ile ara
-                product = Product.search([('default_code', 'ilike', code)], limit=1)
-                if product:
-                    self._save_manufacturer_code_to_product(product)
-                    return product, 'matched_code', 90.0
-
-        # 4. Tam İsim ile ara
-        if self.product_name:
-            product = Product.search([('name', '=', self.product_name)], limit=1)
-            if product:
-                self._save_manufacturer_code_to_product(product)
-                return product, 'matched_name', 100.0
-
-            # 5. İsim benzerliği (ILIKE) - kısmi eşleşme
-            product = Product.search([('name', 'ilike', self.product_name)], limit=1)
-            if product:
+        if matched:
+            # Skor hesapla
+            if match_type in ('external_code', 'barcode', 'default_code'):
+                score = 100.0
+                status = 'matched_code' if match_type in ('external_code', 'default_code') else 'matched_barcode'
+            elif match_type == 'name':
+                score = 100.0
+                status = 'matched_name'
+            elif match_type == 'fuzzy':
                 score = self._calculate_similarity(self.product_name, product.name)
-                self._save_manufacturer_code_to_product(product)
-                return product, 'matched_fuzzy', score
+                status = 'matched_fuzzy'
+            else:
+                score = 90.0
+                status = 'matched_code'
 
-            # 6. Kelimelere böl ve ara (fuzzy matching)
-            words = self.product_name.split()
-            if len(words) > 1:
-                # En az 2 kelime içeren ürünleri ara
-                domain = []
-                for word in words:
-                    if len(word) > 2:  # 2 harften uzun kelimeler
-                        domain.append(('name', 'ilike', word))
-
-                if domain:
-                    products = Product.search(domain, limit=10)
-                    if products:
-                        # En yüksek benzerlik skoruna sahip ürünü bul
-                        best_product = None
-                        best_score = 0.0
-
-                        for product in products:
-                            score = self._calculate_similarity(self.product_name, product.name)
-                            if score > best_score and score > 60.0:  # En az %60 benzerlik
-                                best_score = score
-                                best_product = product
-
-                        if best_product:
-                            self._save_manufacturer_code_to_product(best_product)
-                            return best_product, 'matched_fuzzy', best_score
+            return product, status, score
 
         return None, 'not_matched', 0.0
 
-    def _extract_product_codes_from_name(self):
+    @staticmethod
+    def _extract_product_codes_from_name_static(product_name):
         """
-        Ürün isminden olası kodları çıkar
+        Ürün isminden olası kodları çıkar (Static method)
         Örnek: "POWERWAY CC34 ARAÇ ŞARJ" → ["CC34", "POWERWAY"]
         Örnek: "POWERWAY QCT30 ŞARJ CİHAZI" → ["QCT30", "POWERWAY"]
         """
-        if not self.product_name:
+        if not product_name:
             return []
 
         import re
@@ -248,17 +210,25 @@ class QnbDocumentLine(models.Model):
         # Büyük harfle başlayan kısa kelimeler (2-10 karakter arası, rakam içerebilir)
         # CC34, QCT30, X633, IP27 gibi
         pattern = r'\b([A-Z]{2,3}\d{2,4}|[A-Z]{2,4}\d{1,3})\b'
-        matches = re.findall(pattern, self.product_name.upper())
+        matches = re.findall(pattern, product_name.upper())
         codes.extend(matches)
 
         # Marka ismi (ilk kelime genelde)
-        words = self.product_name.upper().split()
+        words = product_name.upper().split()
         if words and len(words[0]) > 3:  # En az 4 harfli ilk kelime
             first_word = words[0].strip()
             if first_word not in codes and first_word.isalpha():
                 codes.append(first_word)
 
         return list(set(codes))  # Tekrarları temizle
+
+    def _extract_product_codes_from_name(self):
+        """
+        Ürün isminden olası kodları çıkar
+        Örnek: "POWERWAY CC34 ARAÇ ŞARJ" → ["CC34", "POWERWAY"]
+        Örnek: "POWERWAY QCT30 ŞARJ CİHAZI" → ["QCT30", "POWERWAY"]
+        """
+        return self._extract_product_codes_from_name_static(self.product_name)
 
     def _save_manufacturer_code_to_product(self, product):
         """
