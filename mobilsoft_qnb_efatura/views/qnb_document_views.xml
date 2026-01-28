@@ -80,8 +80,7 @@
                     <button name="action_fetch_incoming_documents"
                             string="Gelen Belgeleri Al"
                             type="object"
-                            class="btn-primary"
-                            groups="mobilsoft_qnb_efatura.group_qnb_user"/>
+                            class="btn-primary"/>
                 </header>
                 <field name="name"/>
                 <field name="document_type"/>

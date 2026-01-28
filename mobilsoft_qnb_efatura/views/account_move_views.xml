@@ -12,14 +12,12 @@
                         string="e-Fatura Gönder"
                         type="object"
                         class="btn-primary"
-                        invisible="state != 'posted' or move_type not in ('out_invoice', 'out_refund')"
-                        groups="mobilsoft_qnb_efatura.group_qnb_user"/>
+                        invisible="state != 'posted' or move_type not in ('out_invoice', 'out_refund')"/>
                 <button name="action_check_qnb_status"
                         string="QNB Durum Kontrol"
                         type="object"
                         class="btn-secondary"
-                        invisible="not qnb_ettn"
-                        groups="mobilsoft_qnb_efatura.group_qnb_user"/>
+                        invisible="not qnb_ettn"/>
             </xpath>
 
             <!-- e-Belge Durumu Badge -->
