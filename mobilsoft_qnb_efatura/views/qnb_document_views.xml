@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <form string="e-Belge">
                 <header>
-                    <field name="state" widget="statusbar" 
+                    <field name="state" widget="statusbar"
                            statusbar_visible="draft,sending,sent,delivered,accepted"/>
                 </header>
                 <sheet>
@@ -51,7 +51,7 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Hata Detayı" name="error_detail" 
+                        <page string="Hata Detayı" name="error_detail"
                               invisible="not error_message">
                             <group>
                                 <field name="error_message" nolabel="1" readonly="1"/>
@@ -73,9 +73,16 @@
         <field name="name">qnb.document.tree</field>
         <field name="model">qnb.document</field>
         <field name="arch" type="xml">
-            <list string="e-Belgeler" decoration-danger="state == 'error'" 
-                  decoration-muted="state == 'draft'" 
+            <list string="e-Belgeler" decoration-danger="state == 'error'"
+                  decoration-muted="state == 'draft'"
                   decoration-success="state in ('accepted', 'delivered')">
+                <header>
+                    <button name="action_fetch_incoming_documents"
+                            string="Gelen Belgeleri Al"
+                            type="object"
+                            class="btn-primary"
+                            groups="mobilsoft_qnb_efatura.group_qnb_user"/>
+                </header>
                 <field name="name"/>
                 <field name="document_type"/>
                 <field name="direction"/>

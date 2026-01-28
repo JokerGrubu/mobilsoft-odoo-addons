@@ -461,6 +461,77 @@ class QnbDocument(models.Model):
             'timestamp': fields.Datetime.now()
         })
 
+    def action_fetch_incoming_documents(self):
+        """Manuel olarak gelen belgeleri çek"""
+        company = self.env.company
+
+        if not company.qnb_enabled:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'QNB Hatası',
+                    'message': 'QNB e-Solutions entegrasyonu aktif değil!',
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
+
+        try:
+            from .qnb_api import QNBeSolutionsAPI
+            api = QNBeSolutionsAPI(company)
+
+            # Son 7 günün belgelerini çek
+            from datetime import datetime, timedelta
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=7)
+
+            documents = api.get_incoming_documents(start_date, end_date)
+            new_count = 0
+
+            for doc in documents:
+                # Daha önce alınmış mı kontrol et
+                existing = self.search([
+                    ('ettn', '=', doc.get('ettn')),
+                    ('company_id', '=', company.id)
+                ])
+                if not existing:
+                    self.create({
+                        'name': doc.get('document_no', 'Yeni Belge'),
+                        'ettn': doc.get('ettn'),
+                        'document_type': doc.get('document_type', 'efatura'),
+                        'direction': 'incoming',
+                        'state': 'delivered',
+                        'partner_id': self._find_or_create_partner(doc, company),
+                        'company_id': company.id,
+                        'document_date': doc.get('document_date'),
+                        'amount_total': doc.get('amount_total', 0),
+                    })
+                    new_count += 1
+
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Başarılı',
+                    'message': f'{new_count} yeni belge indirildi!',
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+
+        except Exception as e:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Hata',
+                    'message': f'Belgeler indirilemedi: {str(e)}',
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+
     @api.model
     def _cron_fetch_incoming_documents(self):
         """Gelen belgeleri otomatik çek (Cron Job)"""
@@ -468,19 +539,19 @@ class QnbDocument(models.Model):
             ('qnb_enabled', '=', True),
             ('qnb_auto_fetch_incoming', '=', True)
         ])
-        
+
         for company in companies:
             try:
                 from .qnb_api import QNBeSolutionsAPI
                 api = QNBeSolutionsAPI(company)
-                
+
                 # Son 7 günün belgelerini çek
                 from datetime import datetime, timedelta
                 end_date = datetime.now()
                 start_date = end_date - timedelta(days=7)
-                
+
                 documents = api.get_incoming_documents(start_date, end_date)
-                
+
                 for doc in documents:
                     # Daha önce alınmış mı kontrol et
                     existing = self.search([
@@ -499,9 +570,9 @@ class QnbDocument(models.Model):
                             'document_date': doc.get('document_date'),
                             'amount_total': doc.get('amount_total', 0),
                         })
-                        
+
                 _logger.info(f"Fetched {len(documents)} incoming documents for {company.name}")
-                
+
             except Exception as e:
                 _logger.error(f"Error fetching incoming documents for {company.name}: {e}")
 
@@ -512,7 +583,7 @@ class QnbDocument(models.Model):
             ('qnb_enabled', '=', True),
             ('qnb_auto_check_status', '=', True)
         ])
-        
+
         for company in companies:
             # Gönderilmiş ama henüz son durumu belli olmayan belgeler
             documents = self.search([
@@ -520,7 +591,7 @@ class QnbDocument(models.Model):
                 ('state', 'in', ['sent', 'sending']),
                 ('ettn', '!=', False)
             ])
-            
+
             for doc in documents:
                 try:
                     doc.action_check_status()
@@ -537,10 +608,10 @@ class QnbDocument(models.Model):
                 ('company_id', '=', company.id),
                 ('company_id', '=', False)
             ], limit=1)
-            
+
             if partner:
                 return partner.id
-            
+
             # Yeni partner oluştur
             return self.env['res.partner'].create({
                 'name': doc_data.get('sender_name', f'VKN: {vat}'),
@@ -548,7 +619,7 @@ class QnbDocument(models.Model):
                 'is_company': True,
                 'is_efatura_registered': True,
             }).id
-        
+
         return False
 
 
