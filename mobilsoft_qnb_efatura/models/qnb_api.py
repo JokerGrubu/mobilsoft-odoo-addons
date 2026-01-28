@@ -134,34 +134,35 @@ class QnbApiClient(models.AbstractModel):
                 for port in service.ports.values():
                     operations.extend(list(port.binding._operations.keys()))
 
-            return {
+            # Temel işlevler kontrol et
+            required_ops = [
+                'belgeGonderExt',
+                'gidenBelgeDurumSorgula',
+                'kayitliKullaniciListele'
+            ]
+
+            missing_ops = [op for op in required_ops if op not in operations]
+
+            result = {
                 'success': True,
-                'message': 'QNB e-Solutions bağlantısı başarılı',
+                'message': '✅ QNB e-Solutions bağlantısı başarılı',
+                'wsdl_url': self._get_wsdl_url(company),
                 'services': services,
-                'operations_count': len(operations),
-                'sample_operations': sorted(operations)[:10]  # İlk 10 metod
+                'total_operations': len(operations),
+                'available_operations': sorted(operations),
+                'required_operations_found': len(required_ops) - len(missing_ops) == len(required_ops)
             }
+
+            if missing_ops:
+                result['warning'] = f'⚠️ Gerekli metodlardan {len(missing_ops)} tanesinden biri eksik: {", ".join(missing_ops)}'
+
+            return result
+
         except Exception as e:
             _logger.error(f"QNB bağlantı testi hatası: {str(e)}")
             return {
                 'success': False,
-                'message': f'Bağlantı hatası: {str(e)}'
-            }
-
-    # ============================================
-    # KAYITLI KULLANICI İŞLEMLERİ
-    # ============================================
-
-    def check_registered_user(self, vkn_tckn, company=None):
-        """
-        GİB'e kayıtlı e-Fatura kullanıcısı kontrolü
-        :param vkn_tckn: VKN veya TCKN
-        :param company: Şirket kaydı
-        :return: dict - Kullanıcı bilgileri
-        """
-        client, history = self._get_client(company)
-
-        try:
+                'message': f'❌ Bağlantı hatası: {str(e)[:200]}'
             result = client.service.kayitliKullaniciListele(
                 parametreler={
                     'urun': 'EFATURA',
@@ -652,36 +653,17 @@ class QnbApiClient(models.AbstractModel):
     def get_credit_status(self, company=None):
         """
         Kontör (kredi) durumu sorgula
-        Not: Bu metod QNB sunucusunda mevcut olmayabilir
+        Not: Bu WSDL versiyonunda kontorDurumSorgula metodu bulunmamaktadır
+        Kontör bilgisi QNB panelinden manuel olarak kontrol edilmelidir
         """
-        client, history = self._get_client(company)
-
-        try:
-            # Önce metodun varlığını kontrol et
-            operations = []
-            for service in client.wsdl.services.values():
-                for port in service.ports.values():
-                    operations.extend(list(port.binding._operations.keys()))
-
-            if 'kontorDurumSorgula' not in operations:
-                _logger.warning("kontorDurumSorgula metodu QNB servisinde bulunamadı")
-                return {
-                    'success': False,
-                    'message': 'Kontör sorgulama metodu bu WSDL versiyonunda desteklenmiyor',
-                    'available_operations': sorted(operations)[:20]
-                }
-
-            result = client.service.kontorDurumSorgula()
-
-            if result:
-                return {
-                    'success': True,
-                    'efatura_credit': result.get('efaturaKontor', 0),
-                    'earchive_credit': result.get('earsivKontor', 0),
-                    'edespatch_credit': result.get('eirsaliyeKontor', 0)
-                }
-            return {'success': False, 'message': 'Kontör durumu alınamadı'}
-
-        except Exception as e:
-            _logger.error(f"Kontör durumu sorgulama hatası: {str(e)}")
-            return {'success': False, 'message': str(e)}
+        # Kontör sorgulama metodu bu WSDL'de bulunmadığından boş yanıt döndür
+        _logger.info("Kontör durumu sorgulama - WSDL versiyonu desteği yok")
+        return {
+            'success': False,
+            'message': 'Kontör sorgulama metodu bu WSDL versiyonunda desteklenmiyor. '
+                      'Lütfen QNB panelinden kontör bilgisini kontrol edin: '
+                      'https://www.qnbefinans.com.tr',
+            'note': 'Mevcut metodlar: belgeGonderExt, gidenBelgeDurumSorgula, '
+                   'belgeTarihceSorgula, gelenBelgeleriListele, gelenBelgeIndir, '
+                   'uygulamaYanitiGonder, kayitliKullaniciListele'
+        }
