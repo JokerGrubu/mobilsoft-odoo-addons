@@ -802,71 +802,45 @@ class QnbDocument(models.Model):
         else:
             move_type = 'out_invoice'  # Satış Faturası
 
-        # Fatura satırlarını hazırla
+        # Fatura satırlarını hazırla (line_ids kullan)
         invoice_lines = []
 
-        if self.invoice_lines_data:
-            import json
-            lines_data = json.loads(self.invoice_lines_data)
+        for line in self.line_ids:
+            # Ürün yoksa otomatik eşleştir
+            if not line.product_id:
+                line.action_match_product()
 
-            for line_data in lines_data:
-                product = None
+            # Hala ürün yoksa atla
+            if not line.product_id:
+                _logger.warning(f"Satır '{line.product_name}' için ürün bulunamadı, atlanıyor")
+                continue
 
-                # Ürün eşleştirme: 1) Barkod, 2) Ürün Kodu, 3) İsim
-                if line_data.get('barcode'):
-                    product = self.env['product.product'].search([
-                        ('barcode', '=', line_data['barcode'])
-                    ], limit=1)
+            # Fatura satırı
+            invoice_line_vals = {
+                'product_id': line.product_id.id,
+                'name': line.product_description or line.product_name or line.product_id.name,
+                'quantity': line.quantity,
+                'price_unit': line.price_unit,
+            }
 
-                if not product and line_data.get('product_code'):
-                    product = self.env['product.product'].search([
-                        ('default_code', '=', line_data['product_code'])
-                    ], limit=1)
+            # Vergi (KDV)
+            if line.tax_percent:
+                tax_percent = line.tax_percent
+                # Türkiye KDV oranları: %1, %10, %20
+                tax = self.env['account.tax'].search([
+                    ('type_tax_use', '=', 'purchase' if self.direction == 'incoming' else 'sale'),
+                    ('amount', '=', tax_percent),
+                    ('company_id', '=', self.company_id.id)
+                ], limit=1)
 
-                if not product and line_data.get('product_name'):
-                    product = self.env['product.product'].search([
-                        ('name', '=ilike', line_data['product_name'])
-                    ], limit=1)
+                if tax:
+                    invoice_line_vals['tax_ids'] = [(6, 0, [tax.id])]
 
-                # Ürün bulunamazsa yeni oluştur
-                if not product:
-                    product_vals = {
-                        'name': line_data.get('product_name') or line_data.get('product_description') or 'Bilinmeyen Ürün',
-                        'type': 'consu',  # Tüketilebilir (stok takipsiz)
-                        'purchase_ok': True if self.direction == 'incoming' else False,
-                        'sale_ok': True if self.direction == 'outgoing' else False,
-                    }
+            invoice_lines.append((0, 0, invoice_line_vals))
+invoice_lines.append((0, 0, invoice_line_vals))
 
-                    if line_data.get('barcode'):
-                        product_vals['barcode'] = line_data['barcode']
-                    if line_data.get('product_code'):
-                        product_vals['default_code'] = line_data['product_code']
-
-                    product = self.env['product.product'].create(product_vals)
-                    _logger.info(f"✅ Yeni ürün oluşturuldu: {product.name}")
-
-                # Fatura satırı
-                invoice_line_vals = {
-                    'product_id': product.id,
-                    'name': line_data.get('product_description') or product.name,
-                    'quantity': line_data.get('quantity', 1),
-                    'price_unit': line_data.get('unit_price', 0),
-                }
-
-                # Vergi (KDV)
-                if line_data.get('tax_percent'):
-                    tax_percent = line_data['tax_percent']
-                    # Türkiye KDV oranları: %1, %10, %20
-                    tax = self.env['account.tax'].search([
-                        ('type_tax_use', '=', 'purchase' if self.direction == 'incoming' else 'sale'),
-                        ('amount', '=', tax_percent),
-                        ('company_id', '=', self.company_id.id)
-                    ], limit=1)
-
-                    if tax:
-                        invoice_line_vals['tax_ids'] = [(6, 0, [tax.id])]
-
-                invoice_lines.append((0, 0, invoice_line_vals))
+        if not invoice_lines:
+            raise UserError(_("Fatura satırı bulunamadı! XML'den ürün bilgileri çıkarılamamış olabilir."))
 
         # Fatura oluştur
         invoice_vals = {

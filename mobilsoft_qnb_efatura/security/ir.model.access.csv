@@ -2,6 +2,9 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_qnb_document_user,qnb.document.user,model_qnb_document,group_qnb_user,1,0,0,0
 access_qnb_document_manager,qnb.document.manager,model_qnb_document,group_qnb_manager,1,1,1,0
 access_qnb_document_admin,qnb.document.admin,model_qnb_document,group_qnb_admin,1,1,1,1
+access_qnb_document_line_user,qnb.document.line.user,model_qnb_document_line,group_qnb_user,1,0,0,0
+access_qnb_document_line_manager,qnb.document.line.manager,model_qnb_document_line,group_qnb_manager,1,1,1,1
+access_qnb_document_line_admin,qnb.document.line.admin,model_qnb_document_line,group_qnb_admin,1,1,1,1
 access_qnb_document_history_user,qnb.document.history.user,model_qnb_document_history,group_qnb_user,1,0,0,0
 access_qnb_document_history_manager,qnb.document.history.manager,model_qnb_document_history,group_qnb_manager,1,1,1,0
 access_qnb_document_history_admin,qnb.document.history.admin,model_qnb_document_history,group_qnb_admin,1,1,1,1
