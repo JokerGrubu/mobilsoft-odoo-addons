@@ -76,21 +76,17 @@
                 <field name="partner_id" string="Müşteri"/>
                 <field name="account_move_id" string="Odoo Faturası"/>
                 <field name="sale_order_id" string="Odoo Siparişi"/>
-                <separator/>
                 <filter string="Taslak" name="status_draft" domain="[('fe_status', '=', 'draft')]"/>
                 <filter string="Gönderildi" name="status_sent" domain="[('fe_status', '=', 'sent')]"/>
                 <filter string="Resmileştirildi" name="status_formalized" domain="[('fe_status', '=', 'formalized')]"/>
                 <filter string="İptal Edildi" name="status_cancelled" domain="[('fe_status', '=', 'cancelled')]"/>
                 <filter string="Reddedildi" name="status_rejected" domain="[('fe_status', '=', 'rejected')]"/>
-                <separator/>
                 <filter string="Oluşturulma Tarihi" name="filter_create_date" date="create_date"/>
-                <separator/>
                 <filter string="Odoo Faturası Var" name="has_account_move" domain="[('account_move_id', '!=', False)]"/>
                 <filter string="Odoo Siparişi Var" name="has_sale_order" domain="[('sale_order_id', '!=', False)]"/>
-                <separator/>
                 <filter string="Fatura" name="move_type_invoice" domain="[('move_type', '=', 'out_invoice')]"/>
                 <filter string="İade Faturası" name="move_type_refund" domain="[('move_type', '=', 'out_refund')]"/>
-                <group expand="0" string="Grupla">
+                <group string="Grupla">
                     <filter string="Durum" name="group_fe_status" context="{'group_by': 'fe_status'}"/>
                     <filter string="Müşteri" name="group_partner" context="{'group_by': 'partner_id'}"/>
                     <filter string="Fatura Tarihi" name="group_invoice_date" context="{'group_by': 'invoice_date'}"/>
