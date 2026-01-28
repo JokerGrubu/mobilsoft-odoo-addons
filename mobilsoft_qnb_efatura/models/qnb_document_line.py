@@ -150,11 +150,14 @@ class QnbDocumentLine(models.Model):
 
     def _find_matching_product(self):
         """
-        Ürün eşleştirme yap (4 aşamalı):
+        Geliştirilmiş Ürün Eşleştirme (Powerway özel):
         1. Barkod
-        2. Ürün Kodu
-        3. Tam İsim
-        4. Benzer İsim (fuzzy matching)
+        2. QNB Ürün Kodu (product_code) → Odoo default_code
+        3. Ürün isminden kod çıkar (POWERWAY CC34 → CC34) → Odoo default_code
+        4. Tam İsim
+        5. Benzer İsim (fuzzy matching)
+
+        Eşleşince: QNB product_code'u Odoo default_code'a kaydet (boşsa)
         """
         Product = self.env['product.product']
 
@@ -162,27 +165,47 @@ class QnbDocumentLine(models.Model):
         if self.barcode:
             product = Product.search([('barcode', '=', self.barcode)], limit=1)
             if product:
+                self._save_manufacturer_code_to_product(product)
                 return product, 'matched_barcode', 100.0
 
-        # 2. Ürün Kodu ile ara
+        # 2. QNB Ürün Kodu (product_code) ile ara
         if self.product_code:
             product = Product.search([('default_code', '=', self.product_code)], limit=1)
             if product:
                 return product, 'matched_code', 100.0
 
-        # 3. Tam İsim ile ara
+        # 3. Ürün isminden kod çıkar ve Odoo'da ara
+        # Örnek: "POWERWAY CC34 ARAÇ ŞARJ" → ["CC34", "POWERWAY", "ARAÇ", "ŞARJ"]
+        extracted_codes = self._extract_product_codes_from_name()
+        if extracted_codes:
+            for code in extracted_codes:
+                # Önce tam eşleşme
+                product = Product.search([('default_code', '=', code)], limit=1)
+                if product:
+                    self._save_manufacturer_code_to_product(product)
+                    return product, 'matched_code', 95.0
+
+                # Sonra ILIKE ile ara
+                product = Product.search([('default_code', 'ilike', code)], limit=1)
+                if product:
+                    self._save_manufacturer_code_to_product(product)
+                    return product, 'matched_code', 90.0
+
+        # 4. Tam İsim ile ara
         if self.product_name:
             product = Product.search([('name', '=', self.product_name)], limit=1)
             if product:
+                self._save_manufacturer_code_to_product(product)
                 return product, 'matched_name', 100.0
 
-            # 4. Benzer İsim (ILIKE) - kısmi eşleşme
+            # 5. İsim benzerliği (ILIKE) - kısmi eşleşme
             product = Product.search([('name', 'ilike', self.product_name)], limit=1)
             if product:
                 score = self._calculate_similarity(self.product_name, product.name)
+                self._save_manufacturer_code_to_product(product)
                 return product, 'matched_fuzzy', score
 
-            # 5. Kelimelere böl ve ara (fuzzy matching)
+            # 6. Kelimelere böl ve ara (fuzzy matching)
             words = self.product_name.split()
             if len(words) > 1:
                 # En az 2 kelime içeren ürünleri ara
@@ -205,9 +228,56 @@ class QnbDocumentLine(models.Model):
                                 best_product = product
 
                         if best_product:
+                            self._save_manufacturer_code_to_product(best_product)
                             return best_product, 'matched_fuzzy', best_score
 
         return None, 'not_matched', 0.0
+
+    def _extract_product_codes_from_name(self):
+        """
+        Ürün isminden olası kodları çıkar
+        Örnek: "POWERWAY CC34 ARAÇ ŞARJ" → ["CC34", "POWERWAY"]
+        Örnek: "POWERWAY QCT30 ŞARJ CİHAZI" → ["QCT30", "POWERWAY"]
+        """
+        if not self.product_name:
+            return []
+
+        import re
+        codes = []
+
+        # Büyük harfle başlayan kısa kelimeler (2-10 karakter arası, rakam içerebilir)
+        # CC34, QCT30, X633, IP27 gibi
+        pattern = r'\b([A-Z]{2,3}\d{2,4}|[A-Z]{2,4}\d{1,3})\b'
+        matches = re.findall(pattern, self.product_name.upper())
+        codes.extend(matches)
+
+        # Marka ismi (ilk kelime genelde)
+        words = self.product_name.upper().split()
+        if words and len(words[0]) > 3:  # En az 4 harfli ilk kelime
+            first_word = words[0].strip()
+            if first_word not in codes and first_word.isalpha():
+                codes.append(first_word)
+
+        return list(set(codes))  # Tekrarları temizle
+
+    def _save_manufacturer_code_to_product(self, product):
+        """
+        QNB'deki product_code'u (üretici stok kodu) Odoo ürününe kaydet
+        Eğer Odoo'daki default_code boşsa veya farklıysa, not olarak ekle
+        """
+        if not self.product_code or not product:
+            return
+
+        # Eğer ürünün kodu yoksa, QNB kodunu kaydet
+        if not product.default_code:
+            try:
+                product.write({'default_code': self.product_code})
+                _logger.info(f"✅ Ürün kodu kaydedildi: {product.name} → {self.product_code}")
+            except Exception as e:
+                _logger.warning(f"⚠️ Ürün kodu kaydedilemedi: {e}")
+        elif product.default_code != self.product_code:
+            # Farklı kod varsa, nota ekle (gelecekte supplier_info olarak eklenebilir)
+            _logger.debug(f"ℹ️ Alternatif kod: {product.name} (Odoo: {product.default_code}, QNB: {self.product_code})")
 
     def _calculate_similarity(self, str1, str2):
         """İki string arasındaki benzerlik skorunu hesapla (0-100)"""
@@ -269,3 +339,52 @@ class QnbDocumentLine(models.Model):
         _logger.info(f"✅ Yeni ürün oluşturuldu: {product.name} (ID: {product.id})")
 
         return product
+
+    @api.model
+    def action_bulk_rematch_products(self):
+        """
+        Tüm eşleşmemiş ürünleri yeniden eşleştir
+        Geliştirilmiş algoritma ile tekrar dene
+        """
+        lines = self.search([
+            ('product_id', '=', False),
+            ('match_status', 'in', ['not_matched', False])
+        ])
+
+        total = len(lines)
+        matched = 0
+        failed = 0
+
+        _logger.info(f"🔄 {total} eşleşmemiş ürün satırı yeniden eşleştiriliyor...")
+
+        for line in lines:
+            try:
+                product, match_status, match_score = line._find_matching_product()
+
+                if product:
+                    line.write({
+                        'product_id': product.id,
+                        'match_status': match_status,
+                        'match_score': match_score
+                    })
+                    matched += 1
+                    _logger.debug(f"✅ Eşleşti: {line.product_name} → {product.name} ({match_status})")
+                else:
+                    failed += 1
+                    _logger.debug(f"❌ Eşleşmedi: {line.product_name}")
+
+            except Exception as e:
+                failed += 1
+                _logger.error(f"❌ Hata: {line.product_name} → {e}")
+                continue
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': '🔄 Toplu Ürün Eşleştirme',
+                'message': f'Toplam: {total}\nEşleşti: {matched}\nEşleşmedi: {failed}',
+                'type': 'success' if matched > 0 else 'warning',
+                'sticky': True,
+            }
+        }

@@ -118,6 +118,7 @@
                     <button name="action_fetch_all_documents" type="object" string="Tüm Belgeleri Al (Gelen+Giden)" class="btn-primary"/>
                     <button name="action_sync_partners_from_documents" type="object" string="👤 Partnerleri Güncelle" class="btn-secondary"/>
                     <button name="action_bulk_match_documents" type="object" string="🔗 Belgeleri Eşleştir" class="btn-secondary"/>
+                    <button name="%(action_bulk_rematch_products)d" type="action" string="🔄 Ürünleri Yeniden Eşleştir" class="btn-secondary"/>
                     <button name="action_cleanup_legacy_2025_draft_invoices" type="object" string="🧹 2025 Taslak Faturaları Sil" class="btn-secondary" groups="base.group_system"/>
                 </header>
                 <field name="name"/>
@@ -184,6 +185,16 @@
         <field name="state">code</field>
         <field name="code">
 env['qnb.document'].action_fetch_all_documents()
+        </field>
+    </record>
+
+    <!-- Toplu Ürün Yeniden Eşleştirme Action -->
+    <record id="action_bulk_rematch_products" model="ir.actions.server">
+        <field name="name">Ürünleri Yeniden Eşleştir</field>
+        <field name="model_id" ref="model_qnb_document_line"/>
+        <field name="state">code</field>
+        <field name="code">
+action = env['qnb.document.line'].action_bulk_rematch_products()
         </field>
     </record>
 
