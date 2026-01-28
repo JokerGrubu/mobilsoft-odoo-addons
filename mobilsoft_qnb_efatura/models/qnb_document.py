@@ -644,109 +644,170 @@ class QnbDocument(models.Model):
             incoming_count = 0
             outgoing_count = 0
 
-            # ===== GELEN BELGELERİ ÇEK =====
-            result_in = api_client.get_incoming_documents(start_date, end_date, company=company)
-            if result_in.get('success'):
-                documents = result_in.get('documents', [])
-                for doc in documents:
-                    ettn = doc.get('ettn')
-                    if not ettn:
-                        continue
+            # Tüm belge türleri
+            document_types = [
+                ('EFATURA', 'efatura'),
+                ('IRSALIYE', 'eirsaliye'),
+            ]
 
-                    # Daha önce alınmış mı kontrol et
-                    existing = self.search([
-                        ('ettn', '=', ettn),
-                        ('direction', '=', 'incoming'),
-                        ('company_id', '=', company.id)
-                    ])
+            # ===== GELEN BELGELERİ ÇEK (TÜM TÜRLER) =====
+            for api_type, odoo_type in document_types:
+                result_in = api_client.get_incoming_documents(start_date, end_date, document_type=api_type, company=company)
+                if result_in.get('success'):
+                    documents = result_in.get('documents', [])
+                    for doc in documents:
+                        ettn = doc.get('ettn')
+                        if not ettn:
+                            continue
 
-                    if not existing:
-                        # Partner bul veya oluştur
-                        partner = None
-                        sender_vkn = doc.get('sender_vkn')
-                        if sender_vkn:
-                            partner = self.env['res.partner'].search([
-                                ('vat', '=', f'TR{sender_vkn}')
-                            ], limit=1)
-                            if not partner:
-                                partner = self.env['res.partner'].create({
-                                    'name': doc.get('sender_title', f'Firma {sender_vkn}'),
-                                    'vat': f'TR{sender_vkn}',
-                                    'is_company': True,
-                                })
+                        # Daha önce alınmış mı kontrol et
+                        existing = self.search([
+                            ('ettn', '=', ettn),
+                            ('direction', '=', 'incoming'),
+                            ('company_id', '=', company.id)
+                        ])
 
-                        # Tarih formatını düzelt (20250115 → 2025-01-15)
-                        doc_date = doc.get('date')
-                        if doc_date and isinstance(doc_date, str) and len(doc_date) == 8:
-                            doc_date = f"{doc_date[:4]}-{doc_date[4:6]}-{doc_date[6:8]}"
+                        if not existing:
+                            # XML içeriğini indir ve parse et
+                            xml_result = api_client.download_incoming_document(ettn, api_type, company)
 
-                        self.create({
-                            'name': doc.get('belge_no', 'Yeni Belge'),
-                            'ettn': ettn,
-                            'document_type': 'efatura',
-                            'direction': 'incoming',
-                            'state': 'delivered',
-                            'partner_id': partner.id if partner else False,
-                            'company_id': company.id,
-                            'document_date': doc_date,
-                            'amount_total': doc.get('total', 0),
-                            'currency_id': self.env['res.currency'].search([
-                                ('name', '=', doc.get('currency', 'TRY'))
-                            ], limit=1).id,
-                        })
-                        incoming_count += 1
+                            # Partner bul veya oluştur
+                            partner = None
+                            sender_vkn = doc.get('sender_vkn')
+                            sender_title = doc.get('sender_title', '')
 
-            # ===== GİDEN BELGELERİ ÇEK =====
-            result_out = api_client.get_outgoing_documents(start_date, end_date, company=company)
-            if result_out.get('success'):
-                documents = result_out.get('documents', [])
-                for doc in documents:
-                    ettn = doc.get('ettn')
-                    if not ettn:
-                        continue
+                            if sender_vkn:
+                                partner = self.env['res.partner'].search([
+                                    ('vat', '=', f'TR{sender_vkn}')
+                                ], limit=1)
+                                if not partner:
+                                    partner = self.env['res.partner'].create({
+                                        'name': sender_title or f'Firma {sender_vkn}',
+                                        'vat': f'TR{sender_vkn}',
+                                        'is_company': True,
+                                    })
 
-                    # Daha önce alınmış mı kontrol et
-                    existing = self.search([
-                        ('ettn', '=', ettn),
-                        ('direction', '=', 'outgoing'),
-                        ('company_id', '=', company.id)
-                    ])
+                            # Tarih formatını düzelt (20250115 → 2025-01-15)
+                            doc_date = doc.get('date')
+                            if doc_date and isinstance(doc_date, str) and len(doc_date) == 8:
+                                doc_date = f"{doc_date[:4]}-{doc_date[4:6]}-{doc_date[6:8]}"
 
-                    if not existing:
-                        # Partner bul veya oluştur
-                        partner = None
-                        recipient_vkn = doc.get('recipient_vkn')
-                        if recipient_vkn:
-                            partner = self.env['res.partner'].search([
-                                ('vat', '=', f'TR{recipient_vkn}')
-                            ], limit=1)
-                            if not partner:
-                                partner = self.env['res.partner'].create({
-                                    'name': doc.get('recipient_title', f'Firma {recipient_vkn}'),
-                                    'vat': f'TR{recipient_vkn}',
-                                    'is_company': True,
-                                })
+                            # XML'den tutarları parse et
+                            amount_total = doc.get('total', 0)
+                            amount_untaxed = 0
+                            amount_tax = 0
 
-                        # Tarih formatını düzelt (20250115 → 2025-01-15)
-                        doc_date = doc.get('date')
-                        if doc_date and isinstance(doc_date, str) and len(doc_date) == 8:
-                            doc_date = f"{doc_date[:4]}-{doc_date[4:6]}-{doc_date[6:8]}"
+                            # XML içeriği varsa parse et
+                            if xml_result and xml_result.get('success'):
+                                xml_content = xml_result.get('content')
+                                if xml_content:
+                                    try:
+                                        from lxml import etree
+                                        root = etree.fromstring(xml_content.encode() if isinstance(xml_content, str) else xml_content)
 
-                        self.create({
-                            'name': doc.get('belge_no', 'Yeni Belge'),
-                            'ettn': ettn,
-                            'document_type': 'efatura',
-                            'direction': 'outgoing',
-                            'state': 'sent',
-                            'partner_id': partner.id if partner else False,
-                            'company_id': company.id,
-                            'document_date': doc_date,
-                            'amount_total': doc.get('total', 0),
-                            'currency_id': self.env['res.currency'].search([
-                                ('name', '=', doc.get('currency', 'TRY'))
-                            ], limit=1).id,
-                        })
-                        outgoing_count += 1
+                                        # UBL namespace
+                                        ns = {'cac': 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                                              'cbc': 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2'}
+
+                                        # Toplam tutar
+                                        total_elem = root.find('.//cac:LegalMonetaryTotal/cbc:PayableAmount', ns)
+                                        if total_elem is not None and total_elem.text:
+                                            amount_total = float(total_elem.text)
+
+                                        # Vergisiz tutar
+                                        untaxed_elem = root.find('.//cac:LegalMonetaryTotal/cbc:LineExtensionAmount', ns)
+                                        if untaxed_elem is not None and untaxed_elem.text:
+                                            amount_untaxed = float(untaxed_elem.text)
+
+                                        # Vergi tutarı
+                                        tax_elem = root.find('.//cac:TaxTotal/cbc:TaxAmount', ns)
+                                        if tax_elem is not None and tax_elem.text:
+                                            amount_tax = float(tax_elem.text)
+
+                                        # Sender bilgisini XML'den al
+                                        if not sender_title:
+                                            supplier_name = root.find('.//cac:AccountingSupplierParty/cac:Party/cac:PartyName/cbc:Name', ns)
+                                            if supplier_name is not None and supplier_name.text:
+                                                sender_title = supplier_name.text
+                                                if partner:
+                                                    partner.name = sender_title
+
+                                    except Exception as e:
+                                        _logger.warning(f"XML parse hatası {ettn}: {e}")
+
+                            self.create({
+                                'name': doc.get('belge_no', 'Yeni Belge'),
+                                'ettn': ettn,
+                                'document_type': odoo_type,
+                                'direction': 'incoming',
+                                'state': 'draft',  # TASLAK olarak kaydet
+                                'partner_id': partner.id if partner else False,
+                                'company_id': company.id,
+                                'document_date': doc_date,
+                                'amount_total': amount_total,
+                                'amount_untaxed': amount_untaxed,
+                                'amount_tax': amount_tax,
+                                'xml_content': xml_result.get('content') if xml_result and xml_result.get('success') else None,
+                                'xml_filename': f"{ettn}.xml" if xml_result and xml_result.get('success') else None,
+                                'currency_id': self.env['res.currency'].search([
+                                    ('name', '=', doc.get('currency', 'TRY'))
+                                ], limit=1).id,
+                            })
+                            incoming_count += 1
+
+            # ===== GİDEN BELGELERİ ÇEK (TÜM TÜRLER) =====
+            for api_type, odoo_type in document_types:
+                result_out = api_client.get_outgoing_documents(start_date, end_date, document_type=api_type, company=company)
+                if result_out.get('success'):
+                    documents = result_out.get('documents', [])
+                    for doc in documents:
+                        ettn = doc.get('ettn')
+                        if not ettn:
+                            continue
+
+                        # Daha önce alınmış mı kontrol et
+                        existing = self.search([
+                            ('ettn', '=', ettn),
+                            ('direction', '=', 'outgoing'),
+                            ('company_id', '=', company.id)
+                        ])
+
+                        if not existing:
+                            # Partner bul veya oluştur
+                            partner = None
+                            recipient_vkn = doc.get('recipient_vkn') or doc.get('receiver_vkn')
+                            recipient_title = doc.get('recipient_title') or doc.get('receiver_title')
+                            if recipient_vkn:
+                                partner = self.env['res.partner'].search([
+                                    ('vat', '=', f'TR{recipient_vkn}')
+                                ], limit=1)
+                                if not partner:
+                                    partner = self.env['res.partner'].create({
+                                        'name': recipient_title or f'Firma {recipient_vkn}',
+                                        'vat': f'TR{recipient_vkn}',
+                                        'is_company': True,
+                                    })
+
+                            # Tarih formatını düzelt (20250115 → 2025-01-15)
+                            doc_date = doc.get('date')
+                            if doc_date and isinstance(doc_date, str) and len(doc_date) == 8:
+                                doc_date = f"{doc_date[:4]}-{doc_date[4:6]}-{doc_date[6:8]}"
+
+                            self.create({
+                                'name': doc.get('belge_no', 'Yeni Belge'),
+                                'ettn': ettn,
+                                'document_type': odoo_type,
+                                'direction': 'outgoing',
+                                'state': 'sent',
+                                'partner_id': partner.id if partner else False,
+                                'company_id': company.id,
+                                'document_date': doc_date,
+                                'amount_total': doc.get('total', 0),
+                                'currency_id': self.env['res.currency'].search([
+                                    ('name', '=', doc.get('currency', 'TRY'))
+                                ], limit=1).id,
+                            })
+                            outgoing_count += 1
 
             total_count = incoming_count + outgoing_count
             return {
