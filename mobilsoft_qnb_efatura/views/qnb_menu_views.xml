@@ -1,5 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Actions for QNB Documents -->
+    <record id="action_qnb_document_all" model="ir.actions.act_window">
+        <field name="name">Tüm e-Belgeler</field>
+        <field name="res_model">qnb.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                QNB'den belge bulunamadı
+            </p>
+            <p>
+                "Tüm Belgeleri Al" butonuna tıklayarak QNB'den belgeleri çekebilirsiniz.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_qnb_document_outgoing" model="ir.actions.act_window">
+        <field name="name">Giden e-Belgeler</field>
+        <field name="res_model">qnb.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('direction', '=', 'outgoing')]</field>
+        <field name="context">{'default_direction': 'outgoing', 'search_default_outgoing': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Giden belge bulunamadı
+            </p>
+        </field>
+    </record>
+
+    <record id="action_qnb_document_incoming" model="ir.actions.act_window">
+        <field name="name">Gelen e-Belgeler</field>
+        <field name="res_model">qnb.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('direction', '=', 'incoming')]</field>
+        <field name="context">{'default_direction': 'incoming', 'search_default_incoming': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Gelen belge bulunamadı
+            </p>
+        </field>
+    </record>
+
     <!-- Top Level Menu (Root) -->
     <menuitem id="mobilsoft_qnb_efatura_menu_root"
               name="QNB e-Solutions"
@@ -14,23 +56,27 @@
 
     <!-- Sub Menus -->
     <menuitem id="menu_qnb_documents"
-              name="e-Belgeler"
+              name="Tüm e-Belgeler"
               parent="menu_qnb_root"
+              action="action_qnb_document_all"
               sequence="10"/>
-
-    <menuitem id="menu_qnb_outgoing_documents"
-              name="Giden e-Belgeler"
-              parent="menu_qnb_root"
-              sequence="20"/>
 
     <menuitem id="menu_qnb_incoming_documents"
               name="Gelen e-Belgeler"
               parent="menu_qnb_root"
+              action="action_qnb_document_incoming"
+              sequence="20"/>
+
+    <menuitem id="menu_qnb_outgoing_documents"
+              name="Giden e-Belgeler"
+              parent="menu_qnb_root"
+              action="action_qnb_document_outgoing"
               sequence="30"/>
 
     <menuitem id="menu_qnb_config"
               name="Ayarlar"
               parent="menu_qnb_root"
+              action="base_setup.action_general_configuration"
               sequence="90"
               groups="base.group_system"/>
 </odoo>
