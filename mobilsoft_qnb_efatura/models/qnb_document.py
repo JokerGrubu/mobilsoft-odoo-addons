@@ -478,34 +478,60 @@ class QnbDocument(models.Model):
             }
 
         try:
-            from .qnb_api import QNBeSolutionsAPI
-            api = QNBeSolutionsAPI(company)
+            api_client = self.env['qnb.api.client'].with_company(company)
 
             # Son 7 günün belgelerini çek
             from datetime import datetime, timedelta
             end_date = datetime.now()
             start_date = end_date - timedelta(days=7)
 
-            documents = api.get_incoming_documents(start_date, end_date)
+            result = api_client.get_incoming_documents(start_date, end_date, company=company)
+
+            if not result.get('success'):
+                raise Exception(result.get('message', 'Bilinmeyen hata'))
+
+            documents = result.get('documents', [])
             new_count = 0
 
             for doc in documents:
+                ettn = doc.get('ettn')
+                if not ettn:
+                    continue
+
                 # Daha önce alınmış mı kontrol et
                 existing = self.search([
-                    ('ettn', '=', doc.get('ettn')),
+                    ('ettn', '=', ettn),
                     ('company_id', '=', company.id)
                 ])
+
                 if not existing:
+                    # Partner bul veya oluştur
+                    partner = None
+                    sender_vkn = doc.get('sender_vkn')
+                    if sender_vkn:
+                        partner = self.env['res.partner'].search([
+                            ('vat', '=', f'TR{sender_vkn}')
+                        ], limit=1)
+                        if not partner:
+                            partner = self.env['res.partner'].create({
+                                'name': doc.get('sender_title', f'Firma {sender_vkn}'),
+                                'vat': f'TR{sender_vkn}',
+                                'is_company': True,
+                            })
+
                     self.create({
-                        'name': doc.get('document_no', 'Yeni Belge'),
-                        'ettn': doc.get('ettn'),
-                        'document_type': doc.get('document_type', 'efatura'),
+                        'name': doc.get('belge_no', 'Yeni Belge'),
+                        'ettn': ettn,
+                        'document_type': 'efatura',
                         'direction': 'incoming',
                         'state': 'delivered',
-                        'partner_id': self._find_or_create_partner(doc, company),
+                        'partner_id': partner.id if partner else False,
                         'company_id': company.id,
-                        'document_date': doc.get('document_date'),
-                        'amount_total': doc.get('amount_total', 0),
+                        'document_date': doc.get('date'),
+                        'amount_total': doc.get('total', 0),
+                        'currency_id': self.env['res.currency'].search([
+                            ('name', '=', doc.get('currency', 'TRY'))
+                        ], limit=1).id,
                     })
                     new_count += 1
 
