@@ -774,6 +774,12 @@ class QnbDocument(models.Model):
     def action_create_invoice(self):
         """
         QNB Belgesinden Odoo Faturası Oluştur
+
+        İŞ AKIŞI:
+        1. Önce mevcut yevmiye kayıtları ile eşleştir
+        2. Eşleşen yevmiye varsa → Ona bağla
+        3. Eşleşen yevmiye yoksa → Yeni fatura oluştur
+
         - Partner eşleştirmesi yapılmış olmalı
         - XML'den gelen ürünleri eşleştirir (barkod/kod/isim)
         - Fatura satırlarını oluşturur
@@ -795,6 +801,33 @@ class QnbDocument(models.Model):
 
         if not self.partner_id:
             raise UserError(_("Partner bilgisi eksik! Önce XML'den partner eşleştirmesi yapılmalı."))
+
+        # ===== YEVMİYE EŞLEŞTİRMESİ =====
+        existing_move = self._match_with_existing_journal_entry()
+
+        if existing_move:
+            # Mevcut yevmiye kaydına bağla
+            self.write({
+                'move_id': existing_move.id,
+                'state': 'delivered'
+            })
+
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': '✅ Yevmiye Eşleşti',
+                    'message': f'QNB belgesi mevcut yevmiye kaydına bağlandı: {existing_move.name}',
+                    'type': 'success',
+                    'sticky': False,
+                    'next': {
+                        'type': 'ir.actions.act_window',
+                        'res_model': 'account.move',
+                        'res_id': existing_move.id,
+                        'views': [[False, 'form']],
+                    }
+                }
+            }
 
         # Fatura tipi
         if self.direction == 'incoming':
@@ -1317,6 +1350,87 @@ class QnbDocument(models.Model):
                     doc.action_check_status()
                 except Exception as e:
                     _logger.error(f"Error checking status for {doc.name}: {e}")
+
+    def _match_with_existing_journal_entry(self):
+        """
+        Mevcut yevmiye kayıtları ile eşleştirme
+
+        Eşleştirme Stratejisi:
+        1. Fatura numarası varsa → ref veya name ile eşleştir
+        2. Fatura numarası yoksa → Partner + Tarih ile eşleştir
+        3. Eşleşen yevmiye varsa → QNB belgesini ona bağla (move_id set et)
+        4. Eşleşme yoksa → None döndür (yeni fatura oluşturulacak)
+
+        :return: account.move kaydı veya None
+        """
+        self.ensure_one()
+
+        # Zaten eşleşmiş ise atla
+        if self.move_id:
+            return self.move_id
+
+        AccountMove = self.env['account.move']
+
+        # STRATEJİ 1: Fatura Numarası ile Eşleştirme
+        if self.name:
+            # QNB belge numarası ile ara (ref veya name alanında)
+            domain = [
+                ('move_type', 'in', ['in_invoice', 'in_refund', 'out_invoice', 'out_refund']),
+                ('state', '=', 'draft'),  # Sadece draft kayıtlarda ara
+                '|',
+                ('ref', 'ilike', self.name),
+                ('name', 'ilike', self.name)
+            ]
+
+            if self.company_id:
+                domain.append(('company_id', '=', self.company_id.id))
+
+            matching_move = AccountMove.search(domain, limit=1)
+
+            if matching_move:
+                _logger.info(f"✅ Yevmiye eşleşti (Fatura No): {self.name} → {matching_move.name}")
+                return matching_move
+
+        # STRATEJİ 2: Partner + Tarih ile Eşleştirme
+        if self.partner_id and self.document_date:
+            # Tolerans: ±3 gün
+            from datetime import timedelta
+            date_from = self.document_date - timedelta(days=3)
+            date_to = self.document_date + timedelta(days=3)
+
+            domain = [
+                ('partner_id', '=', self.partner_id.id),
+                ('invoice_date', '>=', date_from),
+                ('invoice_date', '<=', date_to),
+                ('move_type', 'in', ['in_invoice', 'in_refund']),  # Gelen belgeler için
+                ('state', '=', 'draft'),
+            ]
+
+            if self.company_id:
+                domain.append(('company_id', '=', self.company_id.id))
+
+            # Tutar eşleşmesi varsa daha iyi
+            if self.amount_total:
+                domain.append(('amount_total', '=', self.amount_total))
+
+            matching_move = AccountMove.search(domain, limit=1)
+
+            if matching_move:
+                _logger.info(f"✅ Yevmiye eşleşti (Partner+Tarih): {self.partner_id.name} [{self.document_date}] → {matching_move.name}")
+                return matching_move
+
+            # Tutar olmadan dene
+            if self.amount_total:
+                domain_without_amount = [d for d in domain if not (isinstance(d, tuple) and d[0] == 'amount_total')]
+                matching_move = AccountMove.search(domain_without_amount, limit=1)
+
+                if matching_move:
+                    _logger.info(f"⚠️ Yevmiye eşleşti (Partner+Tarih, tutar farklı): {self.partner_id.name} [{self.document_date}] → {matching_move.name}")
+                    return matching_move
+
+        # Eşleşme bulunamadı
+        _logger.info(f"ℹ️ Yevmiye eşleşmesi bulunamadı: {self.name} - Yeni fatura oluşturulacak")
+        return None
 
     def _find_or_create_partner(self, doc_data, company):
         """Partneri bul veya oluştur"""
