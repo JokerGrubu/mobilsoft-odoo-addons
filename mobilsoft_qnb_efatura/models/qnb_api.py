@@ -8,7 +8,7 @@ import base64
 import hashlib
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from io import BytesIO
 import zipfile
 
@@ -117,6 +117,34 @@ class QnbApiClient(models.AbstractModel):
         if isinstance(content, str):
             content = content.encode('utf-8')
         return hashlib.md5(content).hexdigest()
+
+    def _get_company_vkn(self, company=None):
+        """Şirket VKN/TCKN bilgisini normalize ederek döndür (sadece rakamlar)."""
+        if not company:
+            company = self.env.company
+        vkn = company.vat or company.qnb_username or ''
+        return ''.join(filter(str.isdigit, str(vkn))) if vkn else ''
+
+    def _parse_qnb_date(self, value):
+        """QNB'den gelen tarihleri date'e çevir (YYYYMMDD, YYYY-MM-DD, DD.MM.YYYY destekler)."""
+        if not value:
+            return None
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+
+        s = str(value).strip()
+        if not s:
+            return None
+        if len(s) == 8 and s.isdigit():
+            return datetime.strptime(s, '%Y%m%d').date()
+        for fmt in ('%Y-%m-%d', '%d.%m.%Y', '%d/%m/%Y'):
+            try:
+                return datetime.strptime(s, fmt).date()
+            except Exception:
+                continue
+        return None
 
     def test_connection(self, company=None):
         """
@@ -458,10 +486,7 @@ class QnbApiClient(models.AbstractModel):
             if not company:
                 company = self.env.company
 
-            vkn = company.vat or company.qnb_username or ''
-            if vkn:
-                # Sadece rakamları al
-                vkn = ''.join(filter(str.isdigit, str(vkn)))
+            vkn = self._get_company_vkn(company)
 
             # QNB API belge türü: 'FATURA', 'IRSALIYE', 'UYGULAMA_YANITI', 'IRSALIYE_YANITI'
             # 'EFATURA' değil, 'FATURA' kullanılmalı
@@ -541,6 +566,16 @@ class QnbApiClient(models.AbstractModel):
                         'currency': doc_dict.get('paraBirimi', 'TRY') or getattr(doc, 'paraBirimi', 'TRY'),
                         'status': doc_dict.get('durum', '') or getattr(doc, 'durum', '')
                     })
+                # gelenBelgeleriListele API'si tarih aralığı parametresi almadığı için,
+                # burada filtreleyerek çağıran tarafta aralık bazlı çekimi mümkün kılıyoruz.
+                start_d = self._parse_qnb_date(start_date)
+                end_d = self._parse_qnb_date(end_date)
+                if start_d and end_d:
+                    documents = [
+                        d for d in documents
+                        if (self._parse_qnb_date(d.get('date')) and start_d <= self._parse_qnb_date(d.get('date')) <= end_d)
+                    ]
+
                 return {'success': True, 'documents': documents}
             return {'success': True, 'documents': []}
 
@@ -563,9 +598,7 @@ class QnbApiClient(models.AbstractModel):
             if not company:
                 company = self.env.company
 
-            vkn = company.vat or company.qnb_username or ''
-            if vkn:
-                vkn = ''.join(filter(str.isdigit, str(vkn)))
+            vkn = self._get_company_vkn(company)
 
             belge_turu = 'FATURA' if document_type == 'EFATURA' else document_type
 
@@ -630,12 +663,12 @@ class QnbApiClient(models.AbstractModel):
             company = self.env.company
 
         # VKN'yi al
-        vkn = company.vat or ''
-        if vkn:
-            vkn = ''.join(filter(str.isdigit, str(vkn)))
+        vkn = self._get_company_vkn(company)
 
         # Belge türü: FATURA, IRSALIYE
-        belge_turu = 'FATURA' if document_type == 'EFATURA' else document_type
+        # QNB outbox için yaygın değerler: FATURA, FATURA_UBL, UYGULAMA_YANITI(_UBL), IRSALIYE(_UBL), ...
+        # 'EFATURA' gibi Odoo içi kavramları normalize ediyoruz.
+        belge_turu = 'FATURA' if document_type in ('EFATURA', 'EARSIV') else document_type
 
         try:
             result = client.service.gidenBelgeleriListele(
@@ -687,6 +720,35 @@ class QnbApiClient(models.AbstractModel):
 
         except Exception as e:
             _logger.error(f"Giden belgeler listeleme hatası: {str(e)}")
+            return {'success': False, 'message': str(e)}
+
+    def download_outgoing_document(self, ettn, document_type='FATURA_UBL', company=None, format_type='UBL'):
+        """
+        Giden belgeyi indir (UBL/PDF/HTML)
+        QNB API signature: vergiTcKimlikNo, belgeEttn, belgeTuru, belgeFormati
+        """
+        client, history = self._get_client(company)
+
+        try:
+            if not company:
+                company = self.env.company
+
+            vkn = self._get_company_vkn(company)
+            belge_turu = 'FATURA' if document_type in ('EFATURA', 'EARSIV') else document_type
+
+            result = client.service.gidenBelgeIndirExt(
+                vergiTcKimlikNo=vkn,
+                belgeEttn=ettn,
+                belgeTuru=belge_turu,
+                belgeFormati=format_type
+            )
+
+            if result:
+                return {'success': True, 'content': result, 'format': format_type}
+            return {'success': False, 'message': 'Belge indirilemedi'}
+
+        except Exception as e:
+            _logger.error(f"Giden belge indirme hatası: {str(e)}")
             return {'success': False, 'message': str(e)}
 
     # ============================================
