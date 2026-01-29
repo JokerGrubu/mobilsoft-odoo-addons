@@ -229,6 +229,16 @@ class XmlProductSource(models.Model):
         default=True,
         help='Aynı SKU farklı barkod = Varyant olarak aç',
     )
+    variant_from_parentheses = fields.Boolean(
+        string='Parantezden Varyant',
+        default=True,
+        help='Ürün adındaki parantez içeriğini varyant olarak kullan. Örn: "BOLD SPEAKER (KIRMIZI)" → Ana ürün: BOLD SPEAKER, Varyant: KIRMIZI',
+    )
+    variant_attribute_name = fields.Char(
+        string='Varyant Özellik Adı',
+        default='Renk',
+        help='Varyantlar için kullanılacak özellik adı (Renk, Beden, vb.)',
+    )
 
     # Eşleştirme Önceliği (Yeni Sıralama)
     match_by_sku_prefix = fields.Boolean(
@@ -1075,6 +1085,154 @@ class XmlProductSource(models.Model):
             return ''
         return str(sku).strip().split()[0] if sku else ''
 
+    def _extract_base_and_variant(self, name):
+        """Ürün adından ana isim ve varyantı ayıkla
+
+        Örnek: "BOLD SPEAKER (KIRMIZI)" → ("BOLD SPEAKER", "KIRMIZI")
+        Örnek: "BOLD (AÇIK YEŞİL)" → ("BOLD", "AÇIK YEŞİL")
+        """
+        import re
+        if not name:
+            return name, None
+
+        name = str(name).strip()
+
+        # Parantez içeriğini bul
+        match = re.match(r'^(.+?)\s*\(([^)]+)\)\s*$', name)
+        if match:
+            base_name = match.group(1).strip()
+            variant = match.group(2).strip()
+            return base_name, variant
+
+        return name, None
+
+    def _find_or_create_base_product(self, base_name, data, cost_price):
+        """Ana ürünü bul veya oluştur (varyant için)"""
+        self.ensure_one()
+        Product = self.env['product.template']
+
+        # Önce mevcut ürünü ara
+        # 1. Tam isim eşleşmesi
+        product = Product.search([('name', '=ilike', base_name)], limit=1)
+        if product:
+            return product
+
+        # 2. SKU prefix ile ara (SKU'dan da parantez kısmını çıkar)
+        sku = str(data.get('sku', '')).strip() if data.get('sku') else ''
+        base_sku, _ = self._extract_base_and_variant(sku)
+        if base_sku:
+            product = Product.search([('default_code', '=', base_sku)], limit=1)
+            if product:
+                return product
+            # Prefix ile ara
+            product = Product.search([('default_code', '=like', base_sku.split()[0] + '%')], limit=1)
+            if product:
+                return product
+
+        # Ürün bulunamadı, yeni oluştur
+        sale_price = self._calculate_sale_price(cost_price)
+
+        vals = {
+            'name': base_name,
+            'default_code': base_sku if base_sku else None,
+            'description_sale': data.get('description'),
+            'list_price': sale_price,
+            'standard_price': cost_price or 0,
+            'type': self.default_product_type,
+            'sale_ok': True,
+            'purchase_ok': True,
+            'xml_source_id': self.id,
+            'xml_supplier_price': cost_price,
+            'xml_supplier_sku': data.get('sku'),
+            'xml_last_sync': fields.Datetime.now(),
+            'is_dropship': True,
+        }
+
+        # Kategori
+        if data.get('category'):
+            category = self._find_or_create_category(data.get('category'), data.get('extra1'))
+            if category:
+                vals['categ_id'] = category.id
+        elif self.default_category_id:
+            vals['categ_id'] = self.default_category_id.id
+
+        # Tedarikçi
+        if self.supplier_id:
+            vals['xml_supplier_id'] = self.supplier_id.id
+
+        product = Product.create(vals)
+        _logger.info(f"Ana ürün oluşturuldu: {base_name}")
+
+        return product
+
+    def _create_color_variant(self, product_tmpl, variant_name, data, cost_price):
+        """Renk/özellik bazlı varyant oluştur"""
+        self.ensure_one()
+
+        attr_name = self.variant_attribute_name or 'Renk'
+
+        # Attribute'u bul veya oluştur
+        attribute = self.env['product.attribute'].search([
+            ('name', '=', attr_name),
+        ], limit=1)
+
+        if not attribute:
+            attribute = self.env['product.attribute'].create({
+                'name': attr_name,
+                'display_type': 'radio',
+                'create_variant': 'always',
+            })
+
+        # Attribute value bul veya oluştur
+        attr_value = self.env['product.attribute.value'].search([
+            ('attribute_id', '=', attribute.id),
+            ('name', '=', variant_name),
+        ], limit=1)
+
+        if not attr_value:
+            attr_value = self.env['product.attribute.value'].create({
+                'attribute_id': attribute.id,
+                'name': variant_name,
+            })
+
+        # Ürüne attribute line ekle veya güncelle
+        attr_line = self.env['product.template.attribute.line'].search([
+            ('product_tmpl_id', '=', product_tmpl.id),
+            ('attribute_id', '=', attribute.id),
+        ], limit=1)
+
+        if attr_line:
+            # Mevcut line'a value ekle
+            if attr_value not in attr_line.value_ids:
+                attr_line.write({
+                    'value_ids': [(4, attr_value.id)]
+                })
+        else:
+            # Yeni line oluştur
+            self.env['product.template.attribute.line'].create({
+                'product_tmpl_id': product_tmpl.id,
+                'attribute_id': attribute.id,
+                'value_ids': [(6, 0, [attr_value.id])],
+            })
+
+        # Oluşan varyantı bul ve barkod ekle
+        product_tmpl.invalidate_recordset()
+
+        # Varyantı bul
+        for variant in product_tmpl.product_variant_ids:
+            variant_values = variant.product_template_attribute_value_ids.mapped('name')
+            if variant_name in variant_values:
+                # Barkod ekle
+                barcode = data.get('barcode')
+                if barcode:
+                    variant.write({'barcode': barcode})
+
+                # Tedarikçi fiyatı ekle (varsa pricelist veya supplierinfo ile)
+                _logger.info(f"Varyant oluşturuldu: {product_tmpl.name} - {variant_name} ({barcode})")
+                return variant
+
+        return None
+
     # ══════════════════════════════════════════════════════════════════════════
     # IMPORT LOGIC
     # ══════════════════════════════════════════════════════════════════════════
@@ -1267,10 +1425,41 @@ class XmlProductSource(models.Model):
         """Yeni ürün oluştur veya varyant ekle"""
         self.ensure_one()
 
+        name = str(data.get('name', '')).strip() if data.get('name') else ''
         sku = str(data.get('sku', '')).strip() if data.get('sku') else ''
+
+        # ═══════════════════════════════════════════════════════════════
+        # PARANTEZDEN VARYANT MODU
+        # Örnek: "BOLD SPEAKER (KIRMIZI)" → Ana ürün: BOLD SPEAKER, Varyant: KIRMIZI
+        # ═══════════════════════════════════════════════════════════════
+        if self.variant_from_parentheses and self.create_variants:
+            base_name, variant_name = self._extract_base_and_variant(name)
+
+            if variant_name:
+                # Parantez içinde varyant bilgisi var
+                # Aynı barkod zaten var mı kontrol et
+                existing_barcode = self.env['product.product'].search([
+                    ('barcode', '=', data.get('barcode')),
+                ], limit=1)
+
+                if existing_barcode:
+                    # Bu barkod zaten var, güncelle
+                    _logger.debug(f"Barkod zaten mevcut, güncelleme yapılacak: {data.get('barcode')}")
+                    return existing_barcode.product_tmpl_id
+
+                # Ana ürünü bul veya oluştur
+                base_product = self._find_or_create_base_product(base_name, data, cost_price)
+
+                # Varyant oluştur
+                variant = self._create_color_variant(base_product, variant_name, data, cost_price)
+                if variant:
+                    return base_product
+
+        # ═══════════════════════════════════════════════════════════════
+        # STANDART VARYANT MODU (SKU prefix tabanlı)
+        # ═══════════════════════════════════════════════════════════════
         sku_prefix = self._get_sku_prefix(sku)
 
-        # Varyant kontrolü: Aynı SKU prefix + farklı barkod = Varyant
         if self.create_variants and sku_prefix and data.get('barcode'):
             # SKU prefix ile eşleşen ürün ara
             existing_by_prefix = self.env['product.template'].search([

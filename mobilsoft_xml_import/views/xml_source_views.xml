@@ -123,8 +123,12 @@
                                     <field name="match_by_name" widget="boolean_toggle" help="5. İsim"/>
                                     <field name="name_match_ratio" invisible="not match_by_name"/>
                                 </group>
-                                <group string="Varyant ve Varsayılanlar">
-                                    <field name="create_variants" widget="boolean_toggle" help="Aynı SKU prefix farklı barkod = varyant"/>
+                                <group string="Varyant Ayarları">
+                                    <field name="create_variants" widget="boolean_toggle"/>
+                                    <field name="variant_from_parentheses" widget="boolean_toggle" invisible="not create_variants" help="BOLD SPEAKER (KIRMIZI) → Varyant: KIRMIZI"/>
+                                    <field name="variant_attribute_name" invisible="not variant_from_parentheses"/>
+                                </group>
+                                <group string="Varsayılan Değerler">
                                     <field name="default_category_id"/>
                                     <field name="default_product_type"/>
                                 </group>
