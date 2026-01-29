@@ -496,7 +496,7 @@ class QnbApiClient(models.AbstractModel):
             all_results = []
             last_sequence = '0'
             page = 1
-            max_pages = 50  # Güvenlik limiti
+            max_pages = 500  # Güvenlik limiti (büyük arşivlerde 50 sayfa yetmeyebilir)
 
             while page <= max_pages:
                 result = client.service.gelenBelgeleriListele(

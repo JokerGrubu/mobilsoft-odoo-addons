@@ -959,11 +959,11 @@ class QnbDocument(models.Model):
         try:
             api_client = self.env['qnb.api.client'].with_company(company)
 
-            # 2025 yılı tüm belgeler (GELEN + GİDEN)
+            # Tüm yıllar (GELEN + GİDEN) — QNB arşivi tam çekim
             from datetime import datetime
             from dateutil.parser import parse as parse_date
-            start_date = parse_date('2025-01-01')
-            end_date = parse_date('2025-12-31')
+            start_date = parse_date('2019-01-01')
+            end_date = datetime.now()
 
             incoming_count = 0
             outgoing_count = 0
