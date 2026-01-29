@@ -114,19 +114,25 @@
                                 </group>
                             </group>
                             <group>
-                                <group string="Ürün Eşleştirme Önceliği">
-                                    <field name="match_by_barcode" widget="boolean_toggle"/>
-                                    <field name="match_by_sku" widget="boolean_toggle"/>
-                                    <field name="match_by_name" widget="boolean_toggle"/>
+                                <group string="Ürün Eşleştirme Önceliği (Sıralı)">
+                                    <field name="match_by_sku_prefix" widget="boolean_toggle" help="1. SKU ilk kelimesi"/>
+                                    <field name="match_by_barcode" widget="boolean_toggle" help="2. Barkod"/>
+                                    <field name="match_by_sku" widget="boolean_toggle" help="3. SKU tam eşleşme"/>
+                                    <field name="match_by_description" widget="boolean_toggle" help="4. Açıklama"/>
+                                    <field name="description_match_ratio" invisible="not match_by_description"/>
+                                    <field name="match_by_name" widget="boolean_toggle" help="5. İsim"/>
                                     <field name="name_match_ratio" invisible="not match_by_name"/>
-                                    <field name="create_variants" widget="boolean_toggle"/>
                                 </group>
-                                <group string="Varsayılan Değerler">
+                                <group string="Varyant ve Varsayılanlar">
+                                    <field name="create_variants" widget="boolean_toggle" help="Aynı SKU prefix farklı barkod = varyant"/>
                                     <field name="default_category_id"/>
                                     <field name="default_product_type"/>
                                 </group>
                             </group>
                             <group>
+                                <group string="Güncelleme Politikası">
+                                    <field name="update_only_if_value" widget="boolean_toggle" help="Boş değer gelirse mevcut değeri koru"/>
+                                </group>
                                 <group string="Stok Sıfır Politikası">
                                     <field name="deactivate_zero_stock" widget="boolean_toggle"/>
                                     <field name="delete_unsold_zero_stock" widget="boolean_toggle"/>

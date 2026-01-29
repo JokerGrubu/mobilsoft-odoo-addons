@@ -230,14 +230,26 @@ class XmlProductSource(models.Model):
         help='Aynı SKU farklı barkod = Varyant olarak aç',
     )
 
-    # Eşleştirme Önceliği
+    # Eşleştirme Önceliği (Yeni Sıralama)
+    match_by_sku_prefix = fields.Boolean(
+        string='SKU Prefix ile Eşleştir',
+        default=True,
+        help='Ürün kodunun ilk kelimesi ile eşleştir (öncelik 1)',
+    )
     match_by_barcode = fields.Boolean(
         string='Barkod ile Eşleştir',
         default=True,
+        help='Barkod ile eşleştir (öncelik 2)',
     )
     match_by_sku = fields.Boolean(
-        string='Ürün Kodu ile Eşleştir',
+        string='Ürün Kodu ile Eşleştir (Tam)',
         default=True,
+        help='Tam ürün kodu ile eşleştir',
+    )
+    match_by_description = fields.Boolean(
+        string='Açıklama ile Eşleştir',
+        default=True,
+        help='Açıklama benzerliği veya açıklamada ürün kodu varsa eşleştir (öncelik 3)',
     )
     match_by_name = fields.Boolean(
         string='İsim ile Eşleştir',
@@ -247,6 +259,16 @@ class XmlProductSource(models.Model):
         string='İsim Benzerlik Oranı (%)',
         default=80,
         help='İsim eşleştirmesi için minimum benzerlik oranı',
+    )
+    description_match_ratio = fields.Integer(
+        string='Açıklama Benzerlik Oranı (%)',
+        default=50,
+        help='Açıklama eşleştirmesi için minimum benzerlik oranı',
+    )
+    update_only_if_value = fields.Boolean(
+        string='Sadece Değer Varsa Güncelle',
+        default=True,
+        help='Fiyat/stok boşsa mevcut değeri değiştirme',
     )
 
     # Varsayılan Değerler
@@ -980,11 +1002,23 @@ class XmlProductSource(models.Model):
     # ══════════════════════════════════════════════════════════════════════════
 
     def _find_existing_product(self, data):
-        """Mevcut ürünü bul"""
+        """Mevcut ürünü bul - Geliştirilmiş eşleştirme mantığı"""
         self.ensure_one()
         Product = self.env['product.template']
 
-        # 1. Barkod ile eşleştir
+        sku = str(data.get('sku', '')).strip() if data.get('sku') else ''
+        sku_prefix = sku.split()[0] if sku else ''  # İlk kelime
+
+        # 1. SKU Prefix (ilk kelime) ile eşleştir
+        if self.match_by_sku_prefix and sku_prefix:
+            # Önce tam prefix eşleşmesi
+            product = Product.search([
+                ('default_code', '=like', sku_prefix + '%')
+            ], limit=1)
+            if product:
+                return product, 'sku_prefix'
+
+        # 2. Barkod ile eşleştir
         if self.match_by_barcode and data.get('barcode'):
             barcode = str(data['barcode']).strip()
             if barcode:
@@ -992,15 +1026,32 @@ class XmlProductSource(models.Model):
                 if product:
                     return product, 'barcode'
 
-        # 2. SKU/Ürün kodu ile eşleştir
-        if self.match_by_sku and data.get('sku'):
-            sku = str(data['sku']).strip()
-            if sku:
-                product = Product.search([('default_code', '=', sku)], limit=1)
-                if product:
-                    return product, 'sku'
+        # 3. SKU/Ürün kodu ile tam eşleştir
+        if self.match_by_sku and sku:
+            product = Product.search([('default_code', '=', sku)], limit=1)
+            if product:
+                return product, 'sku_exact'
 
-        # 3. İsim benzerliği ile eşleştir
+        # 4. Açıklama ile eşleştir
+        if self.match_by_description and data.get('description'):
+            description = str(data['description']).strip().lower()
+            if description and len(description) > 10:
+                all_products = Product.search([('description_sale', '!=', False)])
+                for prod in all_products:
+                    if not prod.description_sale:
+                        continue
+                    prod_desc = prod.description_sale.lower()
+
+                    # 4a. Açıklamada ürün kodu var mı?
+                    if sku_prefix and sku_prefix.lower() in prod_desc:
+                        return prod, 'description_has_sku'
+
+                    # 4b. Açıklama benzerliği kontrolü
+                    ratio = SequenceMatcher(None, description[:200], prod_desc[:200]).ratio() * 100
+                    if ratio >= self.description_match_ratio:
+                        return prod, f'description_similar_{int(ratio)}%'
+
+        # 5. İsim benzerliği ile eşleştir
         if self.match_by_name and data.get('name'):
             name = str(data['name']).strip()
             if name:
@@ -1017,6 +1068,12 @@ class XmlProductSource(models.Model):
                         return prod, f'name_similar_{int(ratio)}%'
 
         return None, None
+
+    def _get_sku_prefix(self, sku):
+        """SKU'nun ilk kelimesini (prefix) al"""
+        if not sku:
+            return ''
+        return str(sku).strip().split()[0] if sku else ''
 
     # ══════════════════════════════════════════════════════════════════════════
     # IMPORT LOGIC
@@ -1210,16 +1267,25 @@ class XmlProductSource(models.Model):
         """Yeni ürün oluştur veya varyant ekle"""
         self.ensure_one()
 
-        # Varyant kontrolü: Aynı SKU farklı barkod = Varyant
-        if self.create_variants and data.get('sku'):
-            existing_by_sku = self.env['product.template'].search([
-                ('default_code', '=', data.get('sku')),
-                ('xml_source_id', '=', self.id),
+        sku = str(data.get('sku', '')).strip() if data.get('sku') else ''
+        sku_prefix = self._get_sku_prefix(sku)
+
+        # Varyant kontrolü: Aynı SKU prefix + farklı barkod = Varyant
+        if self.create_variants and sku_prefix and data.get('barcode'):
+            # SKU prefix ile eşleşen ürün ara
+            existing_by_prefix = self.env['product.template'].search([
+                ('default_code', '=like', sku_prefix + '%'),
             ], limit=1)
 
-            if existing_by_sku and data.get('barcode'):
-                # Aynı SKU var, farklı barkodlu varyant olarak ekle
-                return self._create_variant(existing_by_sku, data, cost_price)
+            if existing_by_prefix:
+                # Aynı barkod zaten var mı kontrol et
+                existing_barcode = self.env['product.product'].search([
+                    ('barcode', '=', data.get('barcode')),
+                ], limit=1)
+
+                if not existing_barcode:
+                    # Aynı SKU prefix var, farklı barkodlu varyant olarak ekle
+                    return self._create_variant(existing_by_prefix, data, cost_price)
 
         sale_price = self._calculate_sale_price(cost_price)
 
@@ -1445,27 +1511,44 @@ class XmlProductSource(models.Model):
 
         vals = {
             'xml_source_id': self.id,
-            'xml_supplier_price': cost_price,
             'xml_supplier_sku': data.get('sku'),
             'xml_last_sync': fields.Datetime.now(),
             'is_dropship': True,
         }
 
+        # Fiyat güncelleme - sadece değer varsa güncelle kuralına göre
         if self.update_price:
-            sale_price = self._calculate_sale_price(cost_price)
-            vals['list_price'] = sale_price
-            vals['standard_price'] = cost_price
+            if cost_price and cost_price > 0:
+                sale_price = self._calculate_sale_price(cost_price)
+                vals['list_price'] = sale_price
+                vals['standard_price'] = cost_price
+                vals['xml_supplier_price'] = cost_price
+            elif not self.update_only_if_value:
+                # update_only_if_value kapalıysa, değer olmasa da güncelle
+                sale_price = self._calculate_sale_price(cost_price or 0)
+                vals['list_price'] = sale_price
+                vals['standard_price'] = cost_price or 0
+                vals['xml_supplier_price'] = cost_price or 0
+        elif cost_price and cost_price > 0:
+            # Fiyat güncellemesi kapalı ama tedarikçi fiyatını kaydet
+            vals['xml_supplier_price'] = cost_price
 
-        if self.update_stock and data.get('stock'):
-            try:
-                stock_qty = int(data.get('stock'))
-                vals['xml_supplier_stock'] = stock_qty
-                # Stok yeterli, daha önce kapatıldıysa tekrar aç
-                if stock_qty >= self.min_stock and not product.sale_ok:
-                    vals['sale_ok'] = True
-                    _logger.info(f"Stok yeterli ({stock_qty}) - ürün satışa tekrar açıldı: {product.name}")
-            except:
-                pass
+        # Stok güncelleme - sadece değer varsa güncelle kuralına göre
+        if self.update_stock:
+            stock_val = data.get('stock')
+            if stock_val is not None and str(stock_val).strip():
+                try:
+                    stock_qty = int(stock_val)
+                    vals['xml_supplier_stock'] = stock_qty
+                    # Stok yeterli, daha önce kapatıldıysa tekrar aç
+                    if stock_qty >= self.min_stock and not product.sale_ok:
+                        vals['sale_ok'] = True
+                        _logger.info(f"Stok yeterli ({stock_qty}) - ürün satışa tekrar açıldı: {product.name}")
+                except:
+                    pass
+            elif not self.update_only_if_value:
+                # update_only_if_value kapalıysa, değer olmasa da güncelle (0 yap)
+                vals['xml_supplier_stock'] = 0
 
         # Görsel güncelle
         if self.update_images and data.get('image'):
