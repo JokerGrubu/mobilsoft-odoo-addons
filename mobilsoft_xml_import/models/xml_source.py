@@ -1033,9 +1033,20 @@ class XmlProductSource(models.Model):
         if self.match_by_barcode and data.get('barcode'):
             barcode = str(data['barcode']).strip()
             if barcode:
+                # 2a. Önce barkod alanında ara
                 product = Product.search([('barcode', '=', barcode)], limit=1)
                 if product:
                     return product, 'barcode'
+
+                # 2b. Barkod ürün adında olabilir (örn: "8699931326048-PROPODS3")
+                product = Product.search([('name', 'ilike', barcode)], limit=1)
+                if product:
+                    return product, 'barcode_in_name'
+
+                # 2c. Barkod SKU'da olabilir
+                product = Product.search([('default_code', '=', barcode)], limit=1)
+                if product:
+                    return product, 'barcode_as_sku'
 
         # 3. SKU/Ürün kodu ile tam eşleştir
         if self.match_by_sku and sku:
