@@ -1446,15 +1446,20 @@ class QnbDocument(models.Model):
             return partner_line.partner_id if partner_line else False
 
         # ===== STRATEJİ A: Belge No ile Yevmiye (entry) eşleştir =====
-        if self.name:
+        if self.name or self.ettn:
             base_line_domain = [
                 ('move_id.move_type', '=', 'entry'),
                 ('company_id', '=', self.company_id.id),
                 ('move_id.state', 'in', ['draft', 'posted']),
-                '|',
-                ('name', 'ilike', self.name),
-                ('ref', 'ilike', self.name),
             ]
+            # Belge no / ETTN metni satır name/ref içinde geçiyor mu?
+            search_terms = [t for t in [self.name, self.ettn] if t]
+            if search_terms:
+                # (name ilike t1) OR (ref ilike t1) OR (name ilike t2) OR (ref ilike t2) ...
+                or_terms = []
+                for t in search_terms:
+                    or_terms.extend([('name', 'ilike', t), ('ref', 'ilike', t)])
+                base_line_domain += (['|'] * (len(or_terms) - 1)) + or_terms
 
             # Tarih aralığı ile daralt (performans + yanlış eşleşme azaltma)
             date_domain = []
@@ -1518,14 +1523,38 @@ class QnbDocument(models.Model):
             date_to = self.document_date + timedelta(days=3)
 
             # Payable/receivable satırında toplam genelde debit/credit olarak geçer.
-            amount = float(self.amount_total)
-            amount_domain = ['|', ('debit', '=', amount), ('credit', '=', amount)]
+            currency = self.currency_id or self.company_id.currency_id
+            rounding = float(getattr(currency, 'rounding', 0.01) or 0.01)
+            # Float eşitliği yerine küçük tolerans ile ara (kur/fark/yuvarlama kaynaklı kaçmalar için)
+            amount = float(round(self.amount_total, 6))
+            tolerance = max(rounding * 2, 0.02)
+            amount_lo = amount - tolerance
+            amount_hi = amount + tolerance
+            amount_domain = ['|',
+                             '&', ('debit', '>=', amount_lo), ('debit', '<=', amount_hi),
+                             '&', ('credit', '>=', amount_lo), ('credit', '<=', amount_hi)]
+
+            # Partner merge / VAT farklılığı durumlarında alternatif partnerleri de dene
+            partner_ids = [self.partner_id.id]
+            vat_raw = (self.partner_id.vat or '').strip()
+            qnb_vkn_raw = (getattr(self.partner_id, 'qnb_partner_vkn', False) or '').strip()
+            vat_candidates = {v for v in [vat_raw, qnb_vkn_raw] if v}
+            if vat_raw:
+                if vat_raw.upper().startswith('TR'):
+                    vat_candidates.add(vat_raw[2:])
+                else:
+                    vat_candidates.add(f"TR{vat_raw}")
+            if vat_candidates:
+                Partner = self.env['res.partner'].sudo()
+                alt_partners = Partner.search(['|', ('vat', 'in', list(vat_candidates)), ('qnb_partner_vkn', 'in', list(vat_candidates))])
+                if alt_partners:
+                    partner_ids = list(set(partner_ids + alt_partners.ids))
 
             line_domain = [
                 ('move_id.move_type', '=', 'entry'),
                 ('company_id', '=', self.company_id.id),
                 ('move_id.state', 'in', ['draft', 'posted']),
-                ('partner_id', '=', self.partner_id.id),
+                ('partner_id', 'in', partner_ids),
                 ('date', '>=', date_from),
                 ('date', '<=', date_to),
             ] + amount_domain
@@ -1536,6 +1565,40 @@ class QnbDocument(models.Model):
                 candidate_moves = candidate_moves.sorted(lambda m: abs((m.date or self.document_date) - self.document_date))
                 move = candidate_moves[0]
                 _logger.info(f"⚠️ Yevmiye eşleşti (Partner+Tarih+Tutar): {self.partner_id.name} [{self.document_date}] → {move.name}")
+                return move
+
+        # ===== STRATEJİ D (Güvenli): Partner yoksa, Tarih (+/-3) + Tutar ile TEKİL eşleşme ara =====
+        if not self.partner_id and self.document_date and self.amount_total:
+            from datetime import timedelta
+            date_from = self.document_date - timedelta(days=3)
+            date_to = self.document_date + timedelta(days=3)
+
+            currency = self.currency_id or self.company_id.currency_id
+            rounding = float(getattr(currency, 'rounding', 0.01) or 0.01)
+            amount = float(round(self.amount_total, 6))
+            tolerance = max(rounding * 2, 0.02)
+            amount_lo = amount - tolerance
+            amount_hi = amount + tolerance
+            amount_domain = ['|',
+                             '&', ('debit', '>=', amount_lo), ('debit', '<=', amount_hi),
+                             '&', ('credit', '>=', amount_lo), ('credit', '<=', amount_hi)]
+
+            line_domain = [
+                ('move_id.move_type', '=', 'entry'),
+                ('company_id', '=', self.company_id.id),
+                ('move_id.state', 'in', ['draft', 'posted']),
+                ('date', '>=', date_from),
+                ('date', '<=', date_to),
+            ] + amount_domain
+
+            lines = MoveLine.search(line_domain, limit=100)
+            candidate_moves = lines.mapped('move_id')
+            if len(candidate_moves) == 1:
+                move = candidate_moves[0]
+                guessed = _entry_guess_partner(move)
+                if guessed:
+                    self.partner_id = guessed.id
+                _logger.info(f"✅ Yevmiye eşleşti (Tarih+Tutar tekil): {self.name} [{self.document_date}] → {move.name}")
                 return move
 
         _logger.info(f"ℹ️ Yevmiye eşleşmesi bulunamadı: {self.name}")
