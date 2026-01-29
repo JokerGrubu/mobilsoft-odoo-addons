@@ -641,13 +641,14 @@ class XmlProductSource(models.Model):
             _logger.info(f"XML Parse: {len(products)} ürün bulundu (xpath: {xpath})")
 
             if not products:
-                # Alternatif yolları dene
-                products = root.findall('.//Product') or \
-                          root.findall('.//product') or \
-                          root.findall('.//item') or \
-                          root.findall('.//entry')
-                if products:
-                    _logger.info(f"Alternatif xpath ile {len(products)} ürün bulundu")
+                # Alternatif yolları dene (İngilizce ve Türkçe)
+                alt_paths = ['.//Product', './/product', './/item', './/entry',
+                            './/urun', './/Urun', './/URUN']
+                for alt_path in alt_paths:
+                    products = root.findall(alt_path)
+                    if products:
+                        _logger.info(f"Alternatif xpath ile {len(products)} ürün bulundu: {alt_path}")
+                        break
 
             return products
 
