@@ -1128,6 +1128,19 @@ class QnbDocument(models.Model):
                                         'tax_amount': line_data.get('tax_amount', 0.0),
                                     }))
 
+                            xml_payload = xml_result.get('content') if xml_result and xml_result.get('success') else None
+                            if xml_payload and isinstance(xml_payload, (bytes, bytearray)):
+                                # Odoo Binary alanlar base64 bekler; QNB/zeep bazen ham bytes döndürebilir.
+                                try:
+                                    decoded = base64.b64decode(xml_payload, validate=True)
+                                    if decoded.strip().startswith((b'<', b'PK')):
+                                        # Zaten base64 (decode edince XML/ZIP çıkıyor)
+                                        pass
+                                    else:
+                                        xml_payload = base64.b64encode(xml_payload)
+                                except Exception:
+                                    xml_payload = base64.b64encode(xml_payload)
+
                             new_document = self.create({
                                 'name': doc.get('belge_no', 'Yeni Belge'),
                                 'ettn': ettn,
@@ -1140,8 +1153,8 @@ class QnbDocument(models.Model):
                                 'amount_total': amount_total,
                                 'amount_untaxed': amount_untaxed,
                                 'amount_tax': amount_tax,
-                                'xml_content': xml_result.get('content') if xml_result and xml_result.get('success') else None,
-                                'xml_filename': f"{ettn}.xml" if xml_result and xml_result.get('success') else None,
+                                'xml_content': xml_payload,
+                                'xml_filename': f"{ettn}.xml" if xml_payload else None,
                                 'invoice_lines_data': json.dumps(invoice_lines, ensure_ascii=False) if invoice_lines else None,
                                 'line_ids': line_vals,
                                 'currency_id': self.env['res.currency'].search([
@@ -1188,6 +1201,16 @@ class QnbDocument(models.Model):
                             download_type = api_type.replace('_UBL', '') if isinstance(api_type, str) else api_type
                             xml_result = api_client.download_outgoing_document(ettn, document_type=download_type, company=company)
                             xml_bytes = xml_result.get('content') if xml_result and xml_result.get('success') else None
+                            xml_payload = xml_bytes
+                            if xml_payload and isinstance(xml_payload, (bytes, bytearray)):
+                                try:
+                                    decoded = base64.b64decode(xml_payload, validate=True)
+                                    if decoded.strip().startswith((b'<', b'PK')):
+                                        pass
+                                    else:
+                                        xml_payload = base64.b64encode(xml_payload)
+                                except Exception:
+                                    xml_payload = base64.b64encode(xml_payload)
 
                             parsed_data = {}
                             invoice_lines = []
@@ -1217,7 +1240,7 @@ class QnbDocument(models.Model):
                                     partner, matched, match_type = self.env['res.partner'].match_or_create_from_external('qnb', {
                                         'vat': vat_number,
                                         'name': partner_name,
-                                        'email': partner_data.get('email'),
+                                        'email': partner_data.get('email') or '',
                                     })
 
                             # XML yoksa: liste verisinden partner eşleştir / oluştur
@@ -1273,8 +1296,8 @@ class QnbDocument(models.Model):
                                 'amount_total': amount_total,
                                 'amount_untaxed': amount_untaxed,
                                 'amount_tax': amount_tax,
-                                'xml_content': xml_bytes if xml_bytes else None,
-                                'xml_filename': f"{ettn}.xml" if xml_bytes else None,
+                                'xml_content': xml_payload if xml_payload else None,
+                                'xml_filename': f"{ettn}.xml" if xml_payload else None,
                                 'invoice_lines_data': json.dumps(invoice_lines, ensure_ascii=False) if invoice_lines else None,
                                 'line_ids': line_vals,
                                 'currency_id': self.env['res.currency'].search([
