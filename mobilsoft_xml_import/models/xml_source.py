@@ -1071,7 +1071,23 @@ class XmlProductSource(models.Model):
                 if product:
                     return product, 'name_exact'
 
-                # Benzerlik kontrolü
+                # 5a. Parantezden varyant modu - ana isim ile ara
+                if self.variant_from_parentheses:
+                    base_name, variant_name = self._extract_base_and_variant(name)
+                    if base_name and variant_name:
+                        # Ana isim ile tam eşleşme ara
+                        product = Product.search([('name', '=ilike', base_name)], limit=1)
+                        if product:
+                            return product, 'base_name_exact'
+
+                        # Ana isim ile benzerlik ara
+                        all_products = Product.search([])
+                        for prod in all_products:
+                            ratio = SequenceMatcher(None, base_name.lower(), prod.name.lower()).ratio() * 100
+                            if ratio >= 90:  # Ana isim için yüksek benzerlik
+                                return prod, f'base_name_similar_{int(ratio)}%'
+
+                # 5b. Normal benzerlik kontrolü
                 all_products = Product.search([])
                 for prod in all_products:
                     ratio = SequenceMatcher(None, name.lower(), prod.name.lower()).ratio() * 100
@@ -1362,8 +1378,31 @@ class XmlProductSource(models.Model):
                     # Mevcut ürün ara
                     existing, match_type = self._find_existing_product(data)
 
+                    # Parantezden varyant kontrolü
+                    name = str(data.get('name', '')).strip()
+                    base_name, variant_name = self._extract_base_and_variant(name)
+
                     if existing:
-                        if self.update_existing:
+                        # Eğer varyant modu aktif ve bu ürün varyantlı ise
+                        if self.variant_from_parentheses and self.create_variants and variant_name:
+                            # Bu varyant zaten var mı kontrol et (barkod ile)
+                            barcode = data.get('barcode')
+                            existing_variant = self.env['product.product'].search([
+                                ('barcode', '=', barcode)
+                            ], limit=1) if barcode else None
+
+                            if not existing_variant:
+                                # Yeni varyant ekle
+                                self._create_color_variant(existing, variant_name, data, cost)
+                                updated += 1
+                                _logger.info(f"Varyant eklendi: {existing.name} - {variant_name}")
+                            elif self.update_existing:
+                                # Varyant zaten var, güncelle
+                                self._update_product(existing, data, cost, price)
+                                updated += 1
+                            else:
+                                skipped += 1
+                        elif self.update_existing:
                             self._update_product(existing, data, cost, price)
                             updated += 1
                         else:
