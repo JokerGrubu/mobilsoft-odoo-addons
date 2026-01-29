@@ -959,26 +959,41 @@ class QnbDocument(models.Model):
         try:
             api_client = self.env['qnb.api.client'].with_company(company)
 
-            # 2025 Ocak 1'den itibaren tüm belgeler (GELEN + GİDEN)
+            # 2025 yılı tüm belgeler (GELEN + GİDEN)
             from datetime import datetime
             from dateutil.parser import parse as parse_date
             start_date = parse_date('2025-01-01')
-            end_date = datetime.now()
+            end_date = parse_date('2025-12-31')
 
             incoming_count = 0
             outgoing_count = 0
 
-            # Tüm belge türleri
-            document_types = [
+            # GELEN belge türleri (gelenBelgeleriListele destekli)
+            incoming_document_types = [
                 ('EFATURA', 'efatura'),
                 ('IRSALIYE', 'eirsaliye'),
+                ('UYGULAMA_YANITI', 'uygulama_yanit'),
+                ('IRSALIYE_YANITI', 'eirsaliye_yanit'),
+            ]
+
+            # GİDEN belge türleri (gidenBelgeleriListele destekli)
+            # Not: QNB tarafında 2025 giden faturalar genelde FATURA_UBL altında geliyor.
+            outgoing_document_types = [
+                ('FATURA_UBL', 'efatura'),
+                ('FATURA', 'efatura'),
+                ('IRSALIYE_UBL', 'eirsaliye'),
+                ('IRSALIYE', 'eirsaliye'),
+                ('UYGULAMA_YANITI_UBL', 'uygulama_yanit'),
+                ('UYGULAMA_YANITI', 'uygulama_yanit'),
+                ('IRSALIYE_YANITI_UBL', 'eirsaliye_yanit'),
+                ('IRSALIYE_YANITI', 'eirsaliye_yanit'),
             ]
 
             # ===== GELEN BELGELERİ ÇEK (TÜM TÜRLER, AYLIK PARÇALARDA) =====
             # QNB API 100 belge limiti koyduğu için aylık parçalara bölüyoruz
             from datetime import timedelta
 
-            for api_type, odoo_type in document_types:
+            for api_type, odoo_type in incoming_document_types:
                 # Aylık parçalara böl
                 current_start = start_date
                 while current_start < end_date:
@@ -1139,7 +1154,7 @@ class QnbDocument(models.Model):
                     current_start = current_end + timedelta(days=1)
 
             # ===== GİDEN BELGELERİ ÇEK (TÜM TÜRLER, 90 GÜNLÜK PARÇALARDA) =====
-            for api_type, odoo_type in document_types:
+            for api_type, odoo_type in outgoing_document_types:
                 # 90 günlük parçalara böl (giden belgeler için limit)
                 current_start = start_date
                 while current_start < end_date:
@@ -1167,28 +1182,87 @@ class QnbDocument(models.Model):
                         ])
 
                         if not existing:
-                            # Partner bul veya oluştur
                             partner = None
-                            recipient_vkn = doc.get('recipient_vkn') or doc.get('receiver_vkn')
-                            recipient_title = doc.get('recipient_title') or doc.get('receiver_title')
-                            if recipient_vkn:
-                                partner = self.env['res.partner'].search([
-                                    ('vat', '=', f'TR{recipient_vkn}')
-                                ], limit=1)
-                                if not partner:
-                                    partner = self.env['res.partner'].create({
-                                        'name': recipient_title or f'Firma {recipient_vkn}',
-                                        'vat': f'TR{recipient_vkn}',
-                                        'is_company': True,
+
+                            # XML indir + parse (partner/line/amount için)
+                            download_type = api_type.replace('_UBL', '') if isinstance(api_type, str) else api_type
+                            xml_result = api_client.download_outgoing_document(ettn, document_type=download_type, company=company)
+                            xml_bytes = xml_result.get('content') if xml_result and xml_result.get('success') else None
+
+                            parsed_data = {}
+                            invoice_lines = []
+                            amount_total = float(doc.get('total', 0) or 0)
+                            amount_untaxed = 0.0
+                            amount_tax = 0.0
+
+                            if xml_bytes:
+                                try:
+                                    parsed_data = self._parse_invoice_xml_full(xml_bytes, direction='outgoing')
+                                except Exception as _e:
+                                    parsed_data = {}
+
+                            if parsed_data:
+                                doc_info = parsed_data.get('document_info') or {}
+                                amounts = parsed_data.get('amounts') or {}
+                                amount_total = float(amounts.get('total') or amount_total or 0)
+                                amount_untaxed = float(amounts.get('untaxed') or 0)
+                                amount_tax = float(amounts.get('tax') or 0)
+                                invoice_lines = parsed_data.get('lines') or []
+
+                                # Partner eşleştir / oluştur (XML öncelikli)
+                                partner_data = parsed_data.get('partner') or {}
+                                vat_number = (partner_data.get('vat') or '').strip()
+                                partner_name = (partner_data.get('name') or '').strip()
+                                if vat_number or partner_name:
+                                    partner, matched, match_type = self.env['res.partner'].match_or_create_from_external('qnb', {
+                                        'vat': vat_number,
+                                        'name': partner_name,
+                                        'email': partner_data.get('email'),
                                     })
+
+                            # XML yoksa: liste verisinden partner eşleştir / oluştur
+                            if not partner:
+                                recipient_vkn = (doc.get('recipient_vkn') or doc.get('receiver_vkn') or '').strip()
+                                recipient_title = (doc.get('recipient_title') or doc.get('receiver_title') or '').strip()
+                                if recipient_vkn or recipient_title:
+                                    partner, matched, match_type = self.env['res.partner'].match_or_create_from_external('qnb', {
+                                        'vat': recipient_vkn,
+                                        'name': recipient_title or (f'Firma {recipient_vkn}' if recipient_vkn else 'Firma'),
+                                    })
+
+                            # Belge no boş gelebiliyor; XML içinden ID veya en kötü ETTN ile doldur.
+                            doc_no = (doc.get('belge_no') or '').strip()
+                            if not doc_no and parsed_data:
+                                doc_no = (doc_info.get('invoice_id') or '').strip()
+                            if not doc_no:
+                                doc_no = ettn
 
                             # Tarih formatını düzelt (20250115 → 2025-01-15)
                             doc_date = doc.get('date')
                             if doc_date and isinstance(doc_date, str) and len(doc_date) == 8:
                                 doc_date = f"{doc_date[:4]}-{doc_date[4:6]}-{doc_date[6:8]}"
 
+                            # Fatura satırları için line_ids hazırla
+                            import json
+                            line_vals = []
+                            if invoice_lines:
+                                for idx, line_data in enumerate(invoice_lines, 1):
+                                    line_vals.append((0, 0, {
+                                        'sequence': idx * 10,
+                                        'product_name': line_data.get('product_name') or line_data.get('product_description') or 'Ürün',
+                                        'product_description': line_data.get('product_description'),
+                                        'product_code': line_data.get('product_code'),
+                                        'barcode': line_data.get('barcode'),
+                                        'quantity': line_data.get('quantity', 1.0),
+                                        'uom_code': line_data.get('unit_code'),
+                                        'price_unit': line_data.get('unit_price', 0.0),
+                                        'price_subtotal': line_data.get('line_total', 0.0),
+                                        'tax_percent': line_data.get('tax_percent', 0.0),
+                                        'tax_amount': line_data.get('tax_amount', 0.0),
+                                    }))
+
                             self.create({
-                                'name': doc.get('belge_no', 'Yeni Belge'),
+                                'name': doc_no,
                                 'ettn': ettn,
                                 'document_type': odoo_type,
                                 'direction': 'outgoing',
@@ -1196,7 +1270,13 @@ class QnbDocument(models.Model):
                                 'partner_id': partner.id if partner else False,
                                 'company_id': company.id,
                                 'document_date': doc_date,
-                                'amount_total': doc.get('total', 0),
+                                'amount_total': amount_total,
+                                'amount_untaxed': amount_untaxed,
+                                'amount_tax': amount_tax,
+                                'xml_content': xml_bytes if xml_bytes else None,
+                                'xml_filename': f"{ettn}.xml" if xml_bytes else None,
+                                'invoice_lines_data': json.dumps(invoice_lines, ensure_ascii=False) if invoice_lines else None,
+                                'line_ids': line_vals,
                                 'currency_id': self.env['res.currency'].search([
                                     ('name', '=', doc.get('currency', 'TRY'))
                                 ], limit=1).id,
