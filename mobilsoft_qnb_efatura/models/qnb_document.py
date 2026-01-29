@@ -1494,6 +1494,36 @@ class QnbDocument(models.Model):
                 _logger.info(f"✅ Yevmiye eşleşti (Belge No satırda): {self.name} → {move.name}")
                 return move
 
+            # Bazı importlarda belge no satırlara değil, doğrudan move.ref alanına yazılmış olabilir.
+            move_domain = [
+                ('move_type', '=', 'entry'),
+                ('company_id', '=', self.company_id.id),
+                ('state', 'in', ['draft', 'posted']),
+            ]
+            if search_terms:
+                or_terms = []
+                for t in search_terms:
+                    or_terms.extend([('ref', 'ilike', t), ('name', 'ilike', t)])
+                move_domain += (['|'] * (len(or_terms) - 1)) + or_terms
+
+            if self.document_date:
+                from datetime import timedelta
+                date_from = self.document_date - timedelta(days=7)
+                date_to = self.document_date + timedelta(days=7)
+                move_domain += [('date', '>=', date_from), ('date', '<=', date_to)]
+
+            candidate_moves = AccountMove.search(move_domain, limit=20)
+            if candidate_moves:
+                if self.document_date:
+                    candidate_moves = candidate_moves.sorted(lambda m: abs((m.date or self.document_date) - self.document_date))
+                move = candidate_moves[0]
+                if not self.partner_id:
+                    guessed = _entry_guess_partner(move)
+                    if guessed:
+                        self.partner_id = guessed.id
+                _logger.info(f"✅ Yevmiye eşleşti (Belge No move.ref): {self.name} → {move.name}")
+                return move
+
         # ===== STRATEJİ B: (2026+) Fatura hareketlerinde ref/name ile eşleştir =====
         if not legacy_mode and self.name:
             invoice_domain = [
