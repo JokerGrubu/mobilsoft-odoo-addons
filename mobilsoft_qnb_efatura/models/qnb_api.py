@@ -119,11 +119,31 @@ class QnbApiClient(models.AbstractModel):
         return hashlib.md5(content).hexdigest()
 
     def _get_company_vkn(self, company=None):
-        """Şirket VKN/TCKN bilgisini normalize ederek döndür (sadece rakamlar)."""
+        """Şirket VKN bilgisini normalize ederek döndür (sadece rakamlar).
+
+        QNB API için 10 haneli VKN gerekir. TCKN (11 hane) ile çalışmaz.
+        Öncelik: qnb_username > vat (sadece 10 hane ise)
+        """
         if not company:
             company = self.env.company
-        vkn = company.vat or company.qnb_username or ''
-        return ''.join(filter(str.isdigit, str(vkn))) if vkn else ''
+
+        # Önce qnb_username'den VKN çıkar (genelde "VKN.ws" formatında)
+        if company.qnb_username:
+            vkn_from_username = ''.join(filter(str.isdigit, str(company.qnb_username)))
+            if len(vkn_from_username) == 10:
+                return vkn_from_username
+
+        # Sonra vat'tan dene (sadece 10 hane ise - VKN)
+        if company.vat:
+            vkn_from_vat = ''.join(filter(str.isdigit, str(company.vat)))
+            if len(vkn_from_vat) == 10:
+                return vkn_from_vat
+
+        # Hiçbiri uygun değilse qnb_username'den ne varsa döndür
+        if company.qnb_username:
+            return ''.join(filter(str.isdigit, str(company.qnb_username)))
+
+        return ''
 
     def _parse_qnb_date(self, value):
         """QNB'den gelen tarihleri date'e çevir (YYYYMMDD, YYYY-MM-DD, DD.MM.YYYY destekler)."""
