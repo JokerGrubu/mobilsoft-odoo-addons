@@ -2,6 +2,7 @@
 
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+import base64
 
 
 class ResPartner(models.Model):
@@ -205,44 +206,21 @@ class ResPartner(models.Model):
                 ('xml_content', '!=', False),
             ], order='document_date desc, id desc', limit=50)
 
-        if not docs:
-            raise UserError(_("XML içeriği olan QNB belgesi bulunamadı."))
-
-        updated = False
-        for doc in docs:
-            raw = doc.xml_content
-            if not raw:
-                continue
-            if isinstance(raw, str):
-                raw = raw.encode('utf-8')
-
-            xml_bytes = raw
-            try:
-                decoded = base64.b64decode(raw, validate=True)
-                if decoded.strip().startswith(b'<'):
-                    xml_bytes = decoded
-            except Exception:
-                pass
-
-            parsed = doc._parse_invoice_xml_full(xml_bytes, direction=doc.direction)
-            partner_data = (parsed or {}).get('partner') or {}
-            vat_raw = partner_data.get('vat') or ''
-            doc_digits = ''.join(filter(str.isdigit, str(vat_raw)))
-            doc_vat = f"TR{doc_digits}" if doc_digits else False
-
-            if doc_vat != vat_number:
-                continue
-
-            # İl/İlçe normalizasyonu (ör: "KARESİ / BALIKESİR")
-            raw_city = (partner_data.get('city') or '').strip()
-            raw_state = (partner_data.get('state') or '').strip()
+        def normalize_city_state(data):
+            raw_city = (data.get('city') or '').strip()
+            raw_state = (data.get('state') or '').strip()
             if raw_city and not raw_state and '/' in raw_city:
                 parts = [p.strip() for p in raw_city.split('/') if p.strip()]
                 if len(parts) >= 2:
-                    partner_data['city'] = parts[0]
-                    partner_data['state'] = parts[1]
+                    data['city'] = parts[0]
+                    data['state'] = parts[1]
+            if raw_state and not raw_city and '/' in raw_state:
+                parts = [p.strip() for p in raw_state.split('/') if p.strip()]
+                if len(parts) >= 2:
+                    data['city'] = parts[0]
+                    data['state'] = parts[1]
 
-            # QNB belge metodundaki güncelleme mantığını kullan
+        def apply_partner_update(partner_data):
             update_vals = {}
             name_raw = (partner_data.get('name') or '').strip()
             if name_raw and (self.name or '').strip() != name_raw:
@@ -290,9 +268,7 @@ class ResPartner(models.Model):
 
             if update_vals:
                 self.write(update_vals)
-                updated = True
 
-            # IBAN varsa partner banka hesabı oluştur/eşleştir
             iban = (partner_data.get('iban') or '').replace(' ', '')
             if iban:
                 Bank = self.env['res.partner.bank']
@@ -310,12 +286,117 @@ class ResPartner(models.Model):
                         if bank:
                             bank_vals['bank_id'] = bank.id
                     Bank.create(bank_vals)
-                    updated = True
 
+        updated = False
+        for doc in docs:
+            raw = doc.xml_content
+            if not raw:
+                continue
+            if isinstance(raw, str):
+                raw = raw.encode('utf-8')
+
+            xml_bytes = raw
+            try:
+                decoded = base64.b64decode(raw, validate=True)
+                if decoded.strip().startswith(b'<'):
+                    xml_bytes = decoded
+            except Exception:
+                pass
+
+            parsed = doc._parse_invoice_xml_full(xml_bytes, direction=doc.direction)
+            partner_data = (parsed or {}).get('partner') or {}
+            vat_raw = partner_data.get('vat') or ''
+            doc_digits = ''.join(filter(str.isdigit, str(vat_raw)))
+            doc_vat = f"TR{doc_digits}" if doc_digits else False
+
+            if doc_vat != vat_number:
+                continue
+
+            normalize_city_state(partner_data)
+            apply_partner_update(partner_data)
+            updated = True
             break
 
         if not updated:
-            raise UserError(_("Bu partner için XML içinde eşleşen bilgi bulunamadı."))
+            # XML yoksa QNB'den indirip dene
+            api_client = self.env['qnb.api.client'].with_company(self.company_id)
+            from datetime import date
+
+            def parse_date(s):
+                if not s:
+                    return None
+                s = str(s)
+                if len(s) == 8 and s.isdigit():
+                    return date(int(s[:4]), int(s[4:6]), int(s[6:8]))
+                return None
+
+            def pick_best(items):
+                items = [(parse_date(i.get('date')), i) for i in items if i.get('date')]
+                items = [it for it in items if it[0]]
+                items.sort(key=lambda x: x[0], reverse=True)
+                return items[0][1] if items else None
+
+            start = date(date.today().year - 2, 1, 1)
+            end = date.today()
+
+            incoming_types = ['EFATURA', 'IRSALIYE', 'UYGULAMA_YANITI', 'IRSALIYE_YANITI']
+            outgoing_types = ['FATURA_UBL', 'FATURA', 'IRSALIYE_UBL', 'IRSALIYE',
+                              'UYGULAMA_YANITI_UBL', 'UYGULAMA_YANITI', 'IRSALIYE_YANITI_UBL', 'IRSALIYE_YANITI']
+
+            match = None
+            match_direction = None
+            match_type = None
+
+            for t in incoming_types:
+                res = api_client.get_incoming_documents(start, end, document_type=t, company=self.company_id)
+                if res.get('success'):
+                    docs_list = [d for d in res.get('documents', []) if ''.join(filter(str.isdigit, str(d.get('sender_vkn', '')))) == digits]
+                    cand = pick_best(docs_list)
+                    if cand:
+                        match = cand
+                        match_direction = 'incoming'
+                        match_type = t
+                        break
+
+            if not match:
+                for t in outgoing_types:
+                    res = api_client.get_outgoing_documents(start, end, document_type=t, company=self.company_id)
+                    if res.get('success'):
+                        docs_list = [d for d in res.get('documents', []) if ''.join(filter(str.isdigit, str(d.get('recipient_vkn', '')))) == digits]
+                        cand = pick_best(docs_list)
+                        if cand:
+                            match = cand
+                            match_direction = 'outgoing'
+                            match_type = t
+                            break
+
+            if not match or not match.get('ettn'):
+                raise UserError(_("Bu partner için QNB listesinde eşleşen belge bulunamadı."))
+
+            ettn = match.get('ettn')
+            if match_direction == 'incoming':
+                xml_result = api_client.download_incoming_document(ettn, match_type, self.company_id)
+                xml_bytes = xml_result.get('content') if xml_result and xml_result.get('success') else None
+            else:
+                download_type = match_type.replace('_UBL', '') if match_type else 'FATURA'
+                xml_result = api_client.download_outgoing_document(ettn, document_type=download_type, company=self.company_id)
+                xml_bytes = xml_result.get('content') if xml_result and xml_result.get('success') else None
+
+            if not xml_bytes:
+                raise UserError(_("QNB’den XML indirilemedi."))
+
+            parsed = QnbDoc._parse_invoice_xml_full(xml_bytes, direction=match_direction)
+            partner_data = (parsed or {}).get('partner') or {}
+            vat_raw = partner_data.get('vat') or ''
+            doc_digits = ''.join(filter(str.isdigit, str(vat_raw)))
+            doc_vat = f"TR{doc_digits}" if doc_digits else False
+
+            if doc_vat != vat_number:
+                raise UserError(_("QNB XML içinde VKN eşleşmedi."))
+
+            normalize_city_state(partner_data)
+            apply_partner_update(partner_data)
+            updated = True
 
         return {
             'type': 'ir.actions.client',
