@@ -1931,22 +1931,14 @@ class QnbDocument(models.Model):
                     partner = Partner.create(partner_vals)
                     created += 1
 
-                # Partner güncelle (boş alanları doldur; placeholder isimleri düzelt)
+                # Partner güncelle (XML'deki tüm bilgileri VAT'e göre güncelle)
                 update_vals = {}
-                if vat_number and not partner.vat:
+
+                if vat_number and partner.vat != vat_number:
                     update_vals['vat'] = vat_number
 
-                if name_raw:
-                    current_name = (partner.name or '').strip()
-                    is_placeholder = (
-                        not current_name
-                        or current_name.startswith('Firma ')
-                        or current_name.startswith('Tedarikçi ')
-                        or current_name.startswith('VKN:')
-                        or current_name == vat_number
-                    )
-                    if is_placeholder and current_name != name_raw:
-                        update_vals['name'] = name_raw
+                if name_raw and (partner.name or '').strip() != name_raw:
+                    update_vals['name'] = name_raw
 
                 for src_key, dst_key in [
                     ('street', 'street'),
@@ -1956,9 +1948,43 @@ class QnbDocument(models.Model):
                     ('phone', 'phone'),
                     ('email', 'email'),
                 ]:
-                    val = partner_data.get(src_key)
-                    if val and not partner[dst_key]:
+                    val = (partner_data.get(src_key) or '').strip()
+                    if val and (partner[dst_key] or '').strip() != val:
                         update_vals[dst_key] = val
+
+                # Vergi dairesi (l10n_tr_tax_office_mobilsoft varsa)
+                tax_office = (partner_data.get('tax_office') or '').strip()
+                if tax_office:
+                    if 'l10n_tr_tax_office_id' in Partner._fields:
+                        tax_model = self.env['l10n.tr.tax.office']
+                        tax_rec = tax_model.search([('name', 'ilike', tax_office)], limit=1)
+                        if tax_rec and partner.l10n_tr_tax_office_id != tax_rec:
+                            update_vals['l10n_tr_tax_office_id'] = tax_rec.id
+                    elif 'l10n_tr_tax_office_name' in Partner._fields:
+                        if (partner.l10n_tr_tax_office_name or '').strip() != tax_office:
+                            update_vals['l10n_tr_tax_office_name'] = tax_office
+
+                # Ülke/İl eşleştirme
+                country_name = (partner_data.get('country') or '').strip()
+                if country_name and 'country_id' in Partner._fields:
+                    country = self.env['res.country'].search([('name', 'ilike', country_name)], limit=1)
+                    if country and partner.country_id != country:
+                        update_vals['country_id'] = country.id
+
+                state_name = (partner_data.get('state') or '').strip()
+                if state_name and 'state_id' in Partner._fields:
+                    domain = [('name', 'ilike', state_name)]
+                    if update_vals.get('country_id') or partner.country_id:
+                        country_id = update_vals.get('country_id') or partner.country_id.id
+                        domain.append(('country_id', '=', country_id))
+                    state = self.env['res.country.state'].search(domain, limit=1)
+                    if state and partner.state_id != state:
+                        update_vals['state_id'] = state.id
+
+                if doc.direction == 'incoming' and partner.supplier_rank < 1:
+                    update_vals['supplier_rank'] = 1
+                if doc.direction == 'outgoing' and partner.customer_rank < 1:
+                    update_vals['customer_rank'] = 1
 
                 if update_vals:
                     partner.write(update_vals)
