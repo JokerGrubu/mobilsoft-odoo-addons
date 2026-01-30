@@ -710,12 +710,30 @@ class QnbDocument(models.Model):
                 if contact is not None:
                     result['partner']['phone'] = self._get_xml_text(contact, './/cbc:Telephone', ns)
                     result['partner']['email'] = self._get_xml_text(contact, './/cbc:ElectronicMail', ns)
+                    result['partner']['website'] = self._get_xml_text(contact, './/cbc:WebsiteURI', ns)
+                if not result['partner'].get('website'):
+                    result['partner']['website'] = self._get_xml_text(party, './/cbc:WebsiteURI', ns)
 
             # === ÖDEME BİLGİLERİ ===
             payment = root.find('.//cac:PaymentMeans', ns)
             if payment is not None:
                 result['payment']['means_code'] = self._get_xml_text(payment, './/cbc:PaymentMeansCode', ns)
                 result['payment']['instruction'] = self._get_xml_text(payment, './/cbc:InstructionNote', ns)
+                # IBAN / banka bilgileri
+                iban = self._get_xml_text(payment, './/cac:PayeeFinancialAccount/cbc:ID[@schemeID="IBAN"]', ns)
+                if not iban:
+                    iban = self._get_xml_text(payment, './/cac:PayeeFinancialAccount/cbc:ID', ns)
+                if iban:
+                    result['partner']['iban'] = iban
+                bank_name = self._get_xml_text(payment, './/cac:PayeeFinancialAccount/cbc:Name', ns)
+                if not bank_name:
+                    bank_name = self._get_xml_text(
+                        payment,
+                        './/cac:PayeeFinancialAccount/cac:FinancialInstitutionBranch/cac:FinancialInstitution/cbc:Name',
+                        ns
+                    )
+                if bank_name:
+                    result['partner']['bank_name'] = bank_name
 
             # === FATURA SATIRLARI (Ürünler) ===
             invoice_lines = root.findall('.//cac:InvoiceLine', ns)
@@ -1947,6 +1965,7 @@ class QnbDocument(models.Model):
                     ('zip', 'zip'),
                     ('phone', 'phone'),
                     ('email', 'email'),
+                    ('website', 'website'),
                 ]:
                     val = (partner_data.get(src_key) or '').strip()
                     if val and (partner[dst_key] or '').strip() != val:
@@ -1989,6 +2008,25 @@ class QnbDocument(models.Model):
                 if update_vals:
                     partner.write(update_vals)
                     updated += 1
+
+                # IBAN varsa partner banka hesabı oluştur/eşleştir
+                iban = (partner_data.get('iban') or '').replace(' ', '')
+                if iban:
+                    Bank = self.env['res.partner.bank']
+                    existing_bank = Bank.search([('partner_id', '=', partner.id), ('acc_number', '=', iban)], limit=1)
+                    if not existing_bank:
+                        bank_vals = {
+                            'partner_id': partner.id,
+                            'acc_number': iban,
+                        }
+                        if 'company_id' in Bank._fields and partner.company_id:
+                            bank_vals['company_id'] = partner.company_id.id
+                        bank_name = (partner_data.get('bank_name') or '').strip()
+                        if bank_name and 'bank_id' in Bank._fields:
+                            bank = self.env['res.bank'].search([('name', 'ilike', bank_name)], limit=1)
+                            if bank:
+                                bank_vals['bank_id'] = bank.id
+                        Bank.create(bank_vals)
 
                 # Belgeye bağla
                 if doc.partner_id != partner:

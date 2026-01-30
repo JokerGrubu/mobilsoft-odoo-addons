@@ -33,6 +33,12 @@
                                     class="btn-secondary"
                                     icon="fa-building"
                                     invisible="not vat"/>
+                            <button name="action_update_from_qnb_xml"
+                                    string="QNB XML'den Güncelle"
+                                    type="object"
+                                    class="btn-secondary"
+                                    icon="fa-file-code-o"
+                                    invisible="not vat"/>
                             <div class="text-muted" invisible="vat">
                                 <i class="fa fa-info-circle"/> e-Fatura kontrolü için VKN/TCKN girilmelidir.
                             </div>
