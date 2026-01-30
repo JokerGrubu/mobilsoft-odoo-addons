@@ -71,7 +71,11 @@
                             <field name="password" password="True"/>
                         </group>
                         <group name="company" string="🏢 Şirket">
-                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="company_id" groups="base.group_multi_company"
+                                   string="Ana Şirket (Faturalı)"/>
+                            <field name="secondary_company_id" groups="base.group_multi_company"
+                                   invisible="not enable_multi_company_routing"/>
+                            <field name="enable_multi_company_routing"/>
                             <field name="active"/>
                             <field name="last_test_date" readonly="1"/>
                         </group>
@@ -148,7 +152,78 @@
                                 </group>
                             </group>
                         </page>
-                        
+
+                        <page string="🏢 Çok Şirketli Yönlendirme" name="multi_company">
+                            <group string="Şirket Yapılandırması">
+                                <group>
+                                    <field name="enable_multi_company_routing"/>
+                                    <field name="secondary_company_id"
+                                           invisible="not enable_multi_company_routing"
+                                           required="enable_multi_company_routing"/>
+                                    <field name="shared_warehouse_id"
+                                           invisible="not enable_multi_company_routing"/>
+                                </group>
+                                <group>
+                                    <div class="alert alert-info" role="alert"
+                                         invisible="not enable_multi_company_routing">
+                                        <strong>💡 Joker Grubu / Joker Tedarik Modeli:</strong><br/>
+                                        <ul class="mb-0">
+                                            <li><strong>Ana Şirket:</strong> Faturalı işlemler (muhasebe kaydı)</li>
+                                            <li><strong>İkincil Şirket:</strong> Faturasız işlemler (satış siparişi)</li>
+                                        </ul>
+                                    </div>
+                                </group>
+                            </group>
+
+                            <group string="Faturasız Tespit Kuralları"
+                                   invisible="not enable_multi_company_routing">
+                                <group>
+                                    <field name="noninvoice_detection_rule"/>
+                                </group>
+                                <group>
+                                    <div class="alert alert-warning" role="alert">
+                                        <strong>⚠️ Faturasız İşlem Tespiti:</strong><br/>
+                                        <ul class="mb-0">
+                                            <li><strong>Fatura No Boş:</strong> Fatura numarası olmayan işlemler</li>
+                                            <li><strong>KDV Yok:</strong> KDV tutarı 0 olan işlemler</li>
+                                            <li><strong>Her İkisi:</strong> Hem fatura no boş HEM KDV yok</li>
+                                            <li><strong>Herhangi Biri:</strong> Fatura no boş VEYA KDV yok</li>
+                                        </ul>
+                                    </div>
+                                </group>
+                            </group>
+
+                            <group string="Müşteri Yönlendirme Kuralları"
+                                   invisible="not enable_multi_company_routing">
+                                <group>
+                                    <field name="route_no_vkn_to_secondary"/>
+                                    <field name="route_tax_exempt_to_secondary"/>
+                                    <field name="route_never_invoiced_to_secondary"/>
+                                </group>
+                                <group>
+                                    <div class="alert alert-secondary" role="alert">
+                                        <strong>📋 Yönlendirme Kuralları:</strong><br/>
+                                        <ul class="mb-0">
+                                            <li><strong>VKN'siz:</strong> Vergi numarası olmayan müşteriler</li>
+                                            <li><strong>Vergiden Muaf:</strong> Muafiyet işaretli müşteriler</li>
+                                            <li><strong>Hiç Faturası Yok:</strong> Sistemde faturası bulunmayanlar</li>
+                                        </ul>
+                                    </div>
+                                </group>
+                            </group>
+
+                            <group string="🎯 Faturasız İşlem Senkronizasyonu"
+                                   invisible="not enable_multi_company_routing">
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button name="action_sync_noninvoice_transactions"
+                                            string="📝 Faturasız İşlemleri Sync"
+                                            type="object"
+                                            class="btn-outline-warning"
+                                            invisible="state != 'connected'"/>
+                                </div>
+                            </group>
+                        </page>
+
                         <page string="🔑 Token Bilgisi" name="token">
                             <group>
                                 <field name="access_token" readonly="1"/>

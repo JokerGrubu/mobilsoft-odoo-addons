@@ -45,7 +45,20 @@ class ResPartner(models.Model):
         string='Son Bakiye Güncelleme',
         readonly=True,
     )
-    
+
+    # Vergiden muafiyet (Joker Tedarik yönlendirmesi için)
+    is_tax_exempt = fields.Boolean(
+        string='Vergiden Muaf',
+        default=False,
+        help='İşaretlenirse, bu müşterinin işlemleri faturasız olarak ikincil şirkete (Joker Tedarik) yönlendirilir',
+    )
+
+    never_invoice_customer = fields.Boolean(
+        string='Her Zaman Faturasız',
+        default=False,
+        help='İşaretlenirse, bu müşterinin tüm işlemleri faturasız olarak kabul edilir',
+    )
+
     @api.depends('bizimhesap_binding_ids')
     def _compute_bizimhesap_synced(self):
         for record in self:

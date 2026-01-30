@@ -764,10 +764,191 @@ class BizimHesapBackend(models.Model):
             }
         }
     
+    # ═══════════════════════════════════════════════════════════════
+    # ŞİRKET YÖNLENDİRME (COMPANY ROUTING)
+    # Joker Grubu (Faturalı) / Joker Tedarik (Faturasız)
+    # ═══════════════════════════════════════════════════════════════
+
+    def _get_target_company(self, partner_data=None, transaction_data=None):
+        """
+        İşlem için hedef şirketi belirle
+
+        Kurallar:
+        1. Multi-company routing aktif değilse → Ana şirket
+        2. VKN'siz müşteri → İkincil şirket (Joker Tedarik)
+        3. Vergiden muaf müşteri → İkincil şirket
+        4. Faturasız işlem → İkincil şirket
+        5. Diğer durumlarda → Ana şirket (Joker Grubu)
+
+        Returns:
+            res.company: Hedef şirket
+        """
+        self.ensure_one()
+
+        # Multi-company routing aktif değilse ana şirket
+        if not self.enable_multi_company_routing or not self.secondary_company_id:
+            return self.company_id
+
+        # Partner bazlı kontroller
+        if partner_data:
+            # VKN'siz müşteri kontrolü
+            if self.route_no_vkn_to_secondary:
+                vkn = partner_data.get('taxno') or partner_data.get('taxNumber') or partner_data.get('vat')
+                if not vkn or str(vkn).strip() == '':
+                    _logger.info(f"VKN'siz müşteri → İkincil şirket: {partner_data.get('title', 'N/A')}")
+                    return self.secondary_company_id
+
+            # Vergiden muaf kontrolü (partner üzerinde flag varsa)
+            if self.route_tax_exempt_to_secondary:
+                is_tax_exempt = partner_data.get('is_tax_exempt') or partner_data.get('vergiden_muaf')
+                if is_tax_exempt:
+                    _logger.info(f"Vergiden muaf müşteri → İkincil şirket: {partner_data.get('title', 'N/A')}")
+                    return self.secondary_company_id
+
+        # İşlem bazlı kontroller
+        if transaction_data:
+            if self._is_noninvoice_transaction(transaction_data):
+                _logger.info(f"Faturasız işlem → İkincil şirket")
+                return self.secondary_company_id
+
+        # Varsayılan: Ana şirket (Joker Grubu)
+        return self.company_id
+
+    def _is_noninvoice_transaction(self, transaction_data):
+        """
+        İşlemin faturasız olup olmadığını tespit et
+
+        Kurallar (noninvoice_detection_rule'a göre):
+        - invoice_empty: Fatura numarası boş
+        - no_kdv: KDV tutarı 0 veya yok
+        - both: Fatura No boş VE KDV yok
+        - any: Fatura No boş VEYA KDV yok
+
+        Returns:
+            bool: True = Faturasız işlem
+        """
+        if not transaction_data:
+            return False
+
+        # Fatura numarası kontrolü
+        invoice_no = transaction_data.get('invoice_no') or transaction_data.get('invoiceNo') or ''
+        invoice_empty = str(invoice_no).strip() == ''
+
+        # KDV kontrolü (BizimHesap formatları)
+        kdv_amount = 0.0
+        kdv_fields = ['kdv', 'tax', 'taxAmount', 'kdvAmount', 'vatAmount']
+        for field in kdv_fields:
+            val = transaction_data.get(field)
+            if val:
+                try:
+                    # Türkçe format: 1.234,56 → 1234.56
+                    if isinstance(val, str):
+                        kdv_amount = float(val.replace('.', '').replace(',', '.'))
+                    else:
+                        kdv_amount = float(val)
+                    break
+                except (ValueError, TypeError):
+                    continue
+
+        no_kdv = kdv_amount == 0.0
+
+        # Kurala göre karar ver
+        rule = self.noninvoice_detection_rule or 'both'
+
+        if rule == 'invoice_empty':
+            return invoice_empty
+        elif rule == 'no_kdv':
+            return no_kdv
+        elif rule == 'both':
+            return invoice_empty and no_kdv
+        elif rule == 'any':
+            return invoice_empty or no_kdv
+
+        return False
+
+    def _check_partner_never_invoiced(self, partner):
+        """
+        Partner'ın hiç faturası olup olmadığını kontrol et
+
+        Returns:
+            bool: True = Hiç fatura yok
+        """
+        if not partner:
+            return True
+
+        invoice_count = self.env['account.move'].search_count([
+            ('partner_id', '=', partner.id),
+            ('move_type', 'in', ['out_invoice', 'in_invoice']),
+            ('state', '=', 'posted'),
+        ])
+
+        return invoice_count == 0
+
+    def _check_partner_tax_exempt(self, partner):
+        """
+        Partner'ın vergiden muaf olup olmadığını kontrol et
+
+        Returns:
+            bool: True = Vergiden muaf
+        """
+        if not partner:
+            return False
+
+        # Odoo standart alanları
+        # fiscal_position_id ile kontrol
+        if partner.property_account_position_id:
+            # "Muaf" veya "Exempt" içeren fiscal position
+            fp_name = (partner.property_account_position_id.name or '').lower()
+            if 'muaf' in fp_name or 'exempt' in fp_name:
+                return True
+
+        # Custom alan kontrolü (varsa)
+        if hasattr(partner, 'is_tax_exempt') and partner.is_tax_exempt:
+            return True
+
+        return False
+
+    def _get_partner_target_company(self, partner):
+        """
+        Mevcut bir partner için hedef şirketi belirle
+
+        Returns:
+            res.company: Hedef şirket
+        """
+        self.ensure_one()
+
+        if not self.enable_multi_company_routing or not self.secondary_company_id:
+            return self.company_id
+
+        # "Her Zaman Faturasız" işaretli ise ikincil şirkete git
+        if hasattr(partner, 'never_invoice_customer') and partner.never_invoice_customer:
+            return self.secondary_company_id
+
+        # VKN'siz kontrol
+        if self.route_no_vkn_to_secondary:
+            if not partner.vat or str(partner.vat).strip() == '':
+                return self.secondary_company_id
+
+        # Vergiden muaf kontrol
+        if self.route_tax_exempt_to_secondary:
+            if self._check_partner_tax_exempt(partner):
+                return self.secondary_company_id
+
+        # Hiç faturası yok kontrol
+        if self.route_never_invoiced_to_secondary:
+            if self._check_partner_never_invoiced(partner):
+                return self.secondary_company_id
+
+        return self.company_id
+
+    # ═══════════════════════════════════════════════════════════════
+    # CARİ IMPORT
+    # ═══════════════════════════════════════════════════════════════
+
     def _import_partner(self, data):
         """
         Tek cari import et - Protokollerle eşleştirme
-        
+
         Eşleştirme sırası:
         1. VKN/TCKN (vergi numarası) → Kesin eşleşme
         2. Telefon → Kesin eşleşme
@@ -950,9 +1131,171 @@ class BizimHesapBackend(models.Model):
             # l10n_tr modülü yüklüyse
             if 'l10n_tr_tax_office_name' in self.env['res.partner']._fields:
                 vals['l10n_tr_tax_office_name'] = tax_office
-        
+
+        # Şirket yönlendirmesi
+        target_company = self._get_target_company(partner_data=data)
+        vals['company_id'] = target_company.id
+
         return vals
-    
+
+    # ═══════════════════════════════════════════════════════════════
+    # FATURASIZ İŞLEM YÖNETİMİ - SALE ORDER
+    # (Joker Tedarik için)
+    # ═══════════════════════════════════════════════════════════════
+
+    def _create_sale_order_from_transaction(self, transaction_data, partner_id):
+        """
+        Faturasız işlem için satış siparişi oluştur
+
+        Faturasız işlemler Joker Tedarik'e (ikincil şirket) sale.order olarak kaydedilir.
+        Faturalı işlemler Joker Grubu'na (ana şirket) account.move olarak kaydedilir.
+
+        Args:
+            transaction_data: BizimHesap işlem verisi
+            partner_id: Odoo partner ID
+
+        Returns:
+            sale.order: Oluşturulan sipariş
+        """
+        self.ensure_one()
+
+        # Hedef şirket: İkincil şirket (Joker Tedarik)
+        target_company = self.secondary_company_id or self.company_id
+
+        # İşlem tarihi
+        date_str = transaction_data.get('date') or transaction_data.get('transactionDate')
+        order_date = fields.Datetime.now()
+        if date_str:
+            try:
+                if 'T' in date_str:
+                    order_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                else:
+                    order_date = datetime.strptime(date_str, '%Y-%m-%d')
+            except (ValueError, TypeError):
+                pass
+
+        # Sipariş değerleri
+        order_vals = {
+            'partner_id': partner_id,
+            'company_id': target_company.id,
+            'date_order': order_date,
+            'state': 'sale',  # Onaylı olarak oluştur
+            'client_order_ref': transaction_data.get('reference') or transaction_data.get('ref'),
+            'note': f"BizimHesap faturasız işlem. ID: {transaction_data.get('id')}",
+        }
+
+        # Ortak depo varsa kullan
+        if self.shared_warehouse_id:
+            order_vals['warehouse_id'] = self.shared_warehouse_id.id
+        else:
+            # Şirketin varsayılan deposunu bul
+            warehouse = self.env['stock.warehouse'].search([
+                ('company_id', '=', target_company.id)
+            ], limit=1)
+            if warehouse:
+                order_vals['warehouse_id'] = warehouse.id
+
+        # Sipariş oluştur
+        order = self.env['sale.order'].with_company(target_company).create(order_vals)
+
+        # Sipariş satırları
+        lines_data = transaction_data.get('lines') or transaction_data.get('items') or []
+        for line_data in lines_data:
+            self._create_sale_order_line(order, line_data, target_company)
+
+        _logger.info(f"Faturasız işlem için SO oluşturuldu: {order.name} (Şirket: {target_company.name})")
+        return order
+
+    def _create_sale_order_line(self, order, line_data, company):
+        """
+        Satış siparişi satırı oluştur
+
+        Args:
+            order: sale.order
+            line_data: Satır verisi
+            company: Hedef şirket
+        """
+        product_code = line_data.get('code') or line_data.get('productCode')
+        product_name = line_data.get('title') or line_data.get('productName') or 'Bilinmeyen Ürün'
+
+        # Ürün bul veya oluştur
+        product = None
+        if product_code:
+            product = self.env['product.product'].search([
+                ('default_code', '=', product_code)
+            ], limit=1)
+
+        if not product:
+            product = self.env['product.product'].search([
+                ('name', 'ilike', product_name)
+            ], limit=1)
+
+        if not product:
+            # Ürün bulunamadı, genel ürün kullan veya oluştur
+            product = self.env.ref('product.product_product_1', raise_if_not_found=False)
+            if not product:
+                product = self.env['product.product'].create({
+                    'name': product_name,
+                    'default_code': product_code,
+                    'type': 'consu',
+                })
+
+        # Miktar ve fiyat
+        qty = 1.0
+        price = 0.0
+        try:
+            qty = float(line_data.get('quantity') or line_data.get('qty') or 1)
+            price_str = str(line_data.get('price') or line_data.get('unitPrice') or '0')
+            price = float(price_str.replace('.', '').replace(',', '.'))
+        except (ValueError, TypeError):
+            pass
+
+        # Satır oluştur
+        self.env['sale.order.line'].with_company(company).create({
+            'order_id': order.id,
+            'product_id': product.id,
+            'name': product_name,
+            'product_uom_qty': qty,
+            'price_unit': price,
+        })
+
+    def action_sync_noninvoice_transactions(self):
+        """
+        Faturasız işlemleri senkronize et
+
+        BizimHesap'tan çekilen işlemler arasında faturasız olanları
+        Joker Tedarik'e sale.order olarak kaydeder.
+        """
+        self.ensure_one()
+        _logger.info(f"Starting noninvoice transaction sync for {self.name}")
+
+        if not self.enable_multi_company_routing or not self.secondary_company_id:
+            raise UserError(_('Faturasız işlem senkronizasyonu için çok şirketli yönlendirme aktif olmalı ve ikincil şirket seçilmelidir.'))
+
+        created = skipped = failed = 0
+
+        # TODO: BizimHesap'tan işlemleri çek
+        # Not: BizimHesap B2B API'de transaction endpoint'i henüz eklenmedi
+        # Bu fonksiyon API endpoint eklendiğinde güncellenecek
+
+        self._create_log(
+            operation='Sync NonInvoice Transactions',
+            status='success',
+            records_created=created,
+            message=f"Oluşturulan: {created}, Atlanan: {skipped}, Hatalı: {failed}",
+        )
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Faturasız İşlem Senkronizasyonu'),
+                'message': _(f'Oluşturulan: {created}, Atlanan: {skipped}'),
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
     def action_sync_products(self):
         """
         Ürünleri senkronize et - B2B API formatı

@@ -28,6 +28,20 @@
             <xpath expr="//notebook" position="inside">
                 <page string="🔗 BizimHesap" name="bizimhesap"
                       groups="mobilsoft_bizimhesap.group_bizimhesap_user">
+                    <group string="🏢 Şirket Yönlendirmesi">
+                        <group>
+                            <field name="is_tax_exempt"/>
+                            <field name="never_invoice_customer"/>
+                        </group>
+                        <group>
+                            <div class="alert alert-info" role="alert">
+                                <strong>💡 Joker Tedarik Yönlendirmesi:</strong><br/>
+                                İşaretlenen müşterilerin işlemleri otomatik olarak
+                                ikincil şirkete (Joker Tedarik) yönlendirilir.
+                            </div>
+                        </group>
+                    </group>
+
                     <group string="💰 Cari Bakiye Bilgileri">
                         <group>
                             <field name="bizimhesap_balance" widget="monetary"/>
