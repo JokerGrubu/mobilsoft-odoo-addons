@@ -70,6 +70,28 @@ class ResPartner(models.Model):
     def _compute_bizimhesap_synced(self):
         for record in self:
             record.bizimhesap_synced = bool(record.bizimhesap_binding_ids)
+
+    @api.depends('bizimhesap_currency')
+    def _compute_bizimhesap_currency_id(self):
+        """BizimHesap para birimi kodundan Odoo currency'e çevir"""
+        Currency = self.env['res.currency']
+        # Para birimi eşleştirme
+        currency_map = {
+            'TL': 'TRY',
+            'TRY': 'TRY',
+            'USD': 'USD',
+            'EUR': 'EUR',
+            'GBP': 'GBP',
+        }
+        for record in self:
+            if record.bizimhesap_currency:
+                code = currency_map.get(record.bizimhesap_currency.upper(), record.bizimhesap_currency.upper())
+                currency = Currency.search([('name', '=', code)], limit=1)
+                record.bizimhesap_currency_id = currency.id if currency else False
+            else:
+                # Varsayılan TRY
+                currency = Currency.search([('name', '=', 'TRY')], limit=1)
+                record.bizimhesap_currency_id = currency.id if currency else False
     
     def action_sync_to_bizimhesap(self):
         """Manuel olarak BizimHesap'a gönder"""
