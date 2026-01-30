@@ -614,7 +614,7 @@ class QnbDocument(models.Model):
                     'ettn': ettn,
                     'document_type': 'efatura',
                     'direction': direction,
-                    'state': 'delivered',
+                    'state': 'draft',  # Dış servislerden gelen belgeler taslak olarak kaydedilir
                     'partner_id': partner.id if partner else False,
                     'company_id': company.id,
                     'document_date': doc_date,
@@ -1392,7 +1392,7 @@ class QnbDocument(models.Model):
                             'ettn': ettn,
                             'document_type': 'efatura',
                             'direction': 'incoming',
-                            'state': 'delivered',
+                            'state': 'draft',  # Taslak olarak kaydedilir, manuel onay gerekir
                             'partner_id': partner.id if partner else False,
                             'company_id': company.id,
                             'document_date': doc.get('date'),
@@ -1468,7 +1468,7 @@ class QnbDocument(models.Model):
                             'ettn': ettn,
                             'document_type': 'efatura',
                             'direction': 'outgoing',
-                            'state': 'sent',
+                            'state': 'draft',  # Taslak olarak kaydedilir, manuel onay gerekir
                             'partner_id': partner.id if partner else False,
                             'company_id': company.id,
                             'document_date': doc.get('date'),
