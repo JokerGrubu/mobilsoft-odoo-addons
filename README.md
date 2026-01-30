@@ -1,5 +1,7 @@
 # MobilSoft Odoo 19 Modulleri
 
+> Sunucu üzerindeki doküman haritası: `/joker/Mimar/INDEX.md`
+
 ![Odoo Version](https://img.shields.io/badge/Odoo-19.0-blue)
 ![License](https://img.shields.io/badge/License-LGPL--3-green)
 ![MobilSoft](https://img.shields.io/badge/MobilSoft-OCA%20Uyesi-orange)
