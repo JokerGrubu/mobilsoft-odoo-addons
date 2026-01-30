@@ -358,7 +358,6 @@
             <search string="BizimHesap Ara">
                 <field name="name"/>
                 <field name="company_id"/>
-                <field name="secondary_company_id"/>
                 <filter name="connected" string="Bağlı"
                         domain="[('state', '=', 'connected')]"/>
                 <filter name="error" string="Hatalı"
