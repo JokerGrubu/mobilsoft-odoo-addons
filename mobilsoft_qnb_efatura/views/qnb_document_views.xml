@@ -197,6 +197,19 @@ action = env['qnb.document'].action_sync_partners_from_documents()
         </field>
     </record>
 
+    <!-- Partneri boş belgeleri QNB listeden düzelt (VKN + Ünvan) -->
+    <record id="action_qnb_fix_missing_partners_from_list" model="ir.actions.server">
+        <field name="name">🩹 Partneri Boş Belgeleri (QNB Liste) Düzelt</field>
+        <field name="model_id" ref="model_qnb_document"/>
+        <field name="binding_model_id" ref="model_qnb_document"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+docs = env['qnb.document'].browse(env.context.get('active_ids', []))
+action = docs.action_fix_missing_partners_from_qnb_list()
+        </field>
+    </record>
+
     <!-- Toplu Yevmiye Eşleştirme Action -->
     <record id="action_qnb_bulk_match" model="ir.actions.server">
         <field name="name">🔗 Yevmiye Kayıtları ile Eşleştir</field>

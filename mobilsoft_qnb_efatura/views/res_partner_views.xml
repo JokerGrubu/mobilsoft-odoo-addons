@@ -27,6 +27,12 @@
                                     class="btn-primary"
                                     icon="fa-search"
                                     invisible="not vat"/>
+                            <button name="action_update_title_from_qnb"
+                                    string="QNB'den Ünvanı Güncelle"
+                                    type="object"
+                                    class="btn-secondary"
+                                    icon="fa-building"
+                                    invisible="not vat"/>
                             <div class="text-muted" invisible="vat">
                                 <i class="fa fa-info-circle"/> e-Fatura kontrolü için VKN/TCKN girilmelidir.
                             </div>

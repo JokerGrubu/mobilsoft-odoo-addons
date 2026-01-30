@@ -579,8 +579,19 @@ class QnbApiClient(models.AbstractModel):
                     documents.append({
                         'ettn': doc_dict.get('ettn', '') or getattr(doc, 'ettn', ''),
                         'belge_no': doc_dict.get('belgeNo', '') or getattr(doc, 'belgeNo', '') or doc_dict.get('belge_no', ''),
-                        'sender_vkn': doc_dict.get('gonderenVkn', '') or getattr(doc, 'gonderenVkn', ''),
-                        'sender_title': doc_dict.get('gonderenUnvan', '') or getattr(doc, 'gonderenUnvan', ''),
+                        # QNB gelen listele alanları WSDL'e göre değişebiliyor (gonderenVknTckn / gonderenIsim)
+                        'sender_vkn': (
+                            doc_dict.get('gonderenVknTckn', '')
+                            or doc_dict.get('gonderenVkn', '')
+                            or getattr(doc, 'gonderenVknTckn', '')
+                            or getattr(doc, 'gonderenVkn', '')
+                        ),
+                        'sender_title': (
+                            doc_dict.get('gonderenIsim', '')
+                            or doc_dict.get('gonderenUnvan', '')
+                            or getattr(doc, 'gonderenIsim', '')
+                            or getattr(doc, 'gonderenUnvan', '')
+                        ),
                         'date': doc_dict.get('belgeTarihi', '') or getattr(doc, 'belgeTarihi', ''),
                         'total': float(doc_dict.get('toplamTutar', 0) or getattr(doc, 'toplamTutar', 0) or 0),
                         'currency': doc_dict.get('paraBirimi', 'TRY') or getattr(doc, 'paraBirimi', 'TRY'),

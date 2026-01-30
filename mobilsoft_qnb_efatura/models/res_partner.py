@@ -113,6 +113,72 @@ class ResPartner(models.Model):
             }
         }
 
+    def action_update_title_from_qnb(self):
+        """QNB (kayıtlı kullanıcı) sorgusu ile ünvanı güncelle (VKN/TCKN ile)"""
+        api_client = self.env['qnb.api.client']
+
+        def is_placeholder_name(current_name, vat_number):
+            current_name = (current_name or '').strip()
+            if not current_name:
+                return True
+            if current_name.startswith(('Firma ', 'Tedarikçi ', 'VKN:')):
+                return True
+            if vat_number and current_name == vat_number:
+                return True
+            return False
+
+        processed = 0
+        updated = 0
+        skipped = 0
+        errors = 0
+
+        for partner in self:
+            processed += 1
+            try:
+                if not partner.vat:
+                    skipped += 1
+                    continue
+
+                digits = ''.join(filter(str.isdigit, str(partner.vat)))
+                if len(digits) not in (10, 11):
+                    skipped += 1
+                    continue
+
+                result = api_client.check_registered_user(digits)
+                if not (result.get('success') and result.get('users')):
+                    skipped += 1
+                    continue
+
+                title = (result['users'][0].get('title') or '').strip()
+                if not title:
+                    skipped += 1
+                    continue
+
+                if is_placeholder_name(partner.name, partner.vat) and (partner.name or '').strip() != title:
+                    partner.write({'name': title})
+                    updated += 1
+                else:
+                    skipped += 1
+            except Exception:
+                errors += 1
+                continue
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'QNB Ünvan Güncelle',
+                'message': (
+                    f'Partner: {processed}\n'
+                    f'Güncellendi: {updated}\n'
+                    f'Atlandı: {skipped}\n'
+                    f'Hata: {errors}'
+                ),
+                'type': 'success' if updated else 'info',
+                'sticky': False,
+            }
+        }
+
     @api.model
     def _cron_check_efatura_status(self):
         """Zamanlanmış görev: Tüm partnerlerin e-Fatura durumunu kontrol et"""

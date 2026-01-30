@@ -1990,6 +1990,193 @@ class QnbDocument(models.Model):
             }
         }
 
+    @api.model
+    def action_fix_missing_partners_from_qnb_list(self):
+        """
+        QNB belge listesinden (gelenBelgeleriListele) VKN + ünvan bilgisi alıp
+        partner_id boş kalan QNB belgelerini partner ile eşleştir.
+
+        Not: XML içeriği bozuk/eksik olsa bile, listeden VKN/ünvan çekilerek düzeltme yapılabilir.
+        """
+        company = self.env.company
+        api_client = self.env['qnb.api.client'].with_company(company)
+        Partner = self.env['res.partner']
+
+        docs = self
+        if not docs:
+            docs = self.search([
+                ('company_id', '=', company.id),
+                ('direction', '=', 'incoming'),
+                ('partner_id', '=', False),
+                ('ettn', '!=', False),
+            ], order='document_date asc, id asc')
+        else:
+            docs = docs.filtered(lambda d: d.company_id.id == company.id and d.direction == 'incoming' and not d.partner_id and d.ettn)
+
+        if not docs:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'QNB Partner (Liste)',
+                    'message': 'Partneri boş QNB belgesi bulunamadı.',
+                    'type': 'info',
+                    'sticky': False,
+                }
+            }
+
+        from datetime import date, timedelta
+        import calendar
+
+        api_type_by_doc_type = {
+            'efatura': 'EFATURA',
+            'eirsaliye': 'IRSALIYE',
+            'uygulama_yanit': 'UYGULAMA_YANITI',
+            'eirsaliye_yanit': 'IRSALIYE_YANITI',
+        }
+
+        def month_start(d):
+            return date(d.year, d.month, 1)
+
+        def month_end(d):
+            last_day = calendar.monthrange(d.year, d.month)[1]
+            return date(d.year, d.month, last_day)
+
+        def next_month(d):
+            return (d.replace(day=28) + timedelta(days=4)).replace(day=1)
+
+        def normalize_digits(value):
+            return ''.join(ch for ch in str(value or '') if ch.isdigit())
+
+        def is_placeholder_name(current_name, vat_number):
+            current_name = (current_name or '').strip()
+            if not current_name:
+                return True
+            if current_name.startswith(('Firma ', 'Tedarikçi ', 'VKN:')):
+                return True
+            if vat_number and current_name == vat_number:
+                return True
+            return False
+
+        # ETTN -> {sender_vkn, sender_title, ...}
+        by_ettn = {}
+        list_calls = 0
+        list_failures = 0
+
+        docs_by_api_type = {}
+        for doc in docs:
+            api_type = api_type_by_doc_type.get(doc.document_type)
+            if not api_type:
+                continue
+            docs_by_api_type[api_type] = docs_by_api_type.get(api_type, self.browse()) | doc
+
+        for api_type, api_docs in docs_by_api_type.items():
+            dates = [d.document_date for d in api_docs if d.document_date]
+            if not dates:
+                continue
+            start = month_start(min(dates))
+            end = month_end(max(dates))
+            current = start
+            while current <= end:
+                current_start = month_start(current)
+                current_end = month_end(current)
+                result = api_client.get_incoming_documents(current_start, current_end, document_type=api_type, company=company)
+                list_calls += 1
+                if result.get('success'):
+                    for it in result.get('documents', []) or []:
+                        ettn = (it.get('ettn') or '').strip()
+                        if ettn:
+                            by_ettn[ettn.lower()] = it
+                else:
+                    list_failures += 1
+                current = next_month(current)
+
+        created = 0
+        linked = 0
+        updated_name = 0
+        missing_in_list = 0
+        missing_vkn = 0
+        errors = 0
+
+        # VKN -> resmi ünvan cache (mükellef sorgu)
+        title_cache = {}
+
+        for doc in docs:
+            try:
+                info = by_ettn.get((doc.ettn or '').strip().lower())
+                if not info:
+                    missing_in_list += 1
+                    continue
+
+                digits = normalize_digits(info.get('sender_vkn'))
+                if len(digits) not in (10, 11):
+                    missing_vkn += 1
+                    continue
+
+                vat_number = f"TR{digits}"
+                partner = Partner.search([('vat', '=', vat_number)], limit=1)
+                if not partner:
+                    partner = Partner.search([('vat', 'ilike', digits)], limit=1)
+
+                if not partner:
+                    partner = Partner.create({
+                        'name': info.get('sender_title') or f"Firma {digits}",
+                        'vat': vat_number,
+                        'is_company': True,
+                        'supplier_rank': 1,
+                    })
+                    created += 1
+
+                # Resmi ünvanı VKN/TCKN ile sorgula (kayıtlı kullanıcı)
+                if digits not in title_cache:
+                    res = api_client.check_registered_user(digits, company=company)
+                    title = ''
+                    if res.get('success') and res.get('users'):
+                        title = (res['users'][0].get('title') or '').strip()
+                    title_cache[digits] = title
+
+                best_title = title_cache.get(digits) or (info.get('sender_title') or '').strip()
+
+                partner_vals = {}
+                if partner.supplier_rank < 1:
+                    partner_vals['supplier_rank'] = 1
+
+                if best_title and is_placeholder_name(partner.name, partner.vat):
+                    if (partner.name or '').strip() != best_title:
+                        partner_vals['name'] = best_title
+                        updated_name += 1
+
+                if partner_vals:
+                    partner.write(partner_vals)
+
+                if doc.partner_id != partner:
+                    doc.partner_id = partner.id
+                    linked += 1
+
+            except Exception:
+                errors += 1
+                continue
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'QNB Partner (Liste)',
+                'message': (
+                    f'Belgeler: {len(docs)}\n'
+                    f'Liste çağrısı: {list_calls} (hata: {list_failures})\n'
+                    f'Partner oluşturuldu: {created}\n'
+                    f'Bağlandı: {linked}\n'
+                    f'Ünvan güncellendi: {updated_name}\n'
+                    f'Listede bulunamadı: {missing_in_list}\n'
+                    f'VKN/TCKN eksik: {missing_vkn}\n'
+                    f'Hata: {errors}'
+                ),
+                'type': 'success' if linked or created or updated_name else 'warning',
+                'sticky': False,
+            }
+        }
+
     def _find_or_create_partner(self, doc_data, company):
         """Partneri bul veya oluştur"""
         vat = doc_data.get('sender_vat') or doc_data.get('sender_vkn') or ''
