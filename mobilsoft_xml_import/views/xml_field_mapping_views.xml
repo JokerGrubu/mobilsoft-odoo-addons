@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- XML Field Mapping Tree View -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- XML FIELD MAPPING LIST VIEW -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
     <record id="xml_field_mapping_tree_view" model="ir.ui.view">
         <field name="name">xml.field.mapping.tree</field>
         <field name="model">xml.field.mapping</field>
@@ -9,36 +12,67 @@
             <list string="Alan Eşleştirmeleri" editable="bottom">
                 <field name="sequence" widget="handle"/>
                 <field name="odoo_field"/>
-                <field name="xml_path"/>
+                <field name="xml_path" placeholder="XML yolu girin..."/>
                 <field name="transform"/>
-                <field name="default_value"/>
+                <field name="default_value" placeholder="Varsayılan değer"/>
                 <field name="is_required" widget="boolean_toggle"/>
             </list>
         </field>
     </record>
 
-    <!-- XML Field Mapping Form View -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- XML FIELD MAPPING FORM VIEW -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
     <record id="xml_field_mapping_form_view" model="ir.ui.view">
         <field name="name">xml.field.mapping.form</field>
         <field name="model">xml.field.mapping</field>
         <field name="arch" type="xml">
             <form string="Alan Eşleştirmesi">
                 <sheet>
-                    <group>
-                        <group string="Eşleştirme">
+                    <group col="4">
+                        <group colspan="2" string="Eşleştirme Bilgileri">
                             <field name="source_id" invisible="1"/>
                             <field name="sequence"/>
                             <field name="odoo_field"/>
-                            <field name="xml_path"/>
-                            <field name="is_required"/>
+                            <field name="xml_path" placeholder="ProductCode"/>
+                            <field name="is_required" widget="boolean_toggle"/>
                         </group>
-                        <group string="Dönüşüm">
-                            <field name="transform"/>
-                            <field name="regex_pattern" invisible="transform != 'regex'"/>
-                            <field name="regex_replace" invisible="transform != 'regex'"/>
-                            <field name="default_value"/>
+                        <group colspan="2" string="Dönüşüm Ayarları">
+                            <field name="transform" widget="selection"/>
+                            <field name="regex_pattern" invisible="transform != 'regex'"
+                                   placeholder="^(.*)$"/>
+                            <field name="regex_replace" invisible="transform != 'regex'"
+                                   placeholder="\1"/>
+                            <field name="default_value" placeholder="Boşsa kullanılacak değer"/>
                         </group>
                     </group>
+
+                    <div class="card bg-light mt-3">
+                        <div class="card-body py-2">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="card-title">Dönüşüm Türleri</h6>
+                                    <ul class="mb-0 small">
+                                        <li><strong>Yok:</strong> Değeri olduğu gibi al</li>
+                                        <li><strong>Büyük Harf:</strong> Tüm harfleri büyük yap</li>
+                                        <li><strong>Küçük Harf:</strong> Tüm harfleri küçük yap</li>
+                                        <li><strong>Başlık:</strong> İlk harfleri büyük yap</li>
+                                        <li><strong>Regex:</strong> Düzenli ifade ile dönüştür</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="card-title">XML Yolu Örnekleri</h6>
+                                    <ul class="mb-0 small">
+                                        <li><code>ProductCode</code> - Doğrudan element</li>
+                                        <li><code>Category/Name</code> - İç içe element</li>
+                                        <li><code>@id</code> - Attribute değeri</li>
+                                        <li><code>Images/Image[1]</code> - İlk resim elementi</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </sheet>
             </form>
         </field>
