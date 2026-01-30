@@ -955,6 +955,68 @@ class XmlProductSource(models.Model):
     # CATEGORY MATCHING
     # ══════════════════════════════════════════════════════════════════════════
 
+    def _apply_category_mapping(self, category_name, subcategory_name=None):
+        """
+        Kategori eşleştirmesi uygula.
+
+        Önce manuel eşleştirmeleri kontrol eder, bulunamazsa otomatik eşleştirme yapar.
+
+        Returns:
+            dict: {
+                'categ_id': product.category ID veya False,
+                'public_categ_ids': [(6, 0, [IDs])] veya False
+            }
+        """
+        self.ensure_one()
+
+        result = {
+            'categ_id': False,
+            'public_categ_ids': False,
+        }
+
+        if not category_name:
+            if self.default_category_id:
+                result['categ_id'] = self.default_category_id.id
+            return result
+
+        # Tam kategori yolunu oluştur
+        full_category_path = str(category_name).strip()
+        if subcategory_name:
+            separator = self.category_separator or ' > '
+            full_category_path = f"{full_category_path}{separator}{str(subcategory_name).strip()}"
+
+        # 1. Manuel eşleştirmeleri kontrol et
+        CategoryMapping = self.env['xml.category.mapping']
+        mapping = CategoryMapping.find_mapping(self.id, full_category_path)
+
+        # Alt kategori olmadan da dene
+        if not mapping and subcategory_name:
+            mapping = CategoryMapping.find_mapping(self.id, str(category_name).strip())
+
+        if mapping:
+            _logger.info(f"Kategori eşleştirmesi bulundu: '{full_category_path}' → "
+                        f"Odoo: {mapping.odoo_category_id.name if mapping.odoo_category_id else 'Yok'}, "
+                        f"E-Ticaret: {[c.name for c in mapping.ecommerce_category_ids]}")
+
+            if mapping.odoo_category_id:
+                result['categ_id'] = mapping.odoo_category_id.id
+
+            if mapping.ecommerce_category_ids:
+                result['public_categ_ids'] = [(6, 0, mapping.ecommerce_category_ids.ids)]
+
+            # Eğer Odoo kategorisi yoksa varsayılanı kullan
+            if not result['categ_id'] and self.default_category_id:
+                result['categ_id'] = self.default_category_id.id
+
+            return result
+
+        # 2. Manuel eşleştirme yoksa otomatik eşleştirme yap
+        category = self._find_or_create_category(category_name, subcategory_name)
+        if category:
+            result['categ_id'] = category.id
+
+        return result
+
     def _find_or_create_category(self, category_name, subcategory_name=None):
         """Kategoriyi bul veya oluştur (otomatik eşleştirme)"""
         self.ensure_one()
@@ -1208,13 +1270,12 @@ class XmlProductSource(models.Model):
             'is_dropship': True,
         }
 
-        # Kategori
-        if data.get('category'):
-            category = self._find_or_create_category(data.get('category'), data.get('extra1'))
-            if category:
-                vals['categ_id'] = category.id
-        elif self.default_category_id:
-            vals['categ_id'] = self.default_category_id.id
+        # Kategori (manuel eşleştirme + otomatik)
+        category_result = self._apply_category_mapping(data.get('category'), data.get('extra1'))
+        if category_result.get('categ_id'):
+            vals['categ_id'] = category_result['categ_id']
+        if category_result.get('public_categ_ids'):
+            vals['public_categ_ids'] = category_result['public_categ_ids']
 
         # Tedarikçi
         if self.supplier_id:
@@ -1604,13 +1665,12 @@ class XmlProductSource(models.Model):
             except:
                 pass
 
-        # Kategori eşleştirme
-        if data.get('category'):
-            category = self._find_or_create_category(data.get('category'), data.get('extra1'))
-            if category:
-                vals['categ_id'] = category.id
-        elif self.default_category_id:
-            vals['categ_id'] = self.default_category_id.id
+        # Kategori eşleştirme (manuel + otomatik)
+        category_result = self._apply_category_mapping(data.get('category'), data.get('extra1'))
+        if category_result.get('categ_id'):
+            vals['categ_id'] = category_result['categ_id']
+        if category_result.get('public_categ_ids'):
+            vals['public_categ_ids'] = category_result['public_categ_ids']
 
         if self.supplier_id:
             vals['xml_supplier_id'] = self.supplier_id.id
@@ -1839,11 +1899,13 @@ class XmlProductSource(models.Model):
             vals['description_sale'] = description
             vals['description'] = description
 
-        # Kategori güncelleme
+        # Kategori güncelleme (manuel + otomatik)
         if data.get('category'):
-            category = self._find_or_create_category(data.get('category'), data.get('extra1'))
-            if category:
-                vals['categ_id'] = category.id
+            category_result = self._apply_category_mapping(data.get('category'), data.get('extra1'))
+            if category_result.get('categ_id'):
+                vals['categ_id'] = category_result['categ_id']
+            if category_result.get('public_categ_ids'):
+                vals['public_categ_ids'] = category_result['public_categ_ids']
 
         if self.supplier_id:
             vals['xml_supplier_id'] = self.supplier_id.id
