@@ -4,31 +4,34 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- FORM VIEW -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    
+
     <record id="bizimhesap_backend_view_form" model="ir.ui.view">
         <field name="name">bizimhesap.backend.form</field>
         <field name="model">bizimhesap.backend</field>
         <field name="arch" type="xml">
             <form string="BizimHesap Bağlantısı">
                 <header>
-                    <button name="action_test_connection" 
-                            string="🔗 Bağlantıyı Test Et" 
+                    <button name="action_test_connection"
+                            string="Bağlantıyı Test Et"
                             type="object"
                             class="btn-primary"
+                            icon="fa-plug"
                             invisible="state == 'connected'"/>
-                    <button name="action_test_connection" 
-                            string="🔄 Yeniden Test Et" 
+                    <button name="action_test_connection"
+                            string="Yeniden Test Et"
                             type="object"
+                            icon="fa-refresh"
                             invisible="state != 'connected'"/>
-                    <button name="action_sync_all" 
-                            string="🔄 Tümünü Senkronize Et" 
+                    <button name="action_sync_all"
+                            string="Tümünü Senkronize Et"
                             type="object"
                             class="btn-success"
+                            icon="fa-sync"
                             invisible="state != 'connected'"/>
-                    <field name="state" widget="statusbar" 
+                    <field name="state" widget="statusbar"
                            statusbar_visible="draft,connected"/>
                 </header>
-                
+
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button name="action_view_logs" type="object"
@@ -48,191 +51,209 @@
                             <field name="invoice_binding_count" widget="statinfo" string="Faturalar"/>
                         </button>
                     </div>
-                    
-                    <widget name="web_ribbon" title="Bağlı Değil" 
-                            bg_color="text-bg-danger"
+
+                    <widget name="web_ribbon" title="Bağlı Değil"
+                            bg_color="text-bg-secondary"
                             invisible="state != 'draft'"/>
-                    <widget name="web_ribbon" title="Hata" 
+                    <widget name="web_ribbon" title="Hata"
                             bg_color="text-bg-danger"
                             invisible="state != 'error'"/>
-                    
+                    <widget name="web_ribbon" title="Bağlı"
+                            bg_color="text-bg-success"
+                            invisible="state != 'connected'"/>
+
                     <div class="oe_title">
                         <label for="name"/>
                         <h1>
                             <field name="name" placeholder="Bağlantı adı..."/>
                         </h1>
                     </div>
-                    
+
                     <group>
-                        <group name="api" string="🔐 API Ayarları">
-                            <field name="api_url"/>
-                            <field name="api_key" password="True"/>
-                            <field name="username"/>
-                            <field name="password" password="True"/>
+                        <group name="api" string="API Ayarları">
+                            <field name="api_url" placeholder="https://bizimhesap.com/api/b2b"/>
+                            <field name="api_key" password="True" placeholder="API Key giriniz..."/>
+                            <field name="username" placeholder="E-posta adresi (opsiyonel)"/>
+                            <field name="password" password="True" placeholder="Şifre (opsiyonel)"/>
                         </group>
-                        <group name="company" string="🏢 Şirket">
+                        <group name="company" string="Şirket Yapılandırması">
                             <field name="company_id" groups="base.group_multi_company"
-                                   string="Ana Şirket (Faturalı)"/>
+                                   string="Ana Şirket (Faturalı)"
+                                   options="{'no_create': True}"/>
+                            <field name="enable_multi_company_routing"
+                                   widget="boolean_toggle"/>
                             <field name="secondary_company_id" groups="base.group_multi_company"
-                                   invisible="not enable_multi_company_routing"/>
-                            <field name="enable_multi_company_routing"/>
-                            <field name="active"/>
+                                   string="İkincil Şirket (Faturasız)"
+                                   invisible="not enable_multi_company_routing"
+                                   required="enable_multi_company_routing"
+                                   options="{'no_create': True}"/>
+                            <field name="shared_warehouse_id"
+                                   invisible="not enable_multi_company_routing"
+                                   options="{'no_create': True}"/>
+                            <field name="active" widget="boolean_toggle"/>
                             <field name="last_test_date" readonly="1"/>
                         </group>
                     </group>
-                    
+
                     <notebook>
-                        <page string="📊 Senkronizasyon" name="sync">
+                        <page string="Senkronizasyon" name="sync" icon="fa-sync">
                             <group>
                                 <group string="Senkronize Edilecekler">
-                                    <field name="sync_partner"/>
-                                    <field name="sync_product"/>
-                                    <field name="sync_invoice"/>
-                                    <field name="sync_payment"/>
+                                    <field name="sync_partner" widget="boolean_toggle"/>
+                                    <field name="sync_product" widget="boolean_toggle"/>
+                                    <field name="sync_invoice" widget="boolean_toggle"/>
+                                    <field name="sync_payment" widget="boolean_toggle"/>
                                 </group>
                                 <group string="Yön ve Zamanlama">
-                                    <field name="sync_direction"/>
-                                    <field name="auto_sync"/>
-                                    <field name="sync_interval" 
-                                           invisible="not auto_sync"/>
+                                    <field name="sync_direction" widget="radio"/>
+                                    <field name="auto_sync" widget="boolean_toggle"/>
+                                    <field name="sync_interval"
+                                           invisible="not auto_sync"
+                                           widget="integer"/>
                                 </group>
                             </group>
-                            
-                            <group string="📅 Son Senkronizasyonlar">
+
+                            <group string="Son Senkronizasyonlar">
                                 <group>
-                                    <field name="last_sync_date" readonly="1"/>
-                                    <field name="last_partner_sync" readonly="1"/>
+                                    <field name="last_sync_date" readonly="1" widget="datetime"/>
+                                    <field name="last_partner_sync" readonly="1" widget="datetime"/>
                                 </group>
                                 <group>
-                                    <field name="last_product_sync" readonly="1"/>
-                                    <field name="last_invoice_sync" readonly="1"/>
+                                    <field name="last_product_sync" readonly="1" widget="datetime"/>
+                                    <field name="last_invoice_sync" readonly="1" widget="datetime"/>
                                 </group>
                             </group>
-                            
-                            <group string="🎯 Hızlı Senkronizasyon">
-                                <div class="d-flex gap-2 flex-wrap">
-                                    <button name="action_sync_warehouses" 
-                                            string="🏭 Depoları Sync" 
+
+                            <group string="Hızlı Senkronizasyon İşlemleri">
+                                <div class="d-flex gap-2 flex-wrap p-2">
+                                    <button name="action_sync_warehouses"
+                                            string="Depoları Sync"
                                             type="object"
-                                            class="btn-outline-primary"
+                                            class="btn btn-outline-primary"
+                                            icon="fa-warehouse"
                                             invisible="state != 'connected'"/>
-                                    <button name="action_sync_categories" 
-                                            string="📁 Kategorileri Sync" 
+                                    <button name="action_sync_categories"
+                                            string="Kategorileri Sync"
                                             type="object"
-                                            class="btn-outline-primary"
+                                            class="btn btn-outline-primary"
+                                            icon="fa-folder"
                                             invisible="state != 'connected'"/>
-                                    <button name="action_sync_partners" 
-                                            string="👥 Carileri Sync" 
+                                    <button name="action_sync_partners"
+                                            string="Carileri Sync"
                                             type="object"
-                                            class="btn-outline-success"
+                                            class="btn btn-outline-success"
+                                            icon="fa-users"
                                             invisible="state != 'connected'"/>
-                                    <button name="action_sync_products" 
-                                            string="📦 Ürünleri Sync" 
+                                    <button name="action_sync_products"
+                                            string="Ürünleri Sync"
                                             type="object"
-                                            class="btn-outline-info"
+                                            class="btn btn-outline-info"
+                                            icon="fa-cubes"
                                             invisible="state != 'connected'"/>
-                                    <button name="action_sync_invoices" 
-                                            string="🧾 Faturaları Sync" 
+                                    <button name="action_sync_invoices"
+                                            string="Faturaları Sync"
                                             type="object"
-                                            class="btn-outline-warning"
+                                            class="btn btn-outline-warning"
+                                            icon="fa-file-invoice"
                                             invisible="state != 'connected'"/>
                                 </div>
                             </group>
                         </page>
-                        
-                        <page string="⚙️ Varsayılan Hesaplar" name="defaults">
-                            <group>
-                                <group>
-                                    <field name="default_customer_account_id"/>
-                                    <field name="default_supplier_account_id"/>
-                                </group>
-                                <group>
-                                    <field name="default_income_account_id"/>
-                                    <field name="default_expense_account_id"/>
-                                </group>
-                            </group>
-                        </page>
 
-                        <page string="🏢 Çok Şirketli Yönlendirme" name="multi_company">
-                            <group string="Şirket Yapılandırması">
-                                <group>
-                                    <field name="enable_multi_company_routing"/>
-                                    <field name="secondary_company_id"
-                                           invisible="not enable_multi_company_routing"
-                                           required="enable_multi_company_routing"/>
-                                    <field name="shared_warehouse_id"
-                                           invisible="not enable_multi_company_routing"/>
+                        <page string="Çok Şirketli Yönlendirme" name="multi_company" icon="fa-building"
+                              invisible="not enable_multi_company_routing">
+
+                            <div class="alert alert-primary mb-4" role="alert">
+                                <div class="d-flex align-items-center">
+                                    <i class="fa fa-info-circle fa-2x me-3"/>
+                                    <div>
+                                        <strong>Joker Grubu / Joker Tedarik Çalışma Modeli</strong><br/>
+                                        <span class="text-muted">
+                                            Faturalı işlemler Ana Şirkete (muhasebe kaydı olarak),
+                                            faturasız işlemler İkincil Şirkete (satış siparişi olarak) yönlendirilir.
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <group string="Faturasız İşlem Tespit Kuralları" col="4">
+                                <group colspan="2">
+                                    <field name="noninvoice_detection_rule" widget="radio"
+                                           options="{'horizontal': false}"/>
                                 </group>
-                                <group>
-                                    <div class="alert alert-info" role="alert"
-                                         invisible="not enable_multi_company_routing">
-                                        <strong>💡 Joker Grubu / Joker Tedarik Modeli:</strong><br/>
-                                        <ul class="mb-0">
-                                            <li><strong>Ana Şirket:</strong> Faturalı işlemler (muhasebe kaydı)</li>
-                                            <li><strong>İkincil Şirket:</strong> Faturasız işlemler (satış siparişi)</li>
-                                        </ul>
+                                <group colspan="2">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Kural Açıklamaları</h6>
+                                            <ul class="mb-0 small">
+                                                <li><strong>Fatura No Boş:</strong> Fatura numarası olmayan işlemler</li>
+                                                <li><strong>KDV Yok:</strong> KDV tutarı 0 olan işlemler</li>
+                                                <li><strong>Her İkisi:</strong> Hem fatura no boş HEM KDV yok (önerilen)</li>
+                                                <li><strong>Herhangi Biri:</strong> Fatura no boş VEYA KDV yok</li>
+                                            </ul>
+                                        </div>
                                     </div>
                                 </group>
                             </group>
 
-                            <group string="Faturasız Tespit Kuralları"
-                                   invisible="not enable_multi_company_routing">
-                                <group>
-                                    <field name="noninvoice_detection_rule"/>
+                            <group string="Müşteri Yönlendirme Kuralları" col="4">
+                                <group colspan="2">
+                                    <field name="route_no_vkn_to_secondary" widget="boolean_toggle"/>
+                                    <field name="route_tax_exempt_to_secondary" widget="boolean_toggle"/>
+                                    <field name="route_never_invoiced_to_secondary" widget="boolean_toggle"/>
                                 </group>
-                                <group>
-                                    <div class="alert alert-warning" role="alert">
-                                        <strong>⚠️ Faturasız İşlem Tespiti:</strong><br/>
-                                        <ul class="mb-0">
-                                            <li><strong>Fatura No Boş:</strong> Fatura numarası olmayan işlemler</li>
-                                            <li><strong>KDV Yok:</strong> KDV tutarı 0 olan işlemler</li>
-                                            <li><strong>Her İkisi:</strong> Hem fatura no boş HEM KDV yok</li>
-                                            <li><strong>Herhangi Biri:</strong> Fatura no boş VEYA KDV yok</li>
-                                        </ul>
+                                <group colspan="2">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Yönlendirme Kuralları</h6>
+                                            <ul class="mb-0 small">
+                                                <li><strong>VKN'siz:</strong> Vergi numarası olmayan müşteriler</li>
+                                                <li><strong>Vergiden Muaf:</strong> Muafiyet işaretli müşteriler</li>
+                                                <li><strong>Hiç Faturası Yok:</strong> Sistemde faturası bulunmayanlar</li>
+                                            </ul>
+                                        </div>
                                     </div>
                                 </group>
                             </group>
 
-                            <group string="Müşteri Yönlendirme Kuralları"
-                                   invisible="not enable_multi_company_routing">
-                                <group>
-                                    <field name="route_no_vkn_to_secondary"/>
-                                    <field name="route_tax_exempt_to_secondary"/>
-                                    <field name="route_never_invoiced_to_secondary"/>
-                                </group>
-                                <group>
-                                    <div class="alert alert-secondary" role="alert">
-                                        <strong>📋 Yönlendirme Kuralları:</strong><br/>
-                                        <ul class="mb-0">
-                                            <li><strong>VKN'siz:</strong> Vergi numarası olmayan müşteriler</li>
-                                            <li><strong>Vergiden Muaf:</strong> Muafiyet işaretli müşteriler</li>
-                                            <li><strong>Hiç Faturası Yok:</strong> Sistemde faturası bulunmayanlar</li>
-                                        </ul>
-                                    </div>
-                                </group>
-                            </group>
-
-                            <group string="🎯 Faturasız İşlem Senkronizasyonu"
-                                   invisible="not enable_multi_company_routing">
-                                <div class="d-flex gap-2 flex-wrap">
+                            <group string="Faturasız İşlem Senkronizasyonu">
+                                <div class="d-flex gap-2 flex-wrap p-2">
                                     <button name="action_sync_noninvoice_transactions"
-                                            string="📝 Faturasız İşlemleri Sync"
+                                            string="Faturasız İşlemleri Sync"
                                             type="object"
-                                            class="btn-outline-warning"
+                                            class="btn btn-warning"
+                                            icon="fa-file-alt"
                                             invisible="state != 'connected'"/>
                                 </div>
                             </group>
                         </page>
 
-                        <page string="🔑 Token Bilgisi" name="token">
+                        <page string="Varsayılan Hesaplar" name="defaults" icon="fa-calculator">
+                            <group col="4">
+                                <group colspan="2" string="Müşteri/Tedarikçi Hesapları">
+                                    <field name="default_customer_account_id"
+                                           options="{'no_create': True}"/>
+                                    <field name="default_supplier_account_id"
+                                           options="{'no_create': True}"/>
+                                </group>
+                                <group colspan="2" string="Gelir/Gider Hesapları">
+                                    <field name="default_income_account_id"
+                                           options="{'no_create': True}"/>
+                                    <field name="default_expense_account_id"
+                                           options="{'no_create': True}"/>
+                                </group>
+                            </group>
+                        </page>
+
+                        <page string="Token Bilgisi" name="token" icon="fa-key">
                             <group>
-                                <field name="access_token" readonly="1"/>
-                                <field name="token_expiry" readonly="1"/>
+                                <field name="access_token" readonly="1" widget="text"/>
+                                <field name="token_expiry" readonly="1" widget="datetime"/>
                             </group>
                         </page>
                     </notebook>
                 </sheet>
-                
+
                 <chatter/>
             </form>
         </field>
@@ -241,7 +262,7 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- TREE VIEW -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    
+
     <record id="bizimhesap_backend_view_tree" model="ir.ui.view">
         <field name="name">bizimhesap.backend.tree</field>
         <field name="model">bizimhesap.backend</field>
@@ -251,9 +272,15 @@
                   decoration-danger="state == 'error'"
                   decoration-muted="state == 'draft'">
                 <field name="name"/>
-                <field name="company_id" groups="base.group_multi_company"/>
-                <field name="api_url"/>
-                <field name="last_sync_date"/>
+                <field name="company_id" groups="base.group_multi_company"
+                       string="Ana Şirket"/>
+                <field name="secondary_company_id" groups="base.group_multi_company"
+                       string="İkincil Şirket" optional="show"/>
+                <field name="enable_multi_company_routing" string="Çok Şirket"
+                       widget="boolean"/>
+                <field name="partner_binding_count" string="Cariler"/>
+                <field name="product_binding_count" string="Ürünler"/>
+                <field name="last_sync_date" widget="datetime"/>
                 <field name="state" widget="badge"
                        decoration-success="state == 'connected'"
                        decoration-danger="state == 'error'"
@@ -266,26 +293,53 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- KANBAN VIEW -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    
+
     <record id="bizimhesap_backend_view_kanban" model="ir.ui.view">
         <field name="name">bizimhesap.backend.kanban</field>
         <field name="model">bizimhesap.backend</field>
         <field name="arch" type="xml">
-            <kanban class="o_kanban_mobile">
+            <kanban class="o_kanban_mobile" sample="1">
                 <field name="name"/>
                 <field name="state"/>
+                <field name="company_id"/>
+                <field name="secondary_company_id"/>
+                <field name="enable_multi_company_routing"/>
                 <field name="last_sync_date"/>
+                <field name="partner_binding_count"/>
+                <field name="product_binding_count"/>
                 <templates>
                     <t t-name="card">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <strong><field name="name"/></strong>
-                                <div class="text-muted small">
-                                    Son Sync: <field name="last_sync_date"/>
-                                </div>
+                        <div class="d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <strong class="fs-5"><field name="name"/></strong>
+                                <field name="state" widget="label_selection"
+                                       options="{'classes': {'draft': 'secondary', 'connected': 'success', 'error': 'danger'}}"/>
                             </div>
-                            <field name="state" widget="label_selection" 
-                                   options="{'classes': {'draft': 'secondary', 'connected': 'success', 'error': 'danger'}}"/>
+
+                            <div class="text-muted small mb-2">
+                                <i class="fa fa-building me-1"/>
+                                <field name="company_id"/>
+                                <t t-if="record.enable_multi_company_routing.raw_value">
+                                    <span class="mx-1">→</span>
+                                    <field name="secondary_company_id"/>
+                                </t>
+                            </div>
+
+                            <div class="d-flex justify-content-between text-muted small">
+                                <span>
+                                    <i class="fa fa-users me-1"/>
+                                    <field name="partner_binding_count"/> Cari
+                                </span>
+                                <span>
+                                    <i class="fa fa-cube me-1"/>
+                                    <field name="product_binding_count"/> Ürün
+                                </span>
+                            </div>
+
+                            <div class="text-muted small mt-2 border-top pt-2">
+                                <i class="fa fa-clock-o me-1"/>
+                                Son Sync: <field name="last_sync_date" widget="datetime"/>
+                            </div>
                         </div>
                     </t>
                 </templates>
@@ -294,13 +348,48 @@
     </record>
 
     <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- SEARCH VIEW -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <record id="bizimhesap_backend_view_search" model="ir.ui.view">
+        <field name="name">bizimhesap.backend.search</field>
+        <field name="model">bizimhesap.backend</field>
+        <field name="arch" type="xml">
+            <search string="BizimHesap Ara">
+                <field name="name"/>
+                <field name="company_id"/>
+                <field name="secondary_company_id"/>
+                <filter name="connected" string="Bağlı"
+                        domain="[('state', '=', 'connected')]"/>
+                <filter name="error" string="Hatalı"
+                        domain="[('state', '=', 'error')]"/>
+                <filter name="multi_company" string="Çok Şirketli"
+                        domain="[('enable_multi_company_routing', '=', True)]"/>
+                <separator/>
+                <filter name="active" string="Aktif"
+                        domain="[('active', '=', True)]"/>
+                <filter name="inactive" string="Pasif"
+                        domain="[('active', '=', False)]"/>
+                <group expand="0" string="Grupla">
+                    <filter name="group_by_state" string="Durum"
+                            context="{'group_by': 'state'}"/>
+                    <filter name="group_by_company" string="Ana Şirket"
+                            context="{'group_by': 'company_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- ACTION -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    
+
     <record id="bizimhesap_backend_action" model="ir.actions.act_window">
         <field name="name">BizimHesap Bağlantıları</field>
         <field name="res_model">bizimhesap.backend</field>
         <field name="view_mode">list,kanban,form</field>
+        <field name="search_view_id" ref="bizimhesap_backend_view_search"/>
+        <field name="context">{'search_default_active': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 İlk BizimHesap bağlantınızı oluşturun!
@@ -308,6 +397,15 @@
             <p>
                 BizimHesap ön muhasebe uygulaması ile Odoo arasında
                 veri senkronizasyonu yapabilirsiniz.
+            </p>
+            <p class="text-muted">
+                <strong>Özellikler:</strong>
+                <ul>
+                    <li>Cari, ürün, kategori ve depo senkronizasyonu</li>
+                    <li>Çok şirketli yönlendirme (Joker Grubu / Joker Tedarik)</li>
+                    <li>Faturalı/Faturasız işlem otomatik ayrımı</li>
+                    <li>VKN eşleştirme ve duplike önleme</li>
+                </ul>
             </p>
         </field>
     </record>

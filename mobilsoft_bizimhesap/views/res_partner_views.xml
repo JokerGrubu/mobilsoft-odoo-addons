@@ -4,14 +4,14 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- RES.PARTNER FORM EXTENSION -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    
+
     <record id="res_partner_view_form_bizimhesap" model="ir.ui.view">
         <field name="name">res.partner.form.bizimhesap</field>
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
             <xpath expr="//div[@name='button_box']" position="inside">
-                <button name="action_sync_to_bizimhesap" 
+                <button name="action_sync_to_bizimhesap"
                         type="object"
                         class="oe_stat_button"
                         icon="fa-exchange"
@@ -24,43 +24,54 @@
                     </div>
                 </button>
             </xpath>
-            
+
             <xpath expr="//notebook" position="inside">
-                <page string="🔗 BizimHesap" name="bizimhesap"
+                <page string="BizimHesap" name="bizimhesap"
                       groups="mobilsoft_bizimhesap.group_bizimhesap_user">
-                    <group string="🏢 Şirket Yönlendirmesi">
-                        <group>
-                            <field name="is_tax_exempt"/>
-                            <field name="never_invoice_customer"/>
+
+                    <!-- Şirket Yönlendirmesi -->
+                    <group string="Şirket Yönlendirmesi" col="4">
+                        <group colspan="2">
+                            <field name="is_tax_exempt" widget="boolean_toggle"/>
+                            <field name="never_invoice_customer" widget="boolean_toggle"/>
                         </group>
-                        <group>
-                            <div class="alert alert-info" role="alert">
-                                <strong>💡 Joker Tedarik Yönlendirmesi:</strong><br/>
-                                İşaretlenen müşterilerin işlemleri otomatik olarak
-                                ikincil şirkete (Joker Tedarik) yönlendirilir.
+                        <group colspan="2">
+                            <div class="card bg-light">
+                                <div class="card-body py-2">
+                                    <h6 class="card-title mb-1">Joker Tedarik Yönlendirmesi</h6>
+                                    <p class="card-text small text-muted mb-0">
+                                        İşaretlenen seçenekler, bu müşterinin işlemlerini
+                                        otomatik olarak ikincil şirkete (Joker Tedarik) yönlendirir.
+                                    </p>
+                                </div>
                             </div>
                         </group>
                     </group>
 
-                    <group string="💰 Cari Bakiye Bilgileri">
-                        <group>
-                            <field name="bizimhesap_balance" widget="monetary"/>
-                            <field name="bizimhesap_cheque_bond" widget="monetary"/>
+                    <!-- Cari Bakiye Bilgileri -->
+                    <group string="Cari Bakiye Bilgileri" col="4">
+                        <group colspan="2">
+                            <field name="bizimhesap_balance" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                            <field name="bizimhesap_cheque_bond" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
                         </group>
-                        <group>
+                        <group colspan="2">
                             <field name="bizimhesap_currency"/>
-                            <field name="bizimhesap_last_balance_update"/>
+                            <field name="bizimhesap_last_balance_update" widget="datetime"/>
                         </group>
                     </group>
-                    <group string="🔗 Eşleşme Kayıtları">
+
+                    <!-- Eşleşme Kayıtları -->
+                    <group string="Eşleşme Kayıtları">
                         <field name="bizimhesap_binding_ids" readonly="1" nolabel="1">
-                            <list string="Eşleşmeler" create="0" delete="0">
+                            <list string="Eşleşmeler" create="0" delete="0" edit="0">
                                 <field name="backend_id"/>
-                                <field name="external_id"/>
-                                <field name="external_code"/>
-                                <field name="contact_type"/>
-                                <field name="external_balance"/>
-                                <field name="sync_date"/>
+                                <field name="external_id" string="BH ID"/>
+                                <field name="external_code" string="BH Kodu"/>
+                                <field name="contact_type" string="Tip"/>
+                                <field name="external_balance" string="BH Bakiye" widget="monetary"/>
+                                <field name="sync_date" string="Son Sync" widget="datetime"/>
                             </list>
                         </field>
                     </group>
@@ -72,19 +83,49 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- RES.PARTNER TREE EXTENSION -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    
+
     <record id="res_partner_view_tree_bizimhesap" model="ir.ui.view">
         <field name="name">res.partner.tree.bizimhesap</field>
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_tree"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='email']" position="after">
-                <field name="bizimhesap_synced" string="BH" 
+                <field name="bizimhesap_synced" string="BH"
                        widget="boolean" optional="hide"
                        groups="mobilsoft_bizimhesap.group_bizimhesap_user"/>
                 <field name="bizimhesap_balance" string="BH Bakiye"
-                       optional="hide"
+                       optional="hide" widget="monetary"
                        groups="mobilsoft_bizimhesap.group_bizimhesap_user"/>
+                <field name="is_tax_exempt" string="Muaf"
+                       widget="boolean" optional="hide"
+                       groups="mobilsoft_bizimhesap.group_bizimhesap_user"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- RES.PARTNER SEARCH EXTENSION -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <record id="res_partner_view_search_bizimhesap" model="ir.ui.view">
+        <field name="name">res.partner.search.bizimhesap</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='inactive']" position="after">
+                <separator/>
+                <filter name="bizimhesap_synced" string="BizimHesap Senkronize"
+                        domain="[('bizimhesap_synced', '=', True)]"
+                        groups="mobilsoft_bizimhesap.group_bizimhesap_user"/>
+                <filter name="tax_exempt" string="Vergiden Muaf"
+                        domain="[('is_tax_exempt', '=', True)]"
+                        groups="mobilsoft_bizimhesap.group_bizimhesap_user"/>
+                <filter name="never_invoice" string="Her Zaman Faturasız"
+                        domain="[('never_invoice_customer', '=', True)]"
+                        groups="mobilsoft_bizimhesap.group_bizimhesap_user"/>
+                <filter name="no_vat" string="VKN'siz"
+                        domain="[('vat', '=', False)]"
+                        groups="mobilsoft_bizimhesap.group_bizimhesap_user"/>
             </xpath>
         </field>
     </record>
