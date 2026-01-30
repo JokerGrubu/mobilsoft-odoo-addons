@@ -38,11 +38,65 @@ class BizimHesapBackend(models.Model):
     active = fields.Boolean(default=True)
     company_id = fields.Many2one(
         'res.company',
-        string='Şirket',
+        string='Ana Şirket (Faturalı)',
         required=True,
         default=lambda self: self.env.company,
+        help='Faturalı işlemler bu şirkete kaydedilir (örn: Joker Grubu)',
     )
-    
+
+    # ═══════════════════════════════════════════════════════════════
+    # ÇOK ŞİRKETLİ YAPI - JOKER GRUBU / JOKER TEDARİK
+    # ═══════════════════════════════════════════════════════════════
+
+    secondary_company_id = fields.Many2one(
+        'res.company',
+        string='İkincil Şirket (Faturasız)',
+        help='Faturasız işlemler bu şirkete kaydedilir (örn: Joker Tedarik)',
+    )
+
+    enable_multi_company_routing = fields.Boolean(
+        string='Çok Şirketli Yönlendirme',
+        default=False,
+        help='Aktifleştirildiğinde faturalı/faturasız işlemler farklı şirketlere yönlendirilir',
+    )
+
+    # Faturasız tespit kuralları
+    noninvoice_detection_rule = fields.Selection([
+        ('invoice_empty', 'Fatura No Boş'),
+        ('no_kdv', 'KDV Yok'),
+        ('both', 'Fatura No Boş VE KDV Yok'),
+        ('any', 'Fatura No Boş VEYA KDV Yok'),
+    ], string='Faturasız Tespit Kuralı', default='both',
+       help='Hangi kriterlere göre işlem faturasız sayılacak')
+
+    # Vergiden muaf müşteri yönlendirmesi
+    route_tax_exempt_to_secondary = fields.Boolean(
+        string='Vergiden Muaf → İkincil Şirket',
+        default=True,
+        help='Vergiden muaf müşterilerin işlemlerini ikincil şirkete yönlendir',
+    )
+
+    # VKN'siz müşteri yönlendirmesi
+    route_no_vkn_to_secondary = fields.Boolean(
+        string='VKN\'siz Müşteri → İkincil Şirket',
+        default=True,
+        help='VKN/TCKN bilgisi olmayan müşterilerin işlemlerini ikincil şirkete yönlendir',
+    )
+
+    # Hiç faturalı alım yapmamış müşteri yönlendirmesi
+    route_never_invoiced_to_secondary = fields.Boolean(
+        string='Hiç Faturası Olmayan → İkincil Şirket',
+        default=True,
+        help='Sistemde hiç faturası bulunmayan müşterilerin işlemlerini ikincil şirkete yönlendir',
+    )
+
+    # Ortak depo ayarı
+    shared_warehouse_id = fields.Many2one(
+        'stock.warehouse',
+        string='Ortak Depo',
+        help='Her iki şirketin ortak kullandığı depo',
+    )
+
     # ═══════════════════════════════════════════════════════════════
     # API AYARLARI
     # ═══════════════════════════════════════════════════════════════
