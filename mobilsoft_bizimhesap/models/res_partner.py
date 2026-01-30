@@ -40,7 +40,14 @@ class ResPartner(models.Model):
         string='BizimHesap Para Birimi',
         readonly=True,
     )
-    
+
+    bizimhesap_currency_id = fields.Many2one(
+        'res.currency',
+        string='BH Para Birimi',
+        compute='_compute_bizimhesap_currency_id',
+        store=True,
+    )
+
     bizimhesap_last_balance_update = fields.Datetime(
         string='Son Bakiye Güncelleme',
         readonly=True,
