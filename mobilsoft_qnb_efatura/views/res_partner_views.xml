@@ -20,6 +20,11 @@
                             <field name="efatura_last_check" readonly="1" 
                                    invisible="not efatura_last_check"/>
                         </group>
+                        <group string="2025 Bakiye (31.12.2025)">
+                            <field name="balance_2025_receivable" readonly="1"/>
+                            <field name="balance_2025_payable" readonly="1"/>
+                            <field name="balance_2025_net" readonly="1"/>
+                        </group>
                         <group string="İşlemler">
                             <button name="action_check_efatura_status" 
                                     string="GİB'den Kontrol Et" 

@@ -9,6 +9,10 @@ class ResPartner(models.Model):
     _inherit = 'res.partner'
 
     # e-Fatura Bilgileri
+    company_currency_id = fields.Many2one(
+        related='company_id.currency_id',
+        readonly=True
+    )
     is_efatura_registered = fields.Boolean(
         string='e-Fatura Kayıtlı',
         default=False,
@@ -31,6 +35,25 @@ class ResPartner(models.Model):
     efatura_last_check = fields.Datetime(
         string='Son Kontrol Tarihi',
         help='e-Fatura kaydı son kontrol edilme tarihi'
+    )
+
+    balance_2025_receivable = fields.Monetary(
+        string='2025 Alacak',
+        currency_field='company_currency_id',
+        compute='_compute_balance_2025',
+        store=False
+    )
+    balance_2025_payable = fields.Monetary(
+        string='2025 Borç',
+        currency_field='company_currency_id',
+        compute='_compute_balance_2025',
+        store=False
+    )
+    balance_2025_net = fields.Monetary(
+        string='2025 Net',
+        currency_field='company_currency_id',
+        compute='_compute_balance_2025',
+        store=False
     )
 
     # e-İrsaliye Bilgileri
@@ -408,6 +431,32 @@ class ResPartner(models.Model):
                 'sticky': False,
             }
         }
+
+    def _compute_balance_2025(self):
+        """2019-2025 hareketlerinden 31.12.2025 itibarıyla bakiye"""
+        cutoff = fields.Date.to_date('2025-12-31')
+        company = self.env.company
+        for partner in self:
+            domain_base = [
+                ('partner_id', '=', partner.id),
+                ('company_id', '=', company.id),
+                ('move_id.state', '=', 'posted'),
+                ('date', '<=', cutoff),
+            ]
+
+            recv_domain = domain_base + [('account_id.account_type', '=', 'asset_receivable')]
+            pay_domain = domain_base + [('account_id.account_type', '=', 'liability_payable')]
+
+            recv = self.env['account.move.line'].read_group(recv_domain, ['balance'], []) or []
+            pay = self.env['account.move.line'].read_group(pay_domain, ['balance'], []) or []
+
+            receivable = recv[0]['balance'] if recv else 0.0
+            payable = pay[0]['balance'] if pay else 0.0
+
+            # receivable >0, payable <0 olabilir; neti normalize et
+            partner.balance_2025_receivable = receivable
+            partner.balance_2025_payable = -payable if payable < 0 else payable
+            partner.balance_2025_net = receivable + payable
 
     @api.model
     def _cron_check_efatura_status(self):
