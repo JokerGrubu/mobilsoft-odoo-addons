@@ -1,137 +1,275 @@
-# MobilSoft Odoo 19 Modülleri
+# MobilSoft Odoo 19 Modulleri
 
 ![Odoo Version](https://img.shields.io/badge/Odoo-19.0-blue)
 ![License](https://img.shields.io/badge/License-LGPL--3-green)
-![MobilSoft](https://img.shields.io/badge/MobilSoft-OCA%20Üyesi-orange)
+![MobilSoft](https://img.shields.io/badge/MobilSoft-OCA%20Uyesi-orange)
 
-Türkiye için Odoo 19 Community modülleri. Herhangi bir Odoo 19 kurulumuna eklenebilir.
+Turkiye icin Odoo 19 Community modulleri. Herhangi bir Odoo 19 kurulumuna eklenebilir.
 
-## 🏢 Geliştirici
+## Gelistirici
 
-**MobilSoft** - Odoo Community Geliştiricisi | OCA Üyesi
+**MobilSoft** - Odoo Community Gelistiricisi | OCA Uyesi
 
-- 🌐 Website: [www.mobilsoft.net](https://www.mobilsoft.net)
-- 📧 E-posta: info@mobilsoft.net
-- 📞 Telefon: 0850 885 36 37
+- Website: [www.mobilsoft.net](https://www.mobilsoft.net)
+- E-posta: info@mobilsoft.net
+- Telefon: 0850 885 36 37
 
 ---
 
-## 📦 Modül Listesi
+## Modul Listesi
 
-### Türkiye Lokalizasyonu
+### Turkiye Lokalizasyonu
 
-| Modül | Açıklama |
-|-------|----------|
-| `l10n_tr_mobilsoft` | Türkiye Tek Düzen Hesap Planı |
-| `l10n_tr_bank_mobilsoft` | Türk Bankaları Listesi |
-| `l10n_tr_tax_office_mobilsoft` | Türkiye Vergi Daireleri |
-| `l10n_tr_city_mobilsoft` | Türkiye İl/İlçe Verileri |
+| Modul | Aciklama | Durum |
+|-------|----------|-------|
+| `l10n_tr_mobilsoft` | Turkiye Tek Duzen Hesap Plani | Aktif |
+| `l10n_tr_bank_mobilsoft` | Turk Bankalari Listesi | Aktif |
+| `l10n_tr_tax_office_mobilsoft` | Turkiye Vergi Daireleri | Aktif |
+| `l10n_tr_city_mobilsoft` | Turkiye Il/Ilce Verileri | Aktif |
 
-### e-Belge Entegrasyonları
+### On Muhasebe Entegrasyonlari
 
-| Modül | Açıklama |
-|-------|----------|
-| `mobilsoft_qnb_efatura` | QNB Finansbank e-Fatura/e-Arşiv |
+| Modul | Aciklama | Durum |
+|-------|----------|-------|
+| `mobilsoft_bizimhesap` | BizimHesap On Muhasebe Entegrasyonu | Aktif |
 
-### Banka Entegrasyonları
+**BizimHesap Ozellikleri:**
+- Cari hesap (musteri/tedarikci) senkronizasyonu
+- Urun/hizmet senkronizasyonu
+- Fatura senkronizasyonu (satis/alis)
+- Cok sirketli yonlendirme (Joker Grubu / Joker Tedarik)
+- VKN eslestirme ve duplike onleme
+- Faturali/Faturasiz islem otomatik ayirimi
 
-| Modül | Açıklama |
-|-------|----------|
-| `mobilsoft_bank_integration` | Türk Bankaları Open Banking API |
-| `mobilsoft_payment_paytr` | PayTR Ödeme Entegrasyonu |
+### e-Belge Entegrasyonlari
+
+| Modul | Aciklama | Durum |
+|-------|----------|-------|
+| `mobilsoft_qnb_efatura` | QNB Finansbank e-Fatura/e-Arsiv/e-Irsaliye | Aktif |
+
+**QNB e-Solutions Ozellikleri:**
+- e-Fatura gonderimi (Temel/Ticari Fatura)
+- e-Arsiv fatura gonderimi
+- e-Irsaliye gonderimi
+- Gelen belgeleri otomatik cekme
+- Belge durumu otomatik kontrol
+- Kontor uyari sistemi
+- Musteri mukelleflik sorgulamasi
+
+### Urun Yonetimi
+
+| Modul | Aciklama | Durum |
+|-------|----------|-------|
+| `mobilsoft_xml_import` | XML Urun Ice Aktarma | Aktif |
+| `mobilsoft_product_image_sync` | Urun Gorsel Senkronizasyonu | Aktif |
+| `mobilsoft_consignment` | Konsinye Stok Yonetimi | Aktif |
+
+**XML Import Ozellikleri:**
+- URL veya dosya tabanli XML ice aktarma
+- Esnek alan eslestirme sistemi
+- Regex tabanli veri donusumu
+- Otomatik zamanli ice aktarma
+- Detayli ice aktarim loglari
+
+### Banka Entegrasyonlari
+
+| Modul | Aciklama | Durum |
+|-------|----------|-------|
+| `mobilsoft_bank_integration` | Turk Bankalari Open Banking API | Aktif |
+| `mobilsoft_payment_paytr` | PayTR Odeme Entegrasyonu | Aktif |
 
 ### Muhasebe & Finans
 
-| Modül | Açıklama |
-|-------|----------|
-| `mobilsoft_chart_update` | Hesap Planı Güncelleme Sihirbazı |
-| `mobilsoft_chart_update_tr` | TR Hesap Planı Güncelleme |
-| `mobilsoft_account_patch` | Muhasebe Düzeltmeleri |
-| `mobilsoft_bizimhesap` | BizimHesap Entegrasyonu |
+| Modul | Aciklama | Durum |
+|-------|----------|-------|
+| `mobilsoft_chart_update` | Hesap Plani Guncelleme Sihirbazi | Aktif |
+| `mobilsoft_chart_update_tr` | TR Hesap Plani Guncelleme | Aktif |
+| `mobilsoft_onmuhasebe` | On Muhasebe Islemleri | Aktif |
 
-### Stok & Ürün Yönetimi
+### POS & Satis
 
-| Modül | Açıklama |
-|-------|----------|
-| `mobilsoft_consignment` | Konsinye Stok Yönetimi |
-| `mobilsoft_xml_import` | XML Ürün İçe Aktarma |
-| `mobilsoft_product_image_sync` | Ürün Görsel Senkronizasyonu |
+| Modul | Aciklama | Durum |
+|-------|----------|-------|
+| `mobilsoft_pos_invoice` | POS Ozel Fatura Raporu | Aktif |
 
-### POS & Satış
+### Teknik Moduller
 
-| Modül | Açıklama |
-|-------|----------|
-| `mobilsoft_pos_invoice` | POS Özel Fatura Raporu |
-
-### Teknik Modüller
-
-| Modül | Açıklama |
-|-------|----------|
-| `mobilsoft_sequence_dynamic` | Dinamik Sıra Numaraları |
-| `mobilsoft_api_services` | API Servisleri |
+| Modul | Aciklama | Durum |
+|-------|----------|-------|
+| `mobilsoft_sequence_dynamic` | Dinamik Sira Numaralari | Aktif |
+| `mobilsoft_api_services` | API Servisleri | Aktif |
 
 ---
 
-## 🚀 Kurulum
+## Mimari
 
-### Yöntem 1: Git Clone (Önerilen)
+### Cok Sirketli Yapi (Joker Grubu / Joker Tedarik)
+
+```
++------------------+     +------------------+
+|   Joker Grubu    |     |  Joker Tedarik   |
+|   (Ana Sirket)   |     | (Ikincil Sirket) |
++------------------+     +------------------+
+        |                        |
+        v                        v
++------------------+     +------------------+
+| Faturali Islemler|     |Faturasiz Islemler|
+| (account.move)   |     |  (sale.order)    |
++------------------+     +------------------+
+        |                        |
+        +----------+-------------+
+                   |
+                   v
+          +----------------+
+          |  Ortak Depo    |
+          +----------------+
+```
+
+### Entegrasyon Akisi
+
+```
++-------------+       +-------------+       +-------------+
+|  BizimHesap |<----->|    Odoo     |<----->| QNB e-Fatura|
++-------------+       +-------------+       +-------------+
+      |                     |                     |
+      v                     v                     v
+  Cariler              Urunler               e-Fatura
+  Urunler              Faturalar             e-Arsiv
+  Faturalar            Stok                  e-Irsaliye
+```
+
+---
+
+## Kurulum
+
+### Docker ile Kurulum (Onerilen)
 
 ```bash
-cd /your/odoo/path
-git clone https://github.com/JokerGrubu/mobilsoft-odoo-addons.git custom-addons/mobilsoft
+# Repoyu klonlayin
+git clone https://github.com/JokerGrubu/joker-odoo.git
+cd joker-odoo
+
+# Docker compose ile baslatin
+docker compose up -d
 ```
 
-Ardından `odoo.conf` dosyasına ekleyin:
-```ini
-addons_path = /odoo/addons,/odoo/custom-addons/mobilsoft
-```
-
-### Yöntem 2: Manuel Kopyalama
+### Manuel Kurulum
 
 1. Bu repoyu indirin
-2. İstediğiniz modülleri Odoo addons klasörüne kopyalayın
-3. Odoo'yu yeniden başlatın
-4. Uygulamalar menüsünden modülü kurun
+2. `custom-addons` klasorunu Odoo addons dizinine kopyalayin
+3. `odoo.conf` dosyasina ekleyin:
+
+```ini
+addons_path = /odoo/addons,/path/to/custom-addons
+```
+
+4. Odoo'yu yeniden baslatin
+5. Uygulamalar menusunden modulleri kurun
 
 ---
 
-## ⚙️ Gereksinimler
+## Gereksinimler
 
+### Sistem Gereksinimleri
 - Odoo 19.0 Community veya Enterprise
 - Python 3.10+
-- PostgreSQL 14+
+- PostgreSQL 14+ (pgvector onerilen)
 
-### Python Bağımlılıkları
+### Python Bagimliliklari
 
 ```bash
 pip install zeep lxml requests
 ```
 
----
-
-## 📄 Lisans
-
-Bu modüller [LGPL-3](https://www.gnu.org/licenses/lgpl-3.0.html) lisansı ile lisanslanmıştır.
+### Docker Gereksinimleri
+- Docker 20.10+
+- Docker Compose 2.0+
 
 ---
 
-## 🤝 Katkıda Bulunma
+## Yapilandirma
+
+### BizimHesap Entegrasyonu
+
+1. **Ayarlar > BizimHesap > Baglantılar** menusune gidin
+2. API bilgilerini girin (URL, API Key)
+3. Cok sirketli yonlendirme ayarlarini yapilandin
+4. Senkronizasyonu baslatin
+
+Detayli bilgi: [BizimHesap README](mobilsoft_bizimhesap/README.md)
+
+### QNB e-Fatura Entegrasyonu
+
+1. **Ayarlar > Sirketler** menusunden sirketinizi secin
+2. QNB e-Solutions sekmesinde API bilgilerini girin
+3. e-Fatura, e-Arsiv ve e-Irsaliye ayarlarini yapilandin
+4. Cron job'lari aktif edin
+
+Detayli bilgi: [QNB README](mobilsoft_qnb_efatura/README.md)
+
+### XML Urun Ice Aktarma
+
+1. **Stok > Yapilandirma > XML Kaynaklari** menusune gidin
+2. XML kaynagi ve alan eslestirmelerini tanimlayın
+3. Ice aktarimi baslatin
+
+Detayli bilgi: [XML Import README](mobilsoft_xml_import/README.md)
+
+---
+
+## Guvenlik
+
+### Kullanici Gruplari
+
+| Modul | Grup | Yetkiler |
+|-------|------|----------|
+| BizimHesap | `group_bizimhesap_user` | Temel islemler |
+| BizimHesap | `group_bizimhesap_manager` | Tam yetki |
+| QNB | `group_qnb_user` | e-Fatura gonderimi |
+| QNB | `group_qnb_manager` | Yapilandirma |
+
+### Onerilen Guvenlik Ayarlari
+
+- API anahtarlarini cevre degiskenlerinde saklayin
+- Hassas verileri sifrelenmis baglantılarla aktarın
+- Kullanici yetkilerini en az yetki prensibiyle verin
+
+---
+
+## Lisans
+
+Bu moduller [LGPL-3](https://www.gnu.org/licenses/lgpl-3.0.html) lisansi ile lisanslanmistir.
+
+---
+
+## Katkida Bulunma
 
 1. Bu repoyu fork edin
-2. Feature branch oluşturun (`git checkout -b feature/YeniOzellik`)
-3. Değişikliklerinizi commit edin (`git commit -m 'Yeni özellik eklendi'`)
+2. Feature branch olusturun (`git checkout -b feature/YeniOzellik`)
+3. Degisikliklerinizi commit edin (`git commit -m 'Yeni ozellik eklendi'`)
 4. Branch'i push edin (`git push origin feature/YeniOzellik`)
-5. Pull Request açın
+5. Pull Request acin
 
 ---
 
-## 📞 Destek
+## Destek
 
-Teknik destek için:
-- 📧 info@mobilsoft.net
-- 📞 0850 885 36 37
-- 🌐 [www.mobilsoft.net](https://www.mobilsoft.net)
+Teknik destek icin:
+- E-posta: info@mobilsoft.net
+- Telefon: 0850 885 36 37
+- Website: [www.mobilsoft.net](https://www.mobilsoft.net)
 
 ---
 
-*MobilSoft © 2026 - Tüm hakları saklıdır.*
+## Degisiklik Gecmisi
+
+### v19.0.1.0.0 (2026-01-30)
+- BizimHesap entegrasyonu - Cok sirketli yonlendirme eklendi
+- QNB e-Fatura entegrasyonu aktif edildi
+- XML Import modulu guncellendi
+- VKN normalizasyonu ve duplike onleme eklendi
+- Modern UI guncellemeleri
+
+---
+
+*MobilSoft © 2026 - Tum haklari saklidir.*
