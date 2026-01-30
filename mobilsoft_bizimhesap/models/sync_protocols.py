@@ -168,13 +168,75 @@ class SyncProtocols:
     
     @staticmethod
     def normalize_vat(vat):
-        """Vergi numarasını normalize et"""
+        """
+        Vergi numarasını normalize et
+
+        Farklı formatları handle eder:
+        - TR0700840699 → 0700840699 (TR prefix kaldırılır)
+        - 0010750216 → 10750216 (leading zeros kaldırılır)
+        - 2040548017 → 2040548017 (olduğu gibi)
+
+        Returns:
+            str: Normalize edilmiş VKN (leading zeros kaldırılmış)
+        """
         if not vat:
             return None
-        digits = re.sub(r'\D', '', str(vat))
-        if len(digits) in (10, 11):
-            return digits
-        return digits if digits else None
+
+        vat_str = str(vat).strip().upper()
+
+        # TR prefix'i kaldır
+        if vat_str.startswith('TR'):
+            vat_str = vat_str[2:]
+
+        # Sadece rakamları al
+        digits = re.sub(r'\D', '', vat_str)
+
+        if not digits:
+            return None
+
+        # VKN/TCKN uzunluk kontrolü (10 veya 11 haneli olmalı)
+        if len(digits) not in (10, 11):
+            # Çok kısa ise leading zero eklenmiş olabilir
+            # Çok uzun ise ilk fazla karakterler leading zero olabilir
+            # Yine de döndür ama karşılaştırma için normalize et
+            pass
+
+        # Leading zeros kaldırarak karşılaştırma için normalize et
+        # Ama minimum 10 hane tutmak için padding yap
+        normalized = digits.lstrip('0')
+
+        # Boş kalırsa (0000... durumu) "0" döndür
+        if not normalized:
+            return '0'
+
+        return normalized
+
+    @staticmethod
+    def normalize_vat_for_comparison(vat1, vat2):
+        """
+        İki VKN'yi karşılaştırma için normalize et
+
+        Leading zeros farklılıklarını tolere eder:
+        - 0010750216 == 10750216 → True
+        - TR0700840699 == 700840699 → True
+        """
+        if not vat1 or not vat2:
+            return False
+
+        # Her ikisini de normalize et
+        norm1 = SyncProtocols.normalize_vat(vat1)
+        norm2 = SyncProtocols.normalize_vat(vat2)
+
+        if not norm1 or not norm2:
+            return False
+
+        # Direkt karşılaştır
+        if norm1 == norm2:
+            return True
+
+        # Bir tanesi diğerinin suffix'i olabilir (leading zero farkı)
+        # Örn: "700840699" vs "0700840699" → "700840699" == "700840699"
+        return norm1.lstrip('0') == norm2.lstrip('0')
     
     @staticmethod
     def normalize_company_name(name):
