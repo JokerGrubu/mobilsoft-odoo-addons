@@ -3,6 +3,8 @@ access_xml_product_source_user,xml.product.source.user,model_xml_product_source,
 access_xml_product_source_manager,xml.product.source.manager,model_xml_product_source,stock.group_stock_manager,1,1,1,1
 access_xml_field_mapping_user,xml.field.mapping.user,model_xml_field_mapping,base.group_user,1,0,0,0
 access_xml_field_mapping_manager,xml.field.mapping.manager,model_xml_field_mapping,stock.group_stock_manager,1,1,1,1
+access_xml_category_mapping_user,xml.category.mapping.user,model_xml_category_mapping,base.group_user,1,0,0,0
+access_xml_category_mapping_manager,xml.category.mapping.manager,model_xml_category_mapping,stock.group_stock_manager,1,1,1,1
 access_xml_import_log_user,xml.import.log.user,model_xml_import_log,base.group_user,1,0,0,0
 access_xml_import_log_manager,xml.import.log.manager,model_xml_import_log,stock.group_stock_manager,1,1,1,1
 access_xml_product_export_user,xml.product.export.user,model_xml_product_export,base.group_user,1,0,0,0

@@ -297,6 +297,12 @@ class XmlProductSource(models.Model):
         default=' > ',
         help='Kategori yolu için ayraç (örn: "Ana Kategori > Alt Kategori")',
     )
+    category_mapping_ids = fields.One2many(
+        'xml.category.mapping',
+        'source_id',
+        string='Kategori Eşleştirmeleri',
+        help='XML kategorilerini Odoo kategorilerine eşleştir',
+    )
     default_category_id = fields.Many2one(
         'product.category',
         string='Varsayılan Kategori',

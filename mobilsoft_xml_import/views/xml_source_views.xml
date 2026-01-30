@@ -71,7 +71,30 @@
                                 <code>@id</code> (attribute)
                             </div>
                         </page>
-                        
+
+                        <page string="Kategori Eşleştirmeleri" name="category_mappings">
+                            <field name="category_mapping_ids" nolabel="1">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="xml_category" placeholder="Elektronik > Telefon"/>
+                                    <field name="match_type"/>
+                                    <field name="odoo_category_id" placeholder="Odoo Kategori"/>
+                                    <field name="ecommerce_category_ids" widget="many2many_tags" placeholder="E-Ticaret Kategorileri"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                            <div class="text-muted mt-2">
+                                <strong>Kullanım:</strong>
+                                XML'den gelen kategori adını sol tarafta girin, sağ tarafta eşleşecek Odoo kategorisini ve E-ticaret kategorilerini seçin.
+                                <br/>
+                                <strong>Eşleşme Türleri:</strong>
+                                <code>Tam Eşleşme</code> (birebir aynı),
+                                <code>İçerir</code> (XML kategorisi hedefi içerirse),
+                                <code>İle Başlar</code> (prefix eşleşmesi),
+                                <code>Regex</code> (düzenli ifade)
+                            </div>
+                        </page>
+
                         <page string="Fiyatlandırma" name="pricing">
                             <group>
                                 <group string="Kar Marjı Ayarları">
