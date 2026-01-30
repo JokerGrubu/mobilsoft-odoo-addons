@@ -128,7 +128,10 @@
                                     <field name="variant_from_parentheses" widget="boolean_toggle" invisible="not create_variants" help="BOLD SPEAKER (KIRMIZI) → Varyant: KIRMIZI"/>
                                     <field name="variant_attribute_name" invisible="not variant_from_parentheses"/>
                                 </group>
-                                <group string="Varsayılan Değerler">
+                                <group string="Kategori Ayarları">
+                                    <field name="update_category" widget="boolean_toggle"/>
+                                    <field name="auto_create_category" widget="boolean_toggle" invisible="not update_category"/>
+                                    <field name="category_separator" invisible="not auto_create_category"/>
                                     <field name="default_category_id"/>
                                     <field name="default_product_type"/>
                                 </group>

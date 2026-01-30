@@ -281,10 +281,26 @@ class XmlProductSource(models.Model):
         help='Fiyat/stok boşsa mevcut değeri değiştirme',
     )
 
-    # Varsayılan Değerler
+    # Kategori Ayarları
+    update_category = fields.Boolean(
+        string='Kategori Güncelle',
+        default=True,
+        help='Mevcut ürünlerin kategorisini XML\'den güncelle',
+    )
+    auto_create_category = fields.Boolean(
+        string='Kategori Otomatik Oluştur',
+        default=True,
+        help='XML\'de gelen kategori Odoo\'da yoksa otomatik oluştur',
+    )
+    category_separator = fields.Char(
+        string='Kategori Ayracı',
+        default=' > ',
+        help='Kategori yolu için ayraç (örn: "Ana Kategori > Alt Kategori")',
+    )
     default_category_id = fields.Many2one(
         'product.category',
         string='Varsayılan Kategori',
+        help='XML\'de kategori yoksa veya bulunamazsa kullanılacak kategori',
     )
     default_product_type = fields.Selection([
         ('consu', 'Sarf Malzemesi'),
@@ -938,7 +954,7 @@ class XmlProductSource(models.Model):
         self.ensure_one()
 
         if not category_name:
-            return None
+            return self.default_category_id or None
 
         Category = self.env['product.category']
         category_name = str(category_name).strip()
@@ -959,12 +975,14 @@ class XmlProductSource(models.Model):
 
                 if subcategory:
                     return subcategory
-                else:
+                elif self.auto_create_category:
                     # Alt kategoriyi oluştur
                     return Category.create({
                         'name': subcategory_name,
                         'parent_id': category.id,
                     })
+                else:
+                    return category  # Alt kategori oluşturulamıyor, ana kategori döndür
             return category
 
         # 2. Benzer kategori ara (kısmi eşleşme)
@@ -983,14 +1001,22 @@ class XmlProductSource(models.Model):
 
                 if subcategory:
                     return subcategory
-                else:
+                elif self.auto_create_category:
                     return Category.create({
                         'name': subcategory_name,
                         'parent_id': similar.id,
                     })
+                else:
+                    return similar
             return similar
 
-        # 3. Kategori bulunamadı - yeni oluştur
+        # 3. Kategori bulunamadı
+        if not self.auto_create_category:
+            # Otomatik oluşturma kapalı, varsayılan kategori döndür
+            _logger.info(f"Kategori bulunamadı (otomatik oluşturma kapalı): {category_name}")
+            return self.default_category_id or None
+
+        # Yeni oluştur
         _logger.info(f"Yeni kategori oluşturuluyor: {category_name}")
 
         # Ana kategoriyi oluştur
