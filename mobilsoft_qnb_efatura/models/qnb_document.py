@@ -697,8 +697,9 @@ class QnbDocument(models.Model):
                 if address is not None:
                     result['partner']['street'] = self._get_xml_text(address, './/cbc:StreetName', ns)
                     result['partner']['street2'] = self._get_xml_text(address, './/cbc:BuildingNumber', ns)
-                    result['partner']['city'] = self._get_xml_text(address, './/cbc:CityName', ns)
-                    result['partner']['state'] = self._get_xml_text(address, './/cbc:CitySubdivisionName', ns)
+                    # UBL: CityName=İL, CitySubdivisionName=İLÇE
+                    result['partner']['state'] = self._get_xml_text(address, './/cbc:CityName', ns)
+                    result['partner']['city'] = self._get_xml_text(address, './/cbc:CitySubdivisionName', ns)
                     result['partner']['zip'] = self._get_xml_text(address, './/cbc:PostalZone', ns)
                     result['partner']['country'] = self._get_xml_text(address, './/cac:Country/cbc:Name', ns)
 
@@ -1982,6 +1983,15 @@ class QnbDocument(models.Model):
                     elif 'l10n_tr_tax_office_name' in Partner._fields:
                         if (partner.l10n_tr_tax_office_name or '').strip() != tax_office:
                             update_vals['l10n_tr_tax_office_name'] = tax_office
+
+                # İl/İlçe normalizasyonu (ör: "KARESİ / BALIKESİR")
+                raw_city = (partner_data.get('city') or '').strip()
+                raw_state = (partner_data.get('state') or '').strip()
+                if raw_city and not raw_state and '/' in raw_city:
+                    parts = [p.strip() for p in raw_city.split('/') if p.strip()]
+                    if len(parts) >= 2:
+                        partner_data['city'] = parts[0]
+                        partner_data['state'] = parts[1]
 
                 # Ülke/İl eşleştirme
                 country_name = (partner_data.get('country') or '').strip()

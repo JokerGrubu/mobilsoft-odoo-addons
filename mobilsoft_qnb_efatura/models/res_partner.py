@@ -233,6 +233,15 @@ class ResPartner(models.Model):
             if doc_vat != vat_number:
                 continue
 
+            # İl/İlçe normalizasyonu (ör: "KARESİ / BALIKESİR")
+            raw_city = (partner_data.get('city') or '').strip()
+            raw_state = (partner_data.get('state') or '').strip()
+            if raw_city and not raw_state and '/' in raw_city:
+                parts = [p.strip() for p in raw_city.split('/') if p.strip()]
+                if len(parts) >= 2:
+                    partner_data['city'] = parts[0]
+                    partner_data['state'] = parts[1]
+
             # QNB belge metodundaki güncelleme mantığını kullan
             update_vals = {}
             name_raw = (partner_data.get('name') or '').strip()
