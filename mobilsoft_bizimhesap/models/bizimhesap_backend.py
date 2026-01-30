@@ -987,10 +987,10 @@ class BizimHesapBackend(models.Model):
             'city': '',  # BizimHesap'da ayrı alan yok
         }
         
-        # Tüm mevcut partnerları al
+        # Tüm mevcut partnerları al (Odoo 19'da mobile alanı yok)
         all_partners = self.env['res.partner'].search_read(
             [('active', '=', True)],
-            ['id', 'name', 'vat', 'phone', 'mobile', 'email', 'street', 'city', 'parent_id']
+            ['id', 'name', 'vat', 'phone', 'email', 'street', 'city', 'parent_id']
         )
         
         # Protokol ile eşleştir
