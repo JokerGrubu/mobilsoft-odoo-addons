@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- LUCA EXPORT WIZARD FORM -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <record id="luca_export_wizard_form" model="ir.ui.view">
+        <field name="name">luca.export.wizard.form</field>
+        <field name="model">luca.export.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Luca Export">
+                <field name="state" invisible="1"/>
+
+                <!-- ═══════════════════════════════════════════════════ -->
+                <!-- STEP 1: SEÇIM -->
+                <!-- ═══════════════════════════════════════════════════ -->
+                <group invisible="state != 'choose'">
+                    <group string="Export Tipi">
+                        <field name="export_type" widget="radio"/>
+                    </group>
+
+                    <!-- Muhasebe Fişleri Seçenekleri -->
+                    <group string="Tarih Aralığı"
+                           invisible="export_type != 'journal_entries'">
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                    </group>
+
+                    <group string="Filtreler"
+                           invisible="export_type != 'journal_entries'"
+                           col="4">
+                        <field name="move_state"/>
+                        <field name="move_type"/>
+                        <field name="account_ids" widget="many2many_tags"
+                               placeholder="Tüm hesaplar"/>
+                    </group>
+
+                    <!-- Hesap Planı Seçenekleri -->
+                    <group string="Hesap Filtresi"
+                           invisible="export_type != 'chart_of_accounts'">
+                        <field name="account_ids" widget="many2many_tags"
+                               placeholder="Tüm hesaplar"/>
+                    </group>
+
+                    <group string="Export Ayarları">
+                        <field name="file_format" widget="radio"
+                               invisible="export_type == 'chart_of_accounts'"/>
+                        <field name="split_files"
+                               invisible="export_type != 'journal_entries'"/>
+                    </group>
+
+                    <!-- Luca Bilgilendirme -->
+                    <group>
+                        <div class="alert alert-info" role="alert">
+                            <h5 class="alert-heading">Luca Format Bilgisi</h5>
+                            <p class="mb-1"><strong>Muhasebe Fişleri:</strong> Fiş No, Fiş Tarihi, Hesap Kodu, Borç, Alacak (zorunlu)</p>
+                            <p class="mb-1"><strong>Hesap Planı:</strong> Logo uyumlu XML formatı</p>
+                            <p class="mb-0"><strong>Limit:</strong> Luca yükleme başına maksimum 50 fiş kabul eder</p>
+                        </div>
+                    </group>
+                </group>
+
+                <!-- ═══════════════════════════════════════════════════ -->
+                <!-- STEP 2: ÖNİZLEME -->
+                <!-- ═══════════════════════════════════════════════════ -->
+                <group invisible="state != 'preview'">
+                    <group string="Önizleme">
+                        <field name="preview_count"/>
+                        <field name="preview_info" readonly="1" nolabel="1"
+                               widget="text" colspan="2"/>
+                    </group>
+
+                    <div class="alert alert-warning" role="alert"
+                         invisible="preview_count == 0">
+                        <strong>Dikkat:</strong> Export işlemi toplam
+                        <field name="preview_count" readonly="1" class="badge bg-primary"/>
+                        kayıt içerecek.
+                    </div>
+
+                    <div class="alert alert-danger" role="alert"
+                         invisible="preview_count > 0">
+                        <strong>Uyarı:</strong> Seçilen kriterlere uygun kayıt bulunamadı!
+                    </div>
+                </group>
+
+                <!-- ═══════════════════════════════════════════════════ -->
+                <!-- STEP 3: TAMAMLANDI -->
+                <!-- ═══════════════════════════════════════════════════ -->
+                <group invisible="state != 'done'">
+                    <group string="İndirme">
+                        <field name="file_name" invisible="1"/>
+                        <field name="file_data" filename="file_name"
+                               invisible="not file_data"/>
+
+                        <field name="file_name_2" invisible="1"/>
+                        <field name="file_data_2" filename="file_name_2"
+                               invisible="not file_data_2"/>
+
+                        <field name="file_name_3" invisible="1"/>
+                        <field name="file_data_3" filename="file_name_3"
+                               invisible="not file_data_3"/>
+                    </group>
+
+                    <div class="alert alert-success" role="alert">
+                        <h5 class="alert-heading">Export Tamamlandı!</h5>
+                        <p>Dosyalarınız hazır. Yukarıdaki linklerden indirebilirsiniz.</p>
+                        <hr/>
+                        <p class="mb-0">
+                            <strong>Luca'ya Yükleme:</strong><br/>
+                            1. Luca'da Muhasebe → Fiş İşlemleri → Excel Veri Aktarımı menüsüne gidin<br/>
+                            2. "Dosya Seç" ile indirdiğiniz dosyayı seçin<br/>
+                            3. Doğrulama kodunu girin ve "Yükle" butonuna tıklayın
+                        </p>
+                    </div>
+
+                    <field name="preview_info" readonly="1"
+                           invisible="not preview_info"/>
+                </group>
+
+                <!-- ═══════════════════════════════════════════════════ -->
+                <!-- FOOTER BUTTONS -->
+                <!-- ═══════════════════════════════════════════════════ -->
+                <footer>
+                    <!-- Seçim ekranı -->
+                    <button string="Önizleme" name="action_preview" type="object"
+                            class="btn-primary"
+                            invisible="state != 'choose'"/>
+                    <button string="İptal" class="btn-secondary" special="cancel"
+                            invisible="state != 'choose'"/>
+
+                    <!-- Önizleme ekranı -->
+                    <button string="Export Et" name="action_export" type="object"
+                            class="btn-primary"
+                            invisible="state != 'preview' or preview_count == 0"/>
+                    <button string="Geri" name="action_back" type="object"
+                            class="btn-secondary"
+                            invisible="state != 'preview'"/>
+
+                    <!-- Tamamlandı ekranı -->
+                    <button string="Yeni Export" name="action_back" type="object"
+                            class="btn-primary"
+                            invisible="state != 'done'"/>
+                    <button string="Kapat" class="btn-secondary" special="cancel"
+                            invisible="state != 'done'"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

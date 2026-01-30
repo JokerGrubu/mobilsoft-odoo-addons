@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- LUCA EXPORT MENU -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Ana Menü -->
+    <menuitem id="menu_luca_export_root"
+              name="Luca Export"
+              parent="account.menu_finance"
+              sequence="99"
+              groups="group_luca_export_user"/>
+
+    <!-- Export Wizard Action -->
+    <record id="action_luca_export_wizard" model="ir.actions.act_window">
+        <field name="name">Luca Export</field>
+        <field name="res_model">luca.export.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_export_type': 'journal_entries'}</field>
+    </record>
+
+    <!-- Muhasebe Fişleri Export -->
+    <menuitem id="menu_luca_export_moves"
+              name="Muhasebe Fişleri"
+              parent="menu_luca_export_root"
+              action="action_luca_export_wizard"
+              sequence="10"/>
+
+    <!-- Hesap Planı Export -->
+    <record id="action_luca_export_accounts" model="ir.actions.act_window">
+        <field name="name">Hesap Planı Export</field>
+        <field name="res_model">luca.export.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_export_type': 'chart_of_accounts'}</field>
+    </record>
+
+    <menuitem id="menu_luca_export_accounts"
+              name="Hesap Planı"
+              parent="menu_luca_export_root"
+              action="action_luca_export_accounts"
+              sequence="20"/>
+
+    <!-- Cari Bilgileri Export -->
+    <record id="action_luca_export_partners" model="ir.actions.act_window">
+        <field name="name">Cari Bilgileri Export</field>
+        <field name="res_model">luca.export.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_export_type': 'partners'}</field>
+    </record>
+
+    <menuitem id="menu_luca_export_partners"
+              name="Cari Bilgileri"
+              parent="menu_luca_export_root"
+              action="action_luca_export_partners"
+              sequence="30"/>
+
+</odoo>

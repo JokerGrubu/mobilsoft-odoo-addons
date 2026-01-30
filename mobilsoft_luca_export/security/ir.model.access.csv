@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_luca_export_mixin_user,luca.export.mixin.user,model_luca_export_mixin,group_luca_export_user,1,0,0,0
+access_luca_export_wizard_user,luca.export.wizard.user,model_luca_export_wizard,group_luca_export_user,1,1,1,1
+access_luca_export_wizard_manager,luca.export.wizard.manager,model_luca_export_wizard,group_luca_export_manager,1,1,1,1
