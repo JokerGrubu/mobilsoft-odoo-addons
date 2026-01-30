@@ -63,6 +63,67 @@
                         </group>
                     </group>
 
+                    <!-- ═══════════════════════════════════════════════════════ -->
+                    <!-- HESAP HAREKETLERİ - Odoo Verileri -->
+                    <!-- ═══════════════════════════════════════════════════════ -->
+                    <group string="Hesap Hareketleri (Odoo)" col="4">
+                        <group colspan="2" string="Satışlar">
+                            <div class="d-flex align-items-center">
+                                <button name="action_view_bizimhesap_sale_invoices"
+                                        type="object" class="btn btn-link p-0">
+                                    <field name="bizimhesap_sale_count" class="fw-bold"/>
+                                    <span class="ms-1">Satış Faturası</span>
+                                </button>
+                            </div>
+                            <field name="bizimhesap_sale_total" widget="monetary"
+                                   string="Toplam Satış"/>
+                        </group>
+                        <group colspan="2" string="Alışlar">
+                            <div class="d-flex align-items-center">
+                                <button name="action_view_bizimhesap_purchase_invoices"
+                                        type="object" class="btn btn-link p-0">
+                                    <field name="bizimhesap_purchase_count" class="fw-bold"/>
+                                    <span class="ms-1">Alış Faturası</span>
+                                </button>
+                            </div>
+                            <field name="bizimhesap_purchase_total" widget="monetary"
+                                   string="Toplam Alış"/>
+                        </group>
+                    </group>
+
+                    <group col="4">
+                        <group colspan="2" string="Tahsilatlar">
+                            <div class="d-flex align-items-center">
+                                <button name="action_view_bizimhesap_payments"
+                                        type="object" class="btn btn-link p-0">
+                                    <field name="bizimhesap_payment_count" class="fw-bold"/>
+                                    <span class="ms-1">Ödeme/Tahsilat</span>
+                                </button>
+                            </div>
+                            <field name="bizimhesap_payment_total" widget="monetary"
+                                   string="Toplam Tahsilat"/>
+                        </group>
+                        <group colspan="2" string="Bakiye Özeti">
+                            <field name="bizimhesap_invoice_residual" widget="monetary"
+                                   string="Ödenmemiş Tutar"/>
+                            <field name="bizimhesap_odoo_balance" widget="monetary"
+                                   string="Odoo Bakiye"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button name="action_view_bizimhesap_invoices"
+                                    string="Tüm Faturaları Gör"
+                                    type="object"
+                                    class="btn btn-primary"/>
+                            <button name="action_view_bizimhesap_payments"
+                                    string="Tüm Ödemeleri Gör"
+                                    type="object"
+                                    class="btn btn-secondary"/>
+                        </div>
+                    </group>
+
                     <!-- Eşleşme Kayıtları -->
                     <group string="Eşleşme Kayıtları">
                         <field name="bizimhesap_binding_ids" readonly="1" nolabel="1">
