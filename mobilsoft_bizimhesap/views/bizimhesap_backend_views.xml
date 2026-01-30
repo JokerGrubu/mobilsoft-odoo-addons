@@ -357,24 +357,10 @@
         <field name="arch" type="xml">
             <search string="BizimHesap Ara">
                 <field name="name"/>
-                <field name="company_id"/>
                 <filter name="connected" string="Bağlı"
                         domain="[('state', '=', 'connected')]"/>
                 <filter name="error" string="Hatalı"
                         domain="[('state', '=', 'error')]"/>
-                <filter name="multi_company" string="Çok Şirketli"
-                        domain="[('enable_multi_company_routing', '=', True)]"/>
-                <separator/>
-                <filter name="active" string="Aktif"
-                        domain="[('active', '=', True)]"/>
-                <filter name="inactive" string="Pasif"
-                        domain="[('active', '=', False)]"/>
-                <group expand="0" string="Grupla">
-                    <filter name="group_by_state" string="Durum"
-                            context="{'group_by': 'state'}"/>
-                    <filter name="group_by_company" string="Ana Şirket"
-                            context="{'group_by': 'company_id'}"/>
-                </group>
             </search>
         </field>
     </record>
