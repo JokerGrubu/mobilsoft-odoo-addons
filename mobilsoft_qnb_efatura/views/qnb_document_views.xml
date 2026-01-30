@@ -177,8 +177,6 @@
     <record id="action_qnb_fetch_all_documents" model="ir.actions.server">
         <field name="name">📥 Tüm Belgeleri QNB'den Al</field>
         <field name="model_id" ref="model_qnb_document"/>
-        <field name="binding_model_id" ref="model_qnb_document"/>
-        <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">
 action = env['qnb.document'].action_fetch_all_documents()
@@ -189,8 +187,6 @@ action = env['qnb.document'].action_fetch_all_documents()
     <record id="action_qnb_sync_partners" model="ir.actions.server">
         <field name="name">👤 Partnerleri XML'den Güncelle</field>
         <field name="model_id" ref="model_qnb_document"/>
-        <field name="binding_model_id" ref="model_qnb_document"/>
-        <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">
 action = env['qnb.document'].action_sync_partners_from_documents()
@@ -201,8 +197,6 @@ action = env['qnb.document'].action_sync_partners_from_documents()
     <record id="action_qnb_fix_missing_partners_from_list" model="ir.actions.server">
         <field name="name">🩹 Partneri Boş Belgeleri (QNB Liste) Düzelt</field>
         <field name="model_id" ref="model_qnb_document"/>
-        <field name="binding_model_id" ref="model_qnb_document"/>
-        <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">
 docs = env['qnb.document'].browse(env.context.get('active_ids', []))
@@ -214,8 +208,6 @@ action = docs.action_fix_missing_partners_from_qnb_list()
     <record id="action_qnb_bulk_match" model="ir.actions.server">
         <field name="name">🔗 Yevmiye Kayıtları ile Eşleştir</field>
         <field name="model_id" ref="model_qnb_document"/>
-        <field name="binding_model_id" ref="model_qnb_document"/>
-        <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">
 action = env['qnb.document'].action_bulk_match_documents()
@@ -226,8 +218,6 @@ action = env['qnb.document'].action_bulk_match_documents()
     <record id="action_bulk_rematch_products" model="ir.actions.server">
         <field name="name">🔄 Ürünleri Yeniden Eşleştir</field>
         <field name="model_id" ref="model_qnb_document_line"/>
-        <field name="binding_model_id" ref="model_qnb_document"/>
-        <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">
 action = env['qnb.document.line'].action_bulk_rematch_products()

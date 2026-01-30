@@ -171,3 +171,28 @@ class ResConfigSettings(models.TransientModel):
                     'sticky': True,
                 }
             }
+
+    def action_qnb_fetch_all_documents(self):
+        """QNB'den tüm belgeleri çek"""
+        self.ensure_one()
+        return self.env['qnb.document'].action_fetch_all_documents()
+
+    def action_qnb_sync_partners_from_documents(self):
+        """QNB belgelerinden partner bilgilerini XML'den güncelle"""
+        self.ensure_one()
+        return self.env['qnb.document'].action_sync_partners_from_documents()
+
+    def action_qnb_fix_missing_partners_from_list(self):
+        """Partneri boş QNB belgelerini liste verisiyle düzelt"""
+        self.ensure_one()
+        return self.env['qnb.document'].action_fix_missing_partners_from_qnb_list()
+
+    def action_qnb_bulk_match_documents(self):
+        """QNB belgelerini yevmiye/fatura kayıtlarıyla eşleştir"""
+        self.ensure_one()
+        return self.env['qnb.document'].action_bulk_match_documents()
+
+    def action_qnb_rematch_products(self):
+        """QNB belge satırlarında ürünleri yeniden eşleştir"""
+        self.ensure_one()
+        return self.env['qnb.document.line'].action_bulk_rematch_products()
