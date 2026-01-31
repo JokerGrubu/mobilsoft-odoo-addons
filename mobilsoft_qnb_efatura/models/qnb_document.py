@@ -709,6 +709,7 @@ class QnbDocument(models.Model):
                 # İletişim
                 contact = party.find('.//cac:Contact', ns)
                 if contact is not None:
+                    result['partner']['contact_name'] = self._get_xml_text(contact, './/cbc:Name', ns)
                     result['partner']['phone'] = self._get_xml_text(contact, './/cbc:Telephone', ns)
                     result['partner']['email'] = self._get_xml_text(contact, './/cbc:ElectronicMail', ns)
                     result['partner']['website'] = self._get_xml_text(contact, './/cbc:WebsiteURI', ns)
@@ -1950,13 +1951,13 @@ class QnbDocument(models.Model):
                     partner = Partner.create(partner_vals)
                     created += 1
 
-                # Partner güncelle (XML'deki tüm bilgileri VAT'e göre güncelle)
+                # Partner güncelle (sadece eksik alanları doldur)
                 update_vals = {}
 
-                if vat_number and partner.vat != vat_number:
+                if vat_number and not (partner.vat or '').strip():
                     update_vals['vat'] = vat_number
 
-                if name_raw and (partner.name or '').strip() != name_raw:
+                if name_raw and not (partner.name or '').strip():
                     update_vals['name'] = name_raw
 
                 for src_key, dst_key in [
@@ -1969,19 +1970,20 @@ class QnbDocument(models.Model):
                     ('website', 'website'),
                 ]:
                     val = (partner_data.get(src_key) or '').strip()
-                    if val and (partner[dst_key] or '').strip() != val:
+                    if val and not (partner[dst_key] or '').strip():
                         update_vals[dst_key] = val
 
                 # Vergi dairesi (l10n_tr_tax_office_mobilsoft varsa)
                 tax_office = (partner_data.get('tax_office') or '').strip()
                 if tax_office:
                     if 'l10n_tr_tax_office_id' in Partner._fields:
-                        tax_model = self.env['l10n.tr.tax.office']
-                        tax_rec = tax_model.search([('name', 'ilike', tax_office)], limit=1)
-                        if tax_rec and partner.l10n_tr_tax_office_id != tax_rec:
-                            update_vals['l10n_tr_tax_office_id'] = tax_rec.id
+                        if not partner.l10n_tr_tax_office_id:
+                            tax_model = self.env['l10n.tr.tax.office']
+                            tax_rec = tax_model.search([('name', 'ilike', tax_office)], limit=1)
+                            if tax_rec:
+                                update_vals['l10n_tr_tax_office_id'] = tax_rec.id
                     elif 'l10n_tr_tax_office_name' in Partner._fields:
-                        if (partner.l10n_tr_tax_office_name or '').strip() != tax_office:
+                        if not (partner.l10n_tr_tax_office_name or '').strip():
                             update_vals['l10n_tr_tax_office_name'] = tax_office
 
                 # İl/İlçe normalizasyonu (ör: "KARESİ / BALIKESİR")
@@ -1995,19 +1997,19 @@ class QnbDocument(models.Model):
 
                 # Ülke/İl eşleştirme
                 country_name = (partner_data.get('country') or '').strip()
-                if country_name and 'country_id' in Partner._fields:
+                if country_name and 'country_id' in Partner._fields and not partner.country_id:
                     country = self.env['res.country'].search([('name', 'ilike', country_name)], limit=1)
-                    if country and partner.country_id != country:
+                    if country:
                         update_vals['country_id'] = country.id
 
                 state_name = (partner_data.get('state') or '').strip()
-                if state_name and 'state_id' in Partner._fields:
+                if state_name and 'state_id' in Partner._fields and not partner.state_id:
                     domain = [('name', 'ilike', state_name)]
                     if update_vals.get('country_id') or partner.country_id:
                         country_id = update_vals.get('country_id') or partner.country_id.id
                         domain.append(('country_id', '=', country_id))
                     state = self.env['res.country.state'].search(domain, limit=1)
-                    if state and partner.state_id != state:
+                    if state:
                         update_vals['state_id'] = state.id
 
                 if doc.direction == 'incoming' and partner.supplier_rank < 1:
@@ -2018,6 +2020,27 @@ class QnbDocument(models.Model):
                 if update_vals:
                     partner.write(update_vals)
                     updated += 1
+
+                # Yetkili kişi (Contact) oluştur: sadece yoksa
+                contact_name = (partner_data.get('contact_name') or '').strip()
+                if contact_name:
+                    existing_contact = self.env['res.partner'].search([
+                        ('parent_id', '=', partner.id),
+                        ('name', 'ilike', contact_name)
+                    ], limit=1)
+                    if not existing_contact:
+                        contact_vals = {
+                            'name': contact_name,
+                            'parent_id': partner.id,
+                            'type': 'contact',
+                        }
+                        contact_phone = (partner_data.get('phone') or '').strip()
+                        contact_email = (partner_data.get('email') or '').strip()
+                        if contact_phone:
+                            contact_vals['phone'] = contact_phone
+                        if contact_email:
+                            contact_vals['email'] = contact_email
+                        self.env['res.partner'].create(contact_vals)
 
                 # IBAN varsa partner banka hesabı oluştur/eşleştir
                 iban = (partner_data.get('iban') or '').replace(' ', '')

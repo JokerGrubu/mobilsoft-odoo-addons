@@ -5,6 +5,7 @@ from odoo.exceptions import UserError, ValidationError
 import requests
 import logging
 import json
+import re
 from datetime import datetime, timedelta
 
 # Senkronizasyon protokolleri
@@ -973,7 +974,15 @@ class BizimHesapBackend(models.Model):
             # Şirket partnerlerini güncelleme (res.company koruması)
             company_partners = self.env['res.company'].search([]).mapped('partner_id')
             if binding.odoo_id.id not in company_partners.ids:
-                binding.odoo_id.write(partner_vals)
+                if self._vat_match_or_empty(binding.odoo_id, partner_vals.get('vat')):
+                    update_vals = self._get_missing_partner_vals(binding.odoo_id, partner_vals)
+                    if update_vals:
+                        binding.odoo_id.write(update_vals)
+                    self._ensure_authorized_contact(binding.odoo_id, data)
+                else:
+                    _logger.warning(
+                        f"VKN uyuşmadı, partner güncellenmedi: {binding.odoo_id.name}"
+                    )
             else:
                 _logger.warning(f"Şirket partneri güncellenmedi (korunuyor): {binding.odoo_id.name}")
             binding.write({
@@ -1011,7 +1020,15 @@ class BizimHesapBackend(models.Model):
             # Şirket partnerlerini güncelleme (res.company koruması)
             company_partners = self.env['res.company'].search([]).mapped('partner_id')
             if partner.id not in company_partners.ids:
-                partner.write(partner_vals)
+                if self._vat_match_or_empty(partner, partner_vals.get('vat')):
+                    update_vals = self._get_missing_partner_vals(partner, partner_vals)
+                    if update_vals:
+                        partner.write(update_vals)
+                    self._ensure_authorized_contact(partner, data)
+                else:
+                    _logger.warning(
+                        f"VKN uyuşmadı, partner güncellenmedi: {partner.name}"
+                    )
             else:
                 _logger.warning(f"Şirket partneri güncellenmedi (korunuyor): {partner.name}")
             
@@ -1054,7 +1071,15 @@ class BizimHesapBackend(models.Model):
             # Şirket partnerlerini güncelleme (res.company koruması)
             company_partners = self.env['res.company'].search([]).mapped('partner_id')
             if partner.id not in company_partners.ids:
-                partner.write(partner_vals)
+                if self._vat_match_or_empty(partner, partner_vals.get('vat')):
+                    update_vals = self._get_missing_partner_vals(partner, partner_vals)
+                    if update_vals:
+                        partner.write(update_vals)
+                    self._ensure_authorized_contact(partner, data)
+                else:
+                    _logger.warning(
+                        f"VKN uyuşmadı, partner güncellenmedi: {partner.name}"
+                    )
             else:
                 _logger.warning(f"Şirket partneri güncellenmedi (korunuyor): {partner.name}")
             
@@ -1071,6 +1096,7 @@ class BizimHesapBackend(models.Model):
         else:
             # Yeni cari oluştur
             partner = self.env['res.partner'].create(partner_vals)
+            self._ensure_authorized_contact(partner, data)
             
             self.env['bizimhesap.partner.binding'].create({
                 'backend_id': self.id,
@@ -1154,6 +1180,60 @@ class BizimHesapBackend(models.Model):
         vals['company_id'] = target_company.id
 
         return vals
+
+    # ═══════════════════════════════════════════════════════════════
+    # EKSİK ALAN GÜNCELLEME / YETKİLİ KİŞİ
+    # ═══════════════════════════════════════════════════════════════
+
+    def _normalize_vat(self, vat_value):
+        if not vat_value:
+            return ''
+        return re.sub(r'\s+', '', str(vat_value)).upper()
+
+    def _vat_match_or_empty(self, partner, incoming_vat):
+        """VKN eşleşmesi kontrolü: Partner VKN boşsa izin ver, doluysa eşleşmeli."""
+        partner_vat = self._normalize_vat(partner.vat)
+        incoming_vat_norm = self._normalize_vat(incoming_vat)
+        if not partner_vat:
+            return True
+        if not incoming_vat_norm:
+            return False
+        return partner_vat == incoming_vat_norm
+
+    def _get_missing_partner_vals(self, partner, incoming_vals):
+        """Sadece eksik alanları güncellemek için vals filtrele."""
+        if not incoming_vals:
+            return {}
+        skip_fields = {'company_id'}
+        missing_vals = {}
+        for field, value in incoming_vals.items():
+            if field in skip_fields:
+                continue
+            if value in (None, False, '', [], {}):
+                continue
+            if field not in partner._fields:
+                continue
+            current_value = partner[field]
+            if not current_value:
+                missing_vals[field] = value
+        return missing_vals
+
+    def _ensure_authorized_contact(self, partner, data):
+        """Yetkili kişi yoksa alt kontak oluştur ve parent'a bağla."""
+        authorized_name = (data.get('authorized') or '').strip()
+        if not authorized_name:
+            return
+        existing = self.env['res.partner'].search([
+            ('parent_id', '=', partner.id),
+            ('name', 'ilike', authorized_name)
+        ], limit=1)
+        if existing:
+            return
+        self.env['res.partner'].create({
+            'name': authorized_name,
+            'parent_id': partner.id,
+            'type': 'contact',
+        })
 
     # ═══════════════════════════════════════════════════════════════
     # FATURASIZ İŞLEM YÖNETİMİ - SALE ORDER
