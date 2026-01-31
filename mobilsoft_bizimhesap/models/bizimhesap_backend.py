@@ -970,7 +970,12 @@ class BizimHesapBackend(models.Model):
         
         if binding:
             # Mevcut kayıt - güncelle
-            binding.odoo_id.write(partner_vals)
+            # Şirket partnerlerini güncelleme (res.company koruması)
+            company_partners = self.env['res.company'].search([]).mapped('partner_id')
+            if binding.odoo_id.id not in company_partners.ids:
+                binding.odoo_id.write(partner_vals)
+            else:
+                _logger.warning(f"Şirket partneri güncellenmedi (korunuyor): {binding.odoo_id.name}")
             binding.write({
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
@@ -1002,7 +1007,13 @@ class BizimHesapBackend(models.Model):
             # Kesin eşleşme - VKN/Telefon/E-posta ile bulundu
             partner_id = match['matched_partner']['id']
             partner = self.env['res.partner'].browse(partner_id)
-            partner.write(partner_vals)
+            
+            # Şirket partnerlerini güncelleme (res.company koruması)
+            company_partners = self.env['res.company'].search([]).mapped('partner_id')
+            if partner.id not in company_partners.ids:
+                partner.write(partner_vals)
+            else:
+                _logger.warning(f"Şirket partneri güncellenmedi (korunuyor): {partner.name}")
             
             # Binding oluştur
             self.env['bizimhesap.partner.binding'].create({
@@ -1039,7 +1050,13 @@ class BizimHesapBackend(models.Model):
             # Benzer isim - güncelle
             partner_id = match['matched_partner']['id']
             partner = self.env['res.partner'].browse(partner_id)
-            partner.write(partner_vals)
+            
+            # Şirket partnerlerini güncelleme (res.company koruması)
+            company_partners = self.env['res.company'].search([]).mapped('partner_id')
+            if partner.id not in company_partners.ids:
+                partner.write(partner_vals)
+            else:
+                _logger.warning(f"Şirket partneri güncellenmedi (korunuyor): {partner.name}")
             
             self.env['bizimhesap.partner.binding'].create({
                 'backend_id': self.id,
