@@ -1,0 +1,381 @@
+/*
+ * Joker Enterprise Theme for Odoo 19 Community
+ * Makes Community look like Enterprise
+ */
+
+:root {
+    /* Enterprise Color Palette */
+    --enterprise-primary: #714B67;
+    --enterprise-primary-light: #8F6B85;
+    --enterprise-primary-dark: #5C3D54;
+    --enterprise-secondary: #017E84;
+    --enterprise-success: #28A745;
+    --enterprise-warning: #FFC107;
+    --enterprise-danger: #DC3545;
+    --enterprise-info: #17A2B8;
+
+    /* Sidebar Colors */
+    --sidebar-bg: #1E1E2D;
+    --sidebar-bg-hover: #2D2D3D;
+    --sidebar-text: #9899AC;
+    --sidebar-text-active: #FFFFFF;
+    --sidebar-border: #2D2D3D;
+
+    /* Main Content */
+    --content-bg: #F8F9FA;
+    --card-bg: #FFFFFF;
+    --border-color: #DEE2E6;
+    --text-primary: #212529;
+    --text-secondary: #6C757D;
+}
+
+/* ==================== NAVBAR / HEADER ==================== */
+.o_main_navbar {
+    background: linear-gradient(135deg, var(--enterprise-primary) 0%, var(--enterprise-primary-dark) 100%) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    height: 46px;
+}
+
+.o_main_navbar .o_menu_brand {
+    color: #FFFFFF !important;
+    font-weight: 600;
+}
+
+.o_main_navbar .dropdown-toggle,
+.o_main_navbar .o_nav_entry {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.o_main_navbar .dropdown-toggle:hover,
+.o_main_navbar .o_nav_entry:hover {
+    color: #FFFFFF !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.o_main_navbar .o_menu_sections .o_nav_entry.active,
+.o_main_navbar .o_menu_sections .dropdown-toggle.active {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: #FFFFFF !important;
+}
+
+/* ==================== SIDEBAR / APP MENU ==================== */
+.o_web_client .o_action_manager {
+    background-color: var(--content-bg);
+}
+
+/* Home Menu - App Drawer */
+.o_home_menu {
+    background: linear-gradient(135deg, #1E1E2D 0%, #2D2D3D 100%) !important;
+}
+
+.o_home_menu .o_app {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.o_home_menu .o_app:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.o_home_menu .o_app .o_app_name {
+    color: #FFFFFF !important;
+}
+
+.o_home_menu .o_menuitem {
+    color: var(--sidebar-text) !important;
+}
+
+.o_home_menu .o_menuitem:hover {
+    color: var(--sidebar-text-active) !important;
+}
+
+/* Search in home menu */
+.o_home_menu .o_search_hidden {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #FFFFFF;
+}
+
+/* ==================== CONTROL PANEL ==================== */
+.o_control_panel {
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.o_control_panel .o_breadcrumb {
+    font-size: 1.1rem;
+}
+
+.o_control_panel .breadcrumb-item.active {
+    color: var(--enterprise-primary);
+    font-weight: 600;
+}
+
+/* ==================== BUTTONS ==================== */
+.btn-primary {
+    background-color: var(--enterprise-primary) !important;
+    border-color: var(--enterprise-primary) !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--enterprise-primary-dark) !important;
+    border-color: var(--enterprise-primary-dark) !important;
+}
+
+.btn-secondary {
+    background-color: var(--enterprise-secondary) !important;
+    border-color: var(--enterprise-secondary) !important;
+    color: #FFFFFF !important;
+}
+
+.o_form_button_save {
+    background-color: var(--enterprise-primary) !important;
+    border-color: var(--enterprise-primary) !important;
+}
+
+/* ==================== FORM VIEW ==================== */
+.o_form_view .o_form_sheet_bg {
+    background-color: var(--content-bg);
+}
+
+.o_form_view .o_form_sheet {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--border-color);
+}
+
+.o_form_view .o_notebook > .nav-tabs {
+    border-bottom: 2px solid var(--border-color);
+}
+
+.o_form_view .o_notebook > .nav-tabs .nav-link.active {
+    color: var(--enterprise-primary);
+    border-bottom: 2px solid var(--enterprise-primary);
+    font-weight: 600;
+}
+
+/* ==================== LIST VIEW ==================== */
+.o_list_view {
+    background-color: var(--card-bg);
+}
+
+.o_list_view thead {
+    background-color: var(--content-bg);
+}
+
+.o_list_view thead th {
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+.o_list_view tbody tr:hover {
+    background-color: rgba(113, 75, 103, 0.05);
+}
+
+.o_list_view tbody tr.o_data_row.o_selected_row {
+    background-color: rgba(113, 75, 103, 0.1);
+}
+
+/* ==================== KANBAN VIEW ==================== */
+.o_kanban_view {
+    background-color: var(--content-bg);
+}
+
+.o_kanban_record {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.o_kanban_record:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.o_kanban_group_header {
+    background-color: var(--content-bg);
+    font-weight: 600;
+}
+
+/* ==================== CHATTER ==================== */
+.o_ChatterContainer {
+    background-color: var(--content-bg);
+}
+
+.o_Message {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+/* ==================== SIDEBAR MENU ==================== */
+.o_menu_sections {
+    display: flex;
+    align-items: center;
+}
+
+/* ==================== DROPDOWN MENUS ==================== */
+.dropdown-menu {
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border-color);
+}
+
+.dropdown-item:hover {
+    background-color: rgba(113, 75, 103, 0.08);
+    color: var(--enterprise-primary);
+}
+
+/* ==================== MODALS ==================== */
+.modal-content {
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    background-color: var(--content-bg);
+    border-radius: 12px 12px 0 0;
+}
+
+/* ==================== SEARCH BAR ==================== */
+.o_searchview {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+}
+
+.o_searchview:focus-within {
+    border-color: var(--enterprise-primary);
+    box-shadow: 0 0 0 3px rgba(113, 75, 103, 0.15);
+}
+
+/* ==================== BADGES & TAGS ==================== */
+.badge {
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.badge-primary,
+.bg-primary {
+    background-color: var(--enterprise-primary) !important;
+}
+
+.o_tag {
+    border-radius: 20px;
+}
+
+/* ==================== STATUSBAR ==================== */
+.o_statusbar_status {
+    background-color: var(--content-bg);
+    border-radius: 20px;
+    padding: 4px;
+}
+
+.o_statusbar_status .o_arrow_button {
+    border-radius: 16px;
+}
+
+.o_statusbar_status .o_arrow_button.btn-primary {
+    background-color: var(--enterprise-primary) !important;
+}
+
+/* ==================== CALENDAR VIEW ==================== */
+.o_calendar_view {
+    background-color: var(--card-bg);
+}
+
+.fc-event {
+    background-color: var(--enterprise-primary) !important;
+    border-color: var(--enterprise-primary) !important;
+    border-radius: 4px;
+}
+
+/* ==================== PIVOT & GRAPH ==================== */
+.o_pivot {
+    background-color: var(--card-bg);
+}
+
+.o_graph_canvas_container {
+    background-color: var(--card-bg);
+}
+
+/* ==================== SCROLLBAR STYLING ==================== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--content-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: #C4C4C4;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #A0A0A0;
+}
+
+/* ==================== LOADING INDICATOR ==================== */
+.o_loading_indicator {
+    background-color: var(--enterprise-primary) !important;
+}
+
+/* ==================== SETTINGS PAGE ==================== */
+.o_base_settings .o_setting_container {
+    background-color: var(--card-bg);
+}
+
+.o_base_settings .o_settings_container .o_setting_box {
+    border-radius: 8px;
+}
+
+/* ==================== ANIMATIONS ==================== */
+.o_kanban_record,
+.btn,
+.dropdown-item,
+.o_form_sheet,
+.modal-content {
+    transition: all 0.2s ease;
+}
+
+/* ==================== UTILITIES ==================== */
+.shadow-enterprise {
+    box-shadow: 0 4px 20px rgba(113, 75, 103, 0.15) !important;
+}
+
+/* ==================== RESPONSIVE ADJUSTMENTS ==================== */
+@media (max-width: 768px) {
+    .o_main_navbar {
+        height: 50px;
+    }
+
+    .o_form_view .o_form_sheet {
+        border-radius: 0;
+        margin: 0;
+    }
+}
+
+/* ==================== DARK MODE SUPPORT ==================== */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --content-bg: #1A1A2E;
+        --card-bg: #16213E;
+        --text-primary: #EAEAEA;
+        --text-secondary: #A0A0A0;
+        --border-color: #2D2D3D;
+    }
+}
