@@ -1073,22 +1073,24 @@ class BizimHesapBackend(models.Model):
             # Benzer isim - güncelle
             partner_id = match['matched_partner']['id']
             partner = self.env['res.partner'].browse(partner_id)
-            
+
             # Şirket partnerlerini güncelleme (res.company koruması)
             company_partners = self.env['res.company'].search([]).mapped('partner_id')
-            if partner.id not in company_partners.ids:
-                if self._vat_match_or_empty(partner, partner_vals.get('vat')):
-                    update_vals = self._get_missing_partner_vals(partner, partner_vals)
-                    if update_vals:
-                        partner.write(update_vals)
-                    self._ensure_authorized_contact(partner, data)
-                else:
-                    _logger.warning(
-                        f"VKN uyuşmadı, partner güncellenmedi: {partner.name}"
-                    )
+            if partner.id in company_partners.ids:
+                # ŞİRKET PARTNERİ - Binding oluşturma, atla
+                _logger.warning(f"Şirket partneri için binding OLUŞTURULMUYOR: {partner.name}")
+                return 'skipped'
+
+            if self._vat_match_or_empty(partner, partner_vals.get('vat')):
+                update_vals = self._get_missing_partner_vals(partner, partner_vals)
+                if update_vals:
+                    partner.with_context(sync_source='bizimhesap').write(update_vals)
+                self._ensure_authorized_contact(partner, data)
             else:
-                _logger.warning(f"Şirket partneri güncellenmedi (korunuyor): {partner.name}")
-            
+                _logger.warning(
+                    f"VKN uyuşmadı, partner güncellenmedi: {partner.name}"
+                )
+
             self.env['bizimhesap.partner.binding'].create({
                 'backend_id': self.id,
                 'external_id': external_id,
