@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class ResPartner(models.Model):
@@ -8,6 +11,67 @@ class ResPartner(models.Model):
     Partner model extension for BizimHesap
     """
     _inherit = 'res.partner'
+
+    # ═══════════════════════════════════════════════════════════════
+    # ŞİRKET PARTNER KORUMASI
+    # Entegrasyonların (BizimHesap, QNB, vb.) şirket verilerini
+    # yanlışlıkla değiştirmesini engeller
+    # ═══════════════════════════════════════════════════════════════
+
+    def write(self, vals):
+        """
+        Şirket partnerlerini entegrasyon güncellemelerinden koru.
+
+        Korunan alanlar (şirket partnerleri için):
+        - name, street, street2, city, zip, country_id, state_id
+        - phone, email, website, vat
+        - comment (notlar)
+
+        İzin verilen alanlar:
+        - bizimhesap_* (bakiye bilgileri)
+        - Odoo sistem alanları
+        """
+        # Şirket partnerlerini bul
+        company_partner_ids = self.env['res.company'].sudo().search([]).mapped('partner_id').ids
+
+        # Korunan alanlar
+        protected_fields = {
+            'name', 'street', 'street2', 'city', 'zip',
+            'country_id', 'state_id', 'phone', 'mobile',
+            'email', 'website', 'vat', 'comment', 'image_1920'
+        }
+
+        # Kontrol: Şirket partneri güncelleniyor mu?
+        for partner in self:
+            if partner.id in company_partner_ids:
+                # Korunan alanlardan biri güncelleniyor mu?
+                protected_updates = set(vals.keys()) & protected_fields
+
+                if protected_updates:
+                    # Güncellemeyi yapan kaynak kontrol et
+                    # Eğer entegrasyon (BizimHesap, QNB, vb.) ise engelle
+                    caller_model = self.env.context.get('active_model', '')
+                    caller_source = self.env.context.get('sync_source', '')
+
+                    # Entegrasyon kaynakları
+                    integration_sources = ['bizimhesap', 'qnb', 'xml_import', 'sync']
+                    is_integration = (
+                        any(src in caller_source.lower() for src in integration_sources) or
+                        any(src in caller_model.lower() for src in integration_sources) or
+                        'binding' in caller_model.lower()
+                    )
+
+                    if is_integration:
+                        _logger.warning(
+                            f"ŞİRKET PARTNER KORUMASI: {partner.name} (ID:{partner.id}) için "
+                            f"entegrasyon güncellemesi engellendi. Kaynak: {caller_source or caller_model}. "
+                            f"Engellenen alanlar: {protected_updates}"
+                        )
+                        # Korunan alanları vals'dan çıkar
+                        for field in protected_updates:
+                            vals.pop(field, None)
+
+        return super().write(vals)
 
     bizimhesap_binding_ids = fields.One2many(
         'bizimhesap.partner.binding',
