@@ -111,6 +111,14 @@ class ResPartner(models.Model):
         formats_info['ubl_tr_qnb'] = {'countries': ['TR']}
         return formats_info
 
+    def _get_suggested_invoice_edi_format(self):
+        """TR partnerleri için otomatik UBL TR QNB formatı öner (Nilvera uyumlu)"""
+        # EXTENDS 'account'
+        res = super()._get_suggested_invoice_edi_format()
+        if self.country_code == 'TR':
+            return 'ubl_tr_qnb'
+        return res
+
     def _check_qnb_customer(self):
         self.ensure_one()
         if not self.vat:
