@@ -1465,26 +1465,34 @@ class BizimHesapBackend(models.Model):
     def _import_product(self, data):
         """
         Tek ürün import et - Protokollerle eşleştirme
-        
+
         Eşleştirme sırası:
         1. Barkod → Kesin eşleşme
         2. Ürün kodu aynı + Barkod farklı → Varyant oluştur
         3. İsim benzerliği ≥%50 → Güncelle
         4. Hiçbiri → Yeni oluştur
+
+        İsim Koruma Politikası:
+        - Mevcut ürünlerde isim güncellenmez (XML birincil kaynak)
+        - Sadece YENİ ürünlerde isim BizimHesap'tan alınır
         """
         external_id = str(data.get('id'))
-        
+
         # Mevcut binding kontrol
         binding = self.env['bizimhesap.product.binding'].search([
             ('backend_id', '=', self.id),
             ('external_id', '=', external_id),
         ], limit=1)
-        
+
+        # Tüm değerleri al
         product_vals = self._map_product_to_odoo(data)
-        
+
+        # Mevcut ürünler için isim güncelleme yapılmaz - XML birincil kaynak
+        update_vals = {k: v for k, v in product_vals.items() if k != 'name'}
+
         if binding:
-            # Mevcut kayıt - güncelle
-            binding.odoo_id.write(product_vals)
+            # Mevcut kayıt - isim HARİÇ güncelle
+            binding.odoo_id.with_context(sync_source='bizimhesap').write(update_vals)
             binding.write({
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
@@ -1511,9 +1519,10 @@ class BizimHesapBackend(models.Model):
         
         if match['match_type'] == 'exact':
             # Kesin eşleşme - barkod ile bulundu
+            # İsim HARİÇ güncelle (XML birincil kaynak)
             product_id = match['matched_product']['id']
             product = self.env['product.product'].browse(product_id)
-            product.write(product_vals)
+            product.with_context(sync_source='bizimhesap').write(update_vals)
             
             self.env['bizimhesap.product.binding'].create({
                 'backend_id': self.id,
@@ -1537,14 +1546,14 @@ class BizimHesapBackend(models.Model):
             ], limit=1)
             
             if existing_product:
-                # Mevcut ürünü güncelle
-                existing_product.write(product_vals)
+                # Mevcut ürünü güncelle - isim HARİÇ (XML birincil kaynak)
+                existing_product.with_context(sync_source='bizimhesap').write(update_vals)
                 product = existing_product
                 _logger.info(f"Mevcut varyant güncellendi: {data.get('title')} (Barkod: {data.get('barcode')})")
             else:
-                # Yeni oluştur (combination_indices olmadan)
+                # Yeni oluştur (combination_indices olmadan) - isim DAHİL
                 product_vals['product_tmpl_id'] = template_id
-                product = self.env['product.product'].create(product_vals)
+                product = self.env['product.product'].with_context(sync_source='bizimhesap').create(product_vals)
                 _logger.info(f"Varyant oluşturuldu: {data.get('title')} (Barkod: {data.get('barcode')})")
             
             # Binding kontrolü - duplicate önle
@@ -1570,10 +1579,10 @@ class BizimHesapBackend(models.Model):
             return 'updated'
         
         elif match['match_type'] == 'similar':
-            # Benzer isim - güncelle
+            # Benzer isim - isim HARİÇ güncelle (XML birincil kaynak)
             product_id = match['matched_product']['id']
             product = self.env['product.product'].browse(product_id)
-            product.write(product_vals)
+            product.with_context(sync_source='bizimhesap').write(update_vals)
             
             self.env['bizimhesap.product.binding'].create({
                 'backend_id': self.id,
@@ -1586,8 +1595,8 @@ class BizimHesapBackend(models.Model):
             return 'updated'
         
         else:
-            # Yeni ürün oluştur
-            product = self.env['product.product'].create(product_vals)
+            # Yeni ürün oluştur - isim DAHİL (ilk kez)
+            product = self.env['product.product'].with_context(sync_source='bizimhesap').create(product_vals)
             
             self.env['bizimhesap.product.binding'].create({
                 'backend_id': self.id,

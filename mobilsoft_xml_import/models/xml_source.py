@@ -309,9 +309,8 @@ class XmlProductSource(models.Model):
         help='XML\'de kategori yoksa veya bulunamazsa kullanılacak kategori',
     )
     default_product_type = fields.Selection([
-        ('consu', 'Sarf Malzemesi'),
+        ('consu', 'Stoklanan Ürün'),  # Odoo 19: 'product' -> 'consu'
         ('service', 'Hizmet'),
-        ('product', 'Stoklanan Ürün'),
     ], string='Varsayılan Ürün Tipi', default='consu')
 
     # ══════════════════════════════════════════════════════════════════════════
