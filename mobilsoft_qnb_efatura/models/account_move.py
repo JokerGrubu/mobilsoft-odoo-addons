@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import uuid
+import base64
+from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 
 from odoo import models, fields, api, _
@@ -241,6 +243,12 @@ class AccountMove(models.Model):
             ('company_id', '=', company.id),
         ], limit=1)
 
+    def _qnb_get_sale_journal(self, company):
+        return self.env['account.journal'].search([
+            ('type', '=', 'sale'),
+            ('company_id', '=', company.id),
+        ], limit=1)
+
     def _qnb_get_last_fetch_date(self, company):
         param_key = f"qnb_incoming_last_fetch_date.{company.id}"
         last_fetched_date = self.env['ir.config_parameter'].sudo().get_param(param_key)
@@ -252,6 +260,145 @@ class AccountMove(models.Model):
     def _qnb_set_last_fetch_date(self, company, value):
         param_key = f"qnb_incoming_last_fetch_date.{company.id}"
         self.env['ir.config_parameter'].sudo().set_param(param_key, value)
+
+    def _qnb_get_outgoing_last_fetch_date(self, company):
+        param_key = f"qnb_outgoing_last_fetch_date.{company.id}"
+        last_fetched_date = self.env['ir.config_parameter'].sudo().get_param(param_key)
+        if not last_fetched_date:
+            last_fetched_date = (fields.Date.today() - relativedelta(months=1)).strftime("%Y-%m-%d")
+            self.env['ir.config_parameter'].sudo().set_param(param_key, last_fetched_date)
+        return fields.Date.from_string(last_fetched_date)
+
+    def _qnb_set_outgoing_last_fetch_date(self, company, value):
+        param_key = f"qnb_outgoing_last_fetch_date.{company.id}"
+        if not isinstance(value, str):
+            value = fields.Date.to_string(value)
+        self.env['ir.config_parameter'].sudo().set_param(param_key, value)
+
+    def _qnb_find_or_create_partner_from_data(self, company, partner_data, fallback_data, is_einvoice):
+        Partner = self.env['res.partner']
+        match_by = company.qnb_match_partner_by or 'vat'
+        create_new = company.qnb_create_new_partner
+
+        vat = (partner_data.get('vat') or fallback_data.get('vat') or '').strip()
+        name = (partner_data.get('name') or fallback_data.get('name') or '').strip()
+        email = (partner_data.get('email') or '').strip()
+        phone = (partner_data.get('phone') or '').strip()
+
+        partner = None
+        if vat and match_by in ('vat', 'both'):
+            vat_number = vat if str(vat).upper().startswith('TR') else f"TR{vat}"
+            partner = Partner.search([
+                ('vat', 'ilike', vat_number),
+                '|',
+                ('company_id', '=', company.id),
+                ('company_id', '=', False)
+            ], limit=1)
+
+        if not partner and name and match_by in ('name', 'both'):
+            partner = Partner.search([
+                ('name', 'ilike', name),
+                '|',
+                ('company_id', '=', company.id),
+                ('company_id', '=', False)
+            ], limit=1)
+
+        if partner:
+            return partner
+
+        if create_new and (vat or name):
+            vat_number = vat if str(vat).upper().startswith('TR') else (f"TR{vat}" if vat else False)
+            create_vals = {
+                'name': name or (f'Firma {vat}' if vat else 'Firma'),
+                'vat': vat_number,
+                'is_company': True,
+                'customer_rank': 1,
+                'is_efatura_registered': True if is_einvoice and vat else False,
+            }
+            if vat:
+                create_vals['qnb_partner_vkn'] = vat.replace('TR', '').replace(' ', '').replace('-', '')
+            if email:
+                create_vals['email'] = email
+            if phone:
+                create_vals['phone'] = phone
+            return Partner.create(create_vals)
+
+        return False
+
+    def _qnb_find_or_create_product_from_line(self, company, line_data):
+        Product = self.env['product.product']
+        create_new = company.qnb_create_new_product
+
+        product_code = (line_data.get('product_code') or '').strip()
+        product_name = (line_data.get('product_name') or line_data.get('product_description') or '').strip()
+        barcode = (line_data.get('barcode') or '').strip()
+
+        if product_code:
+            product = Product.search([('qnb_product_code', '=', product_code)], limit=1)
+            if product:
+                return product
+            product = Product.search([('default_code', '=', product_code)], limit=1)
+            if product:
+                return product
+
+        if barcode:
+            product = Product.search([('barcode', '=', barcode)], limit=1)
+            if product:
+                return product
+
+        if product_name:
+            product = Product.search([('name', '=', product_name)], limit=1)
+            if product:
+                return product
+            product = Product.search([('name', 'ilike', product_name)], limit=1)
+            if product:
+                return product
+
+        if create_new and product_name:
+            vals = {
+                'name': product_name,
+                'sale_ok': True,
+                'purchase_ok': False,
+            }
+            if product_code:
+                vals['default_code'] = product_code
+                vals['qnb_product_code'] = product_code
+            if barcode:
+                vals['barcode'] = barcode
+            return Product.create(vals)
+
+        return False
+
+    def _qnb_find_tax(self, company, tax_percent):
+        if not tax_percent:
+            return False
+        return self.env['account.tax'].search([
+            ('type_tax_use', '=', 'sale'),
+            ('amount', '=', tax_percent),
+            ('company_id', '=', company.id)
+        ], limit=1)
+
+    def _qnb_normalize_xml_bytes(self, payload):
+        if not payload:
+            return None
+        xml_bytes = payload
+        if isinstance(payload, str):
+            try:
+                decoded = base64.b64decode(payload, validate=True)
+                if decoded.strip().startswith((b'<', b'PK')):
+                    xml_bytes = decoded
+                else:
+                    xml_bytes = payload.encode('utf-8')
+            except Exception:
+                xml_bytes = payload.encode('utf-8')
+        elif isinstance(payload, (bytes, bytearray)):
+            try:
+                decoded = base64.b64decode(payload, validate=True)
+                if decoded.strip().startswith((b'<', b'PK')):
+                    xml_bytes = decoded
+            except Exception:
+                xml_bytes = payload
+        return xml_bytes
 
     def _qnb_fetch_incoming_documents(self):
         company = self.env.company
@@ -301,6 +448,129 @@ class AccountMove(models.Model):
 
         self._qnb_set_last_fetch_date(company, end_date)
 
+    def _qnb_fetch_outgoing_documents(self):
+        company = self.env.company
+        api_client = self.env['qnb.api.client']
+        start_date = self._qnb_get_outgoing_last_fetch_date(company)
+        end_date = fields.Date.today()
+
+        journal = self._qnb_get_sale_journal(company)
+        if not journal:
+            return
+
+        doc_types = []
+        if company.qnb_efatura_enabled or company.qnb_earsiv_enabled:
+            doc_types.append('FATURA_UBL')
+
+        for doc_type in doc_types:
+            current_start = start_date
+            while current_start <= end_date:
+                current_end = min(current_start + timedelta(days=89), end_date)
+                result = api_client.get_outgoing_documents(current_start, current_end, document_type=doc_type, company=company)
+                if not result.get('success'):
+                    current_start = current_end + timedelta(days=1)
+                    continue
+
+                for doc in result.get('documents', []):
+                    ettn = doc.get('ettn')
+                    if not ettn:
+                        continue
+                    if self.search_count([('qnb_ettn', '=', ettn), ('company_id', '=', company.id)]) > 0:
+                        continue
+
+                    download_type = doc_type.replace('_UBL', '') if isinstance(doc_type, str) else doc_type
+                    download = api_client.download_outgoing_document(ettn, document_type=download_type, company=company, format_type='UBL')
+                    if not download.get('success'):
+                        continue
+
+                    xml_bytes = self._qnb_normalize_xml_bytes(download.get('content'))
+                    if not xml_bytes:
+                        continue
+
+                    parsed = self.env['qnb.document']._parse_invoice_xml_full(xml_bytes, direction='outgoing')
+                    partner_data = parsed.get('partner') or {}
+                    fallback = {
+                        'vat': (doc.get('recipient_vkn') or doc.get('receiver_vkn') or '').strip(),
+                        'name': (doc.get('recipient_title') or doc.get('receiver_title') or '').strip(),
+                    }
+                    profile = (parsed.get('document_info') or {}).get('profile') or ''
+                    is_einvoice = str(profile).upper() != 'EARSIVFATURA'
+                    partner = self._qnb_find_or_create_partner_from_data(company, partner_data, fallback, is_einvoice)
+                    if not partner:
+                        continue
+
+                    invoice_lines = []
+                    for line in (parsed.get('lines') or []):
+                        product = self._qnb_find_or_create_product_from_line(company, line)
+                        qty = line.get('quantity') or 1.0
+                        unit_price = line.get('unit_price')
+                        if not unit_price and line.get('line_total') and qty:
+                            unit_price = float(line.get('line_total')) / float(qty)
+
+                        line_vals = {
+                            'name': line.get('product_description') or line.get('product_name') or (product.name if product else 'Ürün'),
+                            'quantity': qty,
+                            'price_unit': unit_price or 0.0,
+                        }
+                        if product:
+                            line_vals['product_id'] = product.id
+
+                        tax = self._qnb_find_tax(company, line.get('tax_percent'))
+                        if tax:
+                            line_vals['tax_ids'] = [(6, 0, [tax.id])]
+
+                        invoice_lines.append((0, 0, line_vals))
+
+                    if not invoice_lines:
+                        total_amount = doc.get('total') or (parsed.get('amounts') or {}).get('total') or 0.0
+                        invoice_lines.append((0, 0, {
+                            'name': doc.get('belge_no') or (parsed.get('document_info') or {}).get('invoice_id') or 'QNB Fatura',
+                            'quantity': 1.0,
+                            'price_unit': float(total_amount or 0.0),
+                        }))
+
+                    doc_date = None
+                    doc_info = parsed.get('document_info') or {}
+                    doc_date_raw = doc_info.get('issue_date') or doc.get('date')
+                    if doc_date_raw:
+                        try:
+                            if isinstance(doc_date_raw, str) and len(doc_date_raw) == 8:
+                                doc_date_raw = f"{doc_date_raw[:4]}-{doc_date_raw[4:6]}-{doc_date_raw[6:8]}"
+                            doc_date = fields.Date.from_string(doc_date_raw)
+                        except Exception:
+                            doc_date = fields.Date.today()
+
+                    currency_name = (doc_info.get('currency') or doc.get('currency') or 'TRY')
+                    currency = self.env['res.currency'].search([('name', '=', currency_name)], limit=1)
+
+                    move = self.env['account.move'].create({
+                        'move_type': 'out_invoice',
+                        'partner_id': partner.id,
+                        'invoice_date': doc_date or fields.Date.today(),
+                        'ref': doc.get('belge_no') or doc_info.get('invoice_id') or ettn,
+                        'company_id': company.id,
+                        'currency_id': currency.id if currency else company.currency_id.id,
+                        'invoice_line_ids': invoice_lines,
+                        'qnb_ettn': ettn,
+                        'qnb_state': 'sent',
+                        'qnb_uuid': doc_info.get('uuid') or False,
+                        'journal_id': journal.id,
+                    })
+
+                    attachment = self.env['ir.attachment'].create({
+                        'name': f'{ettn}.xml',
+                        'res_id': move.id,
+                        'res_model': 'account.move',
+                        'raw': xml_bytes,
+                        'type': 'binary',
+                        'mimetype': 'application/xml',
+                    })
+                    move.message_post(body=_("QNB giden e-Belge içe aktarıldı."), attachment_ids=attachment.ids)
+
+                current_start = current_end + timedelta(days=1)
+
+        self._qnb_set_outgoing_last_fetch_date(company, end_date)
+
     def _cron_qnb_get_new_incoming_documents(self):
         companies = self.env['res.company'].search([
             ('qnb_enabled', '=', True),
@@ -332,6 +602,8 @@ class AccountMove(models.Model):
         ])
         if not companies:
             return
+        for company in companies:
+            self.with_company(company)._qnb_fetch_outgoing_documents()
         invoices = self.search([
             ('qnb_state', 'in', ['sent', 'delivered', 'accepted']),
             ('qnb_ettn', '!=', False),
