@@ -8,6 +8,8 @@ import base64
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
+    invoice_edi_format = fields.Selection(selection_add=[('ubl_tr_qnb', "Türkiye (UBL TR 1.2 - QNB)")])
+
     # e-Fatura Bilgileri
     company_currency_id = fields.Many2one(
         related='company_id.currency_id',
@@ -35,6 +37,18 @@ class ResPartner(models.Model):
     efatura_last_check = fields.Datetime(
         string='Son Kontrol Tarihi',
         help='e-Fatura kaydı son kontrol edilme tarihi'
+    )
+    qnb_customer_status = fields.Selection(
+        selection=[
+            ('not_checked', "Not Verified"),
+            ('earchive', "E-Archive"),
+            ('einvoice', "E-Invoice"),
+        ],
+        string="QNB Durum",
+        copy=False,
+        default='not_checked',
+        readonly=True,
+        tracking=True,
     )
 
     balance_2025_receivable = fields.Monetary(
@@ -87,6 +101,49 @@ class ResPartner(models.Model):
             else:
                 partner.invoice_send_method = 'manual'
 
+    def _get_edi_builder(self, invoice_edi_format):
+        if invoice_edi_format == 'ubl_tr_qnb':
+            return self.env['account.edi.xml.ubl.tr.qnb']
+        return super()._get_edi_builder(invoice_edi_format)
+
+    def _get_ubl_cii_formats_info(self):
+        formats_info = super()._get_ubl_cii_formats_info()
+        formats_info['ubl_tr_qnb'] = {'countries': ['TR']}
+        return formats_info
+
+    def _check_qnb_customer(self):
+        self.ensure_one()
+        if not self.vat:
+            self.qnb_customer_status = 'not_checked'
+            return False
+
+        vkn = ''.join(filter(str.isdigit, self.vat))
+        if not vkn:
+            self.qnb_customer_status = 'not_checked'
+            return False
+
+        api_client = self.env['qnb.api.client']
+        result = api_client.check_registered_user(vkn)
+
+        if result.get('success') and result.get('users'):
+            user = result['users'][0]
+            self.write({
+                'is_efatura_registered': True,
+                'efatura_alias': user.get('alias', ''),
+                'efatura_registration_date': user.get('first_creation_time', False),
+                'efatura_last_check': fields.Datetime.now(),
+                'qnb_customer_status': 'einvoice',
+            })
+            return True
+
+        self.write({
+            'is_efatura_registered': False,
+            'efatura_alias': False,
+            'efatura_last_check': fields.Datetime.now(),
+            'qnb_customer_status': 'earchive' if self.vat else 'not_checked',
+        })
+        return False
+
     def action_check_efatura_status(self):
         """e-Fatura kayıt durumunu kontrol et"""
         self.ensure_one()
@@ -94,37 +151,11 @@ class ResPartner(models.Model):
         if not self.vat:
             raise UserError(_("VKN/TCKN bilgisi girilmemiş!"))
 
-        # VKN'den sadece rakamları al
-        vkn = ''.join(filter(str.isdigit, self.vat))
-
-        api_client = self.env['qnb.api.client']
-        result = api_client.check_registered_user(vkn)
-
-        if result.get('success') and result.get('users'):
-            users = result['users']
-            if users:
-                user = users[0]
-                self.write({
-                    'is_efatura_registered': True,
-                    'efatura_alias': user.get('alias', ''),
-                    'efatura_registration_date': user.get('first_creation_time', False),
-                    'efatura_last_check': fields.Datetime.now()
-                })
-                message = f"✅ {self.name} e-Fatura sistemine kayıtlı!\nPosta Kutusu: {user.get('alias', '-')}"
-            else:
-                self.write({
-                    'is_efatura_registered': False,
-                    'efatura_alias': False,
-                    'efatura_last_check': fields.Datetime.now()
-                })
-                message = f"ℹ️ {self.name} e-Fatura sistemine kayıtlı değil."
+        result = self._check_qnb_customer()
+        if result:
+            message = f"✅ {self.name} e-Fatura sistemine kayıtlı!\nPosta Kutusu: {self.efatura_alias or '-'}"
         else:
-            self.write({
-                'is_efatura_registered': False,
-                'efatura_alias': False,
-                'efatura_last_check': fields.Datetime.now()
-            })
-            message = result.get('message', 'Kayıtlı kullanıcı bulunamadı')
+            message = f"ℹ️ {self.name} e-Fatura sistemine kayıtlı değil."
 
         return {
             'type': 'ir.actions.client',
