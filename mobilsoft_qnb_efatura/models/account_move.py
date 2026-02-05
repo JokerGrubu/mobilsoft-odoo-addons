@@ -627,7 +627,7 @@ class AccountMove(models.Model):
         if not companies:
             return
         for company in companies:
-            self.with_company(company)._qnb_fetch_outgoing_documents(batch_size=30)
+            self.with_company(company)._qnb_fetch_outgoing_documents(batch_size=3)
         invoices = self.search([
             ('qnb_state', 'in', ['sent', 'delivered', 'accepted']),
             ('qnb_ettn', '!=', False),
