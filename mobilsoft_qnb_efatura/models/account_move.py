@@ -100,11 +100,55 @@ class AccountMove(models.Model):
     def cron_check_qnb_status(self):
         return self._cron_qnb_get_invoice_status()
 
+    def _get_import_file_type(self, file_data):
+        """QNB UBL-TR dosyalarını tanımla (Nilvera uyumlu)"""
+        # EXTENDS 'account'
+        if (
+            file_data['xml_tree'] is not None
+            and (customization_id := file_data['xml_tree'].findtext('{*}CustomizationID'))
+            and 'TR1.2' in customization_id
+        ):
+            return 'account.edi.xml.ubl.tr.qnb'
+        return super()._get_import_file_type(file_data)
+
+    @api.model
+    def _get_ubl_cii_builder_from_xml_tree(self, tree):
+        """XML ağacından UBL builder seç (Nilvera uyumlu)"""
+        customization_id = tree.find('{*}CustomizationID')
+        if customization_id is not None and 'TR1.2' in customization_id.text:
+            return self.env['account.edi.xml.ubl.tr.qnb']
+        return super()._get_ubl_cii_builder_from_xml_tree(tree)
+
+    def button_draft(self):
+        """Gönderilmiş faturanın draft yapılmasını engelle (Nilvera uyumlu)"""
+        # EXTENDS account
+        for move in self.filtered('qnb_uuid'):
+            if move.qnb_state == 'error':
+                move.message_post(body=_(
+                    "Muhasebe bütünlüğünü korumak ve yasal gerekliliklere uymak için, "
+                    "hata oluşan faturalar yeniden kullanılamaz. Lütfen yeni bir fatura oluşturun."
+                ))
+            elif move.qnb_state != 'not_sent':
+                raise UserError(_(
+                    "QNB'ye gönderilmiş bir faturayı taslak durumuna döndüremezsiniz."
+                ))
+        return super().button_draft()
+
     def _post(self, soft=True):
         for move in self:
+            # Hatalı durumda yeniden onaylamayı engelle (Nilvera uyumlu)
+            if move.qnb_state == 'error' and move.qnb_uuid:
+                raise UserError(_(
+                    "Muhasebe bütünlüğünü korumak ve yasal gerekliliklere uymak için, "
+                    "hata oluşan faturalar yeniden kullanılamaz. Lütfen yeni bir fatura oluşturun."
+                ))
             if move.country_code == 'TR' and not move.qnb_uuid:
                 move.qnb_uuid = str(uuid.uuid4())
         return super()._post(soft=soft)
+
+    def _qnb_types_to_update_status(self):
+        """Durum güncellemesi yapılacak fatura türleri"""
+        return ['out_invoice', 'out_refund', 'in_invoice', 'in_refund']
 
     def _qnb_check_negative_lines(self):
         return any(
