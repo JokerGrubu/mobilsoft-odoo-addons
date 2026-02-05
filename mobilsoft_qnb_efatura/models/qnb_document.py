@@ -2275,9 +2275,27 @@ class QnbDocument(models.Model):
         }
 
     def _find_or_create_partner(self, doc_data, company):
-        """Partneri bul veya oluştur"""
+        """
+        Partneri bul veya oluştur
+
+        Eşleştirme kriteri: company.qnb_match_partner_by
+        - 'vat': VKN/TCKN ile eşleştir
+        - 'name': İsim ile eşleştir
+        - 'both': VKN + İsim ile eşleştir
+
+        Yeni oluşturma: company.qnb_create_new_partner
+        - True: Bulunamazsa yeni partner oluştur
+        - False: Sadece mevcut partnerleri eşleştir, oluşturma
+        """
         vat = doc_data.get('sender_vat') or doc_data.get('sender_vkn') or ''
-        if vat:
+        name = doc_data.get('sender_name') or doc_data.get('sender_title') or ''
+        match_by = company.qnb_match_partner_by or 'vat'
+        create_new = company.qnb_create_new_partner
+
+        partner = None
+
+        # VKN ile eşleştir
+        if vat and match_by in ('vat', 'both'):
             vat_number = vat if str(vat).upper().startswith('TR') else f"TR{vat}"
             partner = self.env['res.partner'].search([
                 ('vat', 'ilike', vat_number),
@@ -2286,12 +2304,23 @@ class QnbDocument(models.Model):
                 ('company_id', '=', False)
             ], limit=1)
 
-            if partner:
-                return partner.id
+        # İsim ile eşleştir (VKN bulunamadıysa veya match_by = 'name' veya 'both')
+        if not partner and name and match_by in ('name', 'both'):
+            partner = self.env['res.partner'].search([
+                ('name', 'ilike', name),
+                '|',
+                ('company_id', '=', company.id),
+                ('company_id', '=', False)
+            ], limit=1)
 
-            # Yeni partner oluştur
+        if partner:
+            return partner.id
+
+        # Yeni partner oluştur (ayar aktifse)
+        if create_new and vat:
+            vat_number = vat if str(vat).upper().startswith('TR') else f"TR{vat}"
             return self.env['res.partner'].create({
-                'name': doc_data.get('sender_name') or doc_data.get('sender_title') or f'Firma {vat}',
+                'name': name or f'Firma {vat}',
                 'vat': vat_number,
                 'is_company': True,
                 'is_efatura_registered': True,

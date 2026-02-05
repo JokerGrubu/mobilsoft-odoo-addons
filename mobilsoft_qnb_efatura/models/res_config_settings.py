@@ -95,6 +95,33 @@ class ResConfigSettings(models.TransientModel):
         readonly=False
     )
 
+    # Senkronizasyon Ayarları
+    qnb_create_new_partner = fields.Boolean(
+        related='company_id.qnb_create_new_partner',
+        readonly=False,
+        string='Yeni Partner Oluştur'
+    )
+    qnb_match_partner_by = fields.Selection(
+        related='company_id.qnb_match_partner_by',
+        readonly=False,
+        string='Partner Eşleştirme Kriteri'
+    )
+    qnb_create_new_product = fields.Boolean(
+        related='company_id.qnb_create_new_product',
+        readonly=False,
+        string='Yeni Ürün Oluştur'
+    )
+    qnb_match_product_by = fields.Selection(
+        related='company_id.qnb_match_product_by',
+        readonly=False,
+        string='Ürün Eşleştirme Kriteri'
+    )
+    qnb_match_invoice_by = fields.Selection(
+        related='company_id.qnb_match_invoice_by',
+        readonly=False,
+        string='Fatura Eşleştirme Kriteri'
+    )
+
     def action_test_qnb_connection(self):
         """QNB e-Solutions bağlantı testi"""
         self.ensure_one()

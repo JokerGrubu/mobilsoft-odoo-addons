@@ -110,6 +110,43 @@ class ResCompany(models.Model):
         help='Varsayılan gönderici etiketi'
     )
 
+    # ==================== SENKRONIZASYON AYARLARI ====================
+    # Partner Eşleştirme
+    qnb_create_new_partner = fields.Boolean(
+        string='Yeni Partner Oluştur',
+        default=False,
+        help='QNB faturalarında bulunamayan partnerler için yeni kayıt oluştur. '
+             'Kapalıysa sadece mevcut partnerler güncellenir.'
+    )
+    qnb_match_partner_by = fields.Selection([
+        ('vat', 'VKN/TCKN (Vergi Kimlik No)'),
+        ('name', 'İsim'),
+        ('both', 'VKN + İsim'),
+    ], string='Partner Eşleştirme Kriteri', default='vat',
+        help='QNB belgelerindeki partnerlerin Odoo\'daki kayıtlarla nasıl eşleştirileceği')
+
+    # Ürün Eşleştirme
+    qnb_create_new_product = fields.Boolean(
+        string='Yeni Ürün Oluştur',
+        default=False,
+        help='QNB fatura satırlarında bulunamayan ürünler için yeni kayıt oluştur. '
+             'Kapalıysa sadece mevcut ürünler güncellenir.'
+    )
+    qnb_match_product_by = fields.Selection([
+        ('barcode', 'Barkod'),
+        ('default_code', 'Ürün Kodu'),
+        ('name', 'Ürün Adı'),
+    ], string='Ürün Eşleştirme Kriteri', default='barcode',
+        help='QNB fatura satırlarındaki ürünlerin Odoo\'daki kayıtlarla nasıl eşleştirileceği')
+
+    # Fatura Eşleştirme
+    qnb_match_invoice_by = fields.Selection([
+        ('invoice_number', 'Fatura Numarası'),
+        ('amount_date', 'Tutar + Tarih'),
+        ('partner_amount_date', 'Partner + Tutar + Tarih'),
+    ], string='Fatura Eşleştirme Kriteri', default='invoice_number',
+        help='QNB belgelerinin Odoo\'daki account.move kayıtlarıyla nasıl eşleştirileceği')
+
     @api.model
     def _cron_check_credit_alert(self):
         """Kontör uyarı kontrolü (Cron Job)"""
