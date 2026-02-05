@@ -134,7 +134,22 @@ class BizimHesapBackend(models.Model):
         string='Token Geçerlilik',
         readonly=True,
     )
-    
+
+    # ═══════════════════════════════════════════════════════════════
+    # TEDARİKÇİ FİYAT AYARLARI
+    # ═══════════════════════════════════════════════════════════════
+
+    supplier_currency_rate = fields.Float(
+        string='Tedarikçi Kur (USD→TRY)',
+        default=38.0,
+        help='BizimHesap buyingPrice USD cinsinden - TRY\'ye çevirmek için kur',
+    )
+    sync_supplier_price = fields.Boolean(
+        string='Tedarikçi Fiyatı Senkronize Et',
+        default=True,
+        help='BizimHesap buyingPrice → Odoo xml_supplier_price',
+    )
+
     # ═══════════════════════════════════════════════════════════════
     # BAĞLANTI DURUMU
     # ═══════════════════════════════════════════════════════════════
@@ -1683,7 +1698,16 @@ class BizimHesapBackend(models.Model):
             if category:
                 notes.append(f"Kategori: {category}")
             vals['description_purchase'] = '\n'.join(notes)
-        
+
+        # Tedarikçi fiyatı (USD → TRY dönüşümü)
+        if self.sync_supplier_price:
+            buying_price = float(data.get('buyingPrice', 0) or 0)
+            if buying_price > 0:
+                # BizimHesap buyingPrice muhtemelen USD - TRY'ye çevir
+                supplier_price_try = buying_price * self.supplier_currency_rate
+                vals['xml_supplier_price'] = supplier_price_try
+                _logger.debug(f"Tedarikçi fiyatı: {buying_price} USD × {self.supplier_currency_rate} = {supplier_price_try} TRY")
+
         return vals
     
     def action_sync_invoices(self):
