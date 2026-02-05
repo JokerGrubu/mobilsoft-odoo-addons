@@ -186,10 +186,14 @@ class QnbApiClient(models.AbstractModel):
             required_ops = [
                 'belgeGonderExt',
                 'gidenBelgeDurumSorgula',
-                'kayitliKullaniciListele'
+            ]
+            user_ops = [
+                'kayitliKullaniciListele',
+                'kayitliKullaniciListeleExtended',
             ]
 
             missing_ops = [op for op in required_ops if op not in operations]
+            has_user_op = any(op in operations for op in user_ops)
 
             result = {
                 'success': True,
@@ -198,11 +202,13 @@ class QnbApiClient(models.AbstractModel):
                 'services': services,
                 'total_operations': len(operations),
                 'available_operations': sorted(operations),
-                'required_operations_found': len(required_ops) - len(missing_ops) == len(required_ops)
+                'required_operations_found': not missing_ops and has_user_op
             }
 
             if missing_ops:
                 result['warning'] = f'⚠️ Gerekli metodlardan {len(missing_ops)} tanesinden biri eksik: {", ".join(missing_ops)}'
+            if not has_user_op:
+                result['warning'] = (result.get('warning', '') + ' ⚠️ Kayıtlı kullanıcı sorgulama metodu bulunamadı.').strip()
 
             return result
 
@@ -227,16 +233,29 @@ class QnbApiClient(models.AbstractModel):
         client, history = self._get_client(company)
 
         try:
-            result = client.service.kayitliKullaniciListele(
-                parametreler={
-                    'urun': 'EFATURA',
-                    'vknTckn': vkn_tckn
-                }
-            )
+            if hasattr(client.service, 'kayitliKullaniciListele'):
+                result = client.service.kayitliKullaniciListele(
+                    parametreler={
+                        'urun': 'EFATURA',
+                        'vknTckn': vkn_tckn
+                    }
+                )
+            elif hasattr(client.service, 'kayitliKullaniciListeleExtended'):
+                result = client.service.kayitliKullaniciListeleExtended(
+                    parametreler={
+                        'urun': 'EFATURA',
+                        'vknTckn': vkn_tckn,
+                        'gecmisEklensin': '1',
+                    }
+                )
+            else:
+                return {'success': False, 'message': 'Kayıtlı kullanıcı sorgulama metodu bulunamadı'}
 
             if result:
                 # Sonucu parse et
                 users = []
+                if not isinstance(result, list):
+                    result = [result]
                 for user in result:
                     users.append({
                         'vkn_tckn': user.get('vknTckn', ''),
