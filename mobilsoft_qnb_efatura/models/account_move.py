@@ -448,7 +448,7 @@ class AccountMove(models.Model):
 
         self._qnb_set_last_fetch_date(company, end_date)
 
-    def _qnb_fetch_outgoing_documents(self):
+    def _qnb_fetch_outgoing_documents(self, batch_size=50):
         company = self.env.company
         api_client = self.env['qnb.api.client']
         start_date = self._qnb_get_outgoing_last_fetch_date(company)
@@ -462,6 +462,9 @@ class AccountMove(models.Model):
         if company.qnb_efatura_enabled or company.qnb_earsiv_enabled:
             doc_types.append('FATURA_UBL')
 
+        processed = 0
+        last_processed_date = None
+
         for doc_type in doc_types:
             current_start = start_date
             while current_start <= end_date:
@@ -471,7 +474,13 @@ class AccountMove(models.Model):
                     current_start = current_end + timedelta(days=1)
                     continue
 
-                for doc in result.get('documents', []):
+                documents = result.get('documents', []) or []
+                def _doc_date_key(d):
+                    raw = d.get('date') or ''
+                    return raw
+                documents = sorted(documents, key=_doc_date_key)
+
+                for doc in documents:
                     ettn = doc.get('ettn')
                     if not ettn:
                         continue
@@ -567,9 +576,24 @@ class AccountMove(models.Model):
                     })
                     move.message_post(body=_("QNB giden e-Belge içe aktarıldı."), attachment_ids=attachment.ids)
 
+                    processed += 1
+                    if doc_date:
+                        last_processed_date = doc_date
+                    if processed >= batch_size:
+                        break
+
+                if processed >= batch_size:
+                    break
+
                 current_start = current_end + timedelta(days=1)
 
-        self._qnb_set_outgoing_last_fetch_date(company, end_date)
+            if processed >= batch_size:
+                break
+
+        if last_processed_date:
+            self._qnb_set_outgoing_last_fetch_date(company, last_processed_date)
+        else:
+            self._qnb_set_outgoing_last_fetch_date(company, end_date)
 
     def _cron_qnb_get_new_incoming_documents(self):
         companies = self.env['res.company'].search([
@@ -603,7 +627,7 @@ class AccountMove(models.Model):
         if not companies:
             return
         for company in companies:
-            self.with_company(company)._qnb_fetch_outgoing_documents()
+            self.with_company(company)._qnb_fetch_outgoing_documents(batch_size=30)
         invoices = self.search([
             ('qnb_state', 'in', ['sent', 'delivered', 'accepted']),
             ('qnb_ettn', '!=', False),

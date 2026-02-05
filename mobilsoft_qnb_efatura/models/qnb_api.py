@@ -241,13 +241,18 @@ class QnbApiClient(models.AbstractModel):
                     }
                 )
             elif hasattr(client.service, 'kayitliKullaniciListeleExtended'):
-                result = client.service.kayitliKullaniciListeleExtended(
-                    parametreler={
-                        'urun': 'EFATURA',
-                        'vknTckn': vkn_tckn,
-                        'gecmisEklensin': '1',
-                    }
-                )
+                try:
+                    result = client.service.kayitliKullaniciListeleExtended(
+                        urun='EFATURA',
+                        gecmisEklensin=1
+                    )
+                except Exception:
+                    result = client.service.kayitliKullaniciListeleExtended(
+                        parametreler={
+                            'urun': 'EFATURA',
+                            'gecmisEklensin': '1',
+                        }
+                    )
             else:
                 return {'success': False, 'message': 'Kayıtlı kullanıcı sorgulama metodu bulunamadı'}
 
@@ -257,13 +262,15 @@ class QnbApiClient(models.AbstractModel):
                 if not isinstance(result, list):
                     result = [result]
                 for user in result:
-                    users.append({
+                    user_dict = {
                         'vkn_tckn': user.get('vknTckn', ''),
                         'title': user.get('unvan', ''),
                         'alias': user.get('etiket', ''),
                         'first_creation_time': user.get('ilkOlusturmaZamani', ''),
                         'alias_creation_time': user.get('etiketOlusturmaZamani', ''),
-                    })
+                    }
+                    if not vkn_tckn or user_dict.get('vkn_tckn') == vkn_tckn:
+                        users.append(user_dict)
                 return {'success': True, 'users': users}
             return {'success': False, 'message': 'Kayıtlı kullanıcı bulunamadı'}
 
@@ -280,12 +287,18 @@ class QnbApiClient(models.AbstractModel):
         client, history = self._get_client(company)
 
         try:
-            result = client.service.kayitliKullaniciListeleExtended(
-                parametreler={
-                    'urun': 'EFATURA',
-                    'gecmisEklensin': '1'
-                }
-            )
+            try:
+                result = client.service.kayitliKullaniciListeleExtended(
+                    urun='EFATURA',
+                    gecmisEklensin=1
+                )
+            except Exception:
+                result = client.service.kayitliKullaniciListeleExtended(
+                    parametreler={
+                        'urun': 'EFATURA',
+                        'gecmisEklensin': '1'
+                    }
+                )
 
             if result:
                 return {'success': True, 'data': result}
