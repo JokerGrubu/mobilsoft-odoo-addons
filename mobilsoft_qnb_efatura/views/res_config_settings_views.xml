@@ -95,33 +95,6 @@
                         </setting>
                     </block>
 
-                    <block title="QNB İşlemleri (Manuel)" name="qnb_manual_actions" invisible="not qnb_enabled">
-                        <setting id="qnb_action_fetch_all" string="QNB'den Belgeleri Al">
-                            <div class="mt8">
-                                <button name="action_qnb_fetch_all_documents" type="object"
-                                        string="📥 Tüm Belgeleri QNB'den Al" class="btn-primary" icon="fa-download"/>
-                            </div>
-                            <div class="text-muted mt8">
-                                Uzun sürebilir. Büyük arşivlerde işlem süresi uzar.
-                            </div>
-                        </setting>
-                        <setting id="qnb_action_sync_partners" string="Partner Güncelleme">
-                            <div class="mt8">
-                                <button name="action_qnb_sync_partners_from_documents" type="object"
-                                        string="👤 Partnerleri XML'den Güncelle" class="btn-secondary" icon="fa-user"/>
-                                <button name="action_qnb_fix_missing_partners_from_list" type="object"
-                                        string="🩹 Partneri Boş Belgeleri (QNB Liste) Düzelt" class="btn-secondary" icon="fa-wrench"/>
-                            </div>
-                        </setting>
-                        <setting id="qnb_action_match_docs" string="Belge Eşleştirme">
-                            <div class="mt8">
-                                <button name="action_qnb_bulk_match_documents" type="object"
-                                        string="🔗 Yevmiye Kayıtları ile Eşleştir" class="btn-secondary" icon="fa-link"/>
-                                <button name="action_qnb_rematch_products" type="object"
-                                        string="🔄 Ürünleri Yeniden Eşleştir" class="btn-secondary" icon="fa-refresh"/>
-                            </div>
-                        </setting>
-                    </block>
                 </app>
             </xpath>
         </field>

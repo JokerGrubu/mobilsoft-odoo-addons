@@ -154,13 +154,13 @@ class ResCompany(models.Model):
         
         for company in companies:
             try:
-                from .qnb_api import QNBeSolutionsAPI
-                api = QNBeSolutionsAPI(company)
-                
-                result = api.get_credit_status()
-                
-                # Kontör azaldıysa uyarı gönder
-                threshold = 100  # Minimum kontör eşiği
+                api_client = self.env['qnb.api.client']
+                result = api_client.get_credit_status(company)
+
+                if not result.get('success'):
+                    continue
+
+                threshold = 100
                 
                 low_credits = []
                 if result.get('efatura_credit', 0) < threshold:

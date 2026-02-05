@@ -491,8 +491,6 @@ class ResPartner(models.Model):
 
     @api.model
     def _cron_check_efatura_status(self):
-        """Zamanlanmış görev: Tüm partnerlerin e-Fatura durumunu kontrol et"""
-        # VKN'si olan ve son 30 gündür kontrol edilmemiş partnerler
         from datetime import datetime, timedelta
         thirty_days_ago = datetime.now() - timedelta(days=30)
 
@@ -505,7 +503,7 @@ class ResPartner(models.Model):
 
         for partner in partners:
             try:
-                partner.action_check_efatura_status()
+                partner._check_qnb_customer()
             except Exception:
                 continue
 

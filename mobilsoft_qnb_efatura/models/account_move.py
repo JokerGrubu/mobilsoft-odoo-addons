@@ -132,6 +132,10 @@ class AccountMove(models.Model):
         return 'FATURA_UBL' if self._qnb_is_einvoice() else 'EARSIV_FATURA'
 
     def _qnb_get_status_document_type(self):
+        if self.qnb_document_type == 'efatura':
+            return 'EFATURA'
+        if self.qnb_document_type == 'earsiv':
+            return 'EARSIV'
         return 'EFATURA' if self._qnb_is_einvoice() else 'EARSIV'
 
     def _qnb_send_ubl(self, xml_data):

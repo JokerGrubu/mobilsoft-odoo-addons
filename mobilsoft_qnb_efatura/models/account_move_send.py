@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import uuid
+
 from odoo import _, api, models
 
 
@@ -22,6 +24,8 @@ class AccountMoveSend(models.AbstractModel):
 
     def _hook_invoice_document_before_pdf_report_render(self, invoice, invoice_data):
         if 'tr_qnb' in invoice_data['extra_edis']:
+            if not invoice.qnb_uuid:
+                invoice.qnb_uuid = str(uuid.uuid4())
             invoice_data['invoice_edi_format'] = 'ubl_tr_qnb'
         super()._hook_invoice_document_before_pdf_report_render(invoice, invoice_data)
 
