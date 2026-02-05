@@ -38,61 +38,41 @@
                         </setting>
                     </block>
 
-                    <block title="e-Fatura Ayarları" name="qnb_efatura_settings" invisible="not qnb_enabled">
+                    <block title="e-Fatura / e-Arşiv" name="qnb_edi_settings" invisible="not qnb_enabled">
                         <setting id="qnb_efatura_enabled" string="e-Fatura Aktif">
                             <field name="qnb_efatura_enabled"/>
                         </setting>
                         <setting id="qnb_efatura_scenario" string="Fatura Senaryosu" invisible="not qnb_efatura_enabled">
                             <field name="qnb_efatura_scenario" widget="radio"/>
                         </setting>
-                        <setting id="qnb_efatura_prefix" string="Seri Öneki" invisible="not qnb_efatura_enabled">
-                            <field name="qnb_efatura_prefix" placeholder="EF"/>
-                        </setting>
-                    </block>
-
-                    <block title="e-Arşiv Ayarları" name="qnb_earsiv_settings" invisible="not qnb_enabled">
                         <setting id="qnb_earsiv_enabled" string="e-Arşiv Aktif">
                             <field name="qnb_earsiv_enabled"/>
-                        </setting>
-                        <setting id="qnb_earsiv_prefix" string="Seri Öneki" invisible="not qnb_earsiv_enabled">
-                            <field name="qnb_earsiv_prefix" placeholder="EA"/>
                         </setting>
                         <setting id="qnb_earsiv_send_type" string="Gönderim Tipi" invisible="not qnb_earsiv_enabled">
                             <field name="qnb_earsiv_send_type" widget="radio"/>
                         </setting>
                     </block>
 
-                    <block title="e-İrsaliye Ayarları" name="qnb_eirsaliye_settings" invisible="not qnb_enabled">
-                        <setting id="qnb_eirsaliye_enabled" string="e-İrsaliye Aktif">
-                            <field name="qnb_eirsaliye_enabled"/>
-                        </setting>
-                        <setting id="qnb_eirsaliye_prefix" string="Seri Öneki" invisible="not qnb_eirsaliye_enabled">
-                            <field name="qnb_eirsaliye_prefix" placeholder="IR"/>
-                        </setting>
-                    </block>
-
-                    <block title="Şirket e-Fatura Bilgileri" name="qnb_company_info" invisible="not qnb_enabled">
-                        <setting id="qnb_gib_alias" string="GİB Posta Kutusu Etiketi">
-                            <field name="qnb_gib_alias" placeholder="urn:mail:defaultpk@xxx.com"/>
-                        </setting>
-                        <setting id="qnb_sender_alias" string="Gönderici Etiketi">
-                            <field name="qnb_sender_alias"/>
-                        </setting>
-                    </block>
-
                     <block title="Otomatik İşlemler" name="qnb_auto_settings" invisible="not qnb_enabled">
                         <setting id="qnb_auto_fetch" string="Gelen Belgeleri Otomatik Al"
-                                 help="Gelen e-Fatura ve e-İrsaliyeleri otomatik olarak indir">
+                                 help="Gelen e-Faturaları otomatik olarak indir">
                             <field name="qnb_auto_fetch_incoming"/>
                         </setting>
                         <setting id="qnb_auto_fetch_outgoing" string="Giden Belgeleri Otomatik Al"
-                                 help="Giden e-Fatura ve e-Arşiv faturalarını otomatik olarak indir">
+                                 help="Giden e-Fatura ve e-Arşiv faturalarının PDF'ini otomatik indir">
                             <field name="qnb_auto_fetch_outgoing"/>
                         </setting>
                         <setting id="qnb_auto_check" string="Durumu Otomatik Kontrol Et"
                                  help="Gönderilen belgelerin durumunu periyodik olarak kontrol et">
                             <field name="qnb_auto_check_status"/>
                         </setting>
+                    </block>
+
+                    <block title="Kullanım" name="qnb_usage" invisible="not qnb_enabled">
+                        <div class="text-muted">
+                            Giden faturalar standart “Gönder” ekranından iletilir. Gelen faturalar otomatik cron ile gelir.
+                            QNB belge ekranı kaldırılmıştır.
+                        </div>
                     </block>
 
                 </app>

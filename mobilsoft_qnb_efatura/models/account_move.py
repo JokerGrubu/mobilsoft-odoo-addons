@@ -149,8 +149,14 @@ class AccountMove(models.Model):
 
         api_client = self.env['qnb.api.client']
         vkn = self._qnb_get_partner_vkn()
+        is_einvoice = self._qnb_is_einvoice()
 
-        if self._qnb_is_einvoice():
+        if is_einvoice and not self.company_id.qnb_efatura_enabled:
+            raise UserError(_("QNB e-Fatura gönderimi ayarlarda kapalı!"))
+        if not is_einvoice and not self.company_id.qnb_earsiv_enabled:
+            raise UserError(_("QNB e-Arşiv gönderimi ayarlarda kapalı!"))
+
+        if is_einvoice:
             result = api_client.send_invoice(
                 xml_data,
                 self.name,
@@ -271,6 +277,8 @@ class AccountMove(models.Model):
             download = api_client.download_incoming_document(ettn, document_type='EFATURA', company=company)
             if not download.get('success'):
                 continue
+            if self.search_count([('qnb_ettn', '=', ettn), ('company_id', '=', company.id)]) > 0:
+                continue
 
             content = download.get('content')
             if isinstance(content, str):
@@ -294,23 +302,41 @@ class AccountMove(models.Model):
         self._qnb_set_last_fetch_date(company, end_date)
 
     def _cron_qnb_get_new_incoming_documents(self):
-        companies = self.env['res.company'].search([('qnb_enabled', '=', True)])
+        companies = self.env['res.company'].search([
+            ('qnb_enabled', '=', True),
+            ('qnb_auto_fetch_incoming', '=', True),
+            ('qnb_efatura_enabled', '=', True),
+        ])
         for company in companies:
             self.with_company(company)._qnb_fetch_incoming_documents()
 
     def _cron_qnb_get_invoice_status(self):
+        companies = self.env['res.company'].search([
+            ('qnb_enabled', '=', True),
+            ('qnb_auto_check_status', '=', True),
+        ])
+        if not companies:
+            return
         invoices_to_update = self.search([
             ('qnb_state', 'in', ['sent', 'sending', 'delivered']),
             ('qnb_ettn', '!=', False),
+            ('company_id', 'in', companies.ids),
         ])
         for invoice in invoices_to_update:
             invoice._qnb_update_status_from_api()
 
     def _cron_qnb_get_sale_pdf(self, batch_size=100):
+        companies = self.env['res.company'].search([
+            ('qnb_enabled', '=', True),
+            ('qnb_auto_fetch_outgoing', '=', True),
+        ])
+        if not companies:
+            return
         invoices = self.search([
             ('qnb_state', 'in', ['sent', 'delivered', 'accepted']),
             ('qnb_ettn', '!=', False),
             ('move_type', 'in', ['out_invoice', 'out_refund']),
+            ('company_id', 'in', companies.ids),
         ], limit=batch_size)
         invoices_to_fetch = invoices.filtered(lambda m: m.message_main_attachment_id == m.invoice_pdf_report_id)
         for invoice in invoices_to_fetch:
