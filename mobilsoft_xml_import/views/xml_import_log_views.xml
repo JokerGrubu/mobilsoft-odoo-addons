@@ -117,28 +117,14 @@
         <field name="arch" type="xml">
             <search string="İçe Aktarım Logları">
                 <field name="source_id"/>
-                <field name="state"/>
-                <separator/>
-                <filter name="today" string="Bugün"
-                        domain="[('start_time', '>=', (context_today()).strftime('%Y-%m-%d'))]"/>
-                <filter name="week" string="Bu Hafta"
-                        domain="[('start_time', '>=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
                 <separator/>
                 <filter name="done" string="Başarılı"
                         domain="[('state', '=', 'done')]"/>
                 <filter name="error" string="Hatalı"
                         domain="[('state', '=', 'error')]"/>
-                <filter name="running" string="Çalışıyor"
-                        domain="[('state', '=', 'running')]"/>
                 <separator/>
-                <group expand="0" string="Grupla">
-                    <filter name="group_by_source" string="Kaynak"
-                            context="{'group_by': 'source_id'}"/>
-                    <filter name="group_by_state" string="Durum"
-                            context="{'group_by': 'state'}"/>
-                    <filter name="group_by_day" string="Gün"
-                            context="{'group_by': 'start_time:day'}"/>
-                </group>
+                <filter name="group_by_source" string="Kaynak"
+                        context="{'group_by': 'source_id'}"/>
             </search>
         </field>
     </record>

@@ -85,7 +85,7 @@
         <field name="name">product.enrichment.source.tree</field>
         <field name="model">product.enrichment.source</field>
         <field name="arch" type="xml">
-            <tree string="Zenginleştirme Kaynakları">
+            <list string="Zenginleştirme Kaynakları">
                 <field name="sequence" widget="handle"/>
                 <field name="name"/>
                 <field name="source_type"/>
@@ -94,7 +94,7 @@
                 <field name="success_count"/>
                 <field name="fail_count"/>
                 <field name="active"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -102,7 +102,7 @@
     <record id="action_product_enrichment_source" model="ir.actions.act_window">
         <field name="name">Zenginleştirme Kaynakları</field>
         <field name="res_model">product.enrichment.source</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
 
@@ -114,7 +114,7 @@
         <field name="name">product.enrichment.log.tree</field>
         <field name="model">product.enrichment.log</field>
         <field name="arch" type="xml">
-            <tree string="Zenginleştirme Logları">
+            <list string="Zenginleştirme Logları">
                 <field name="create_date"/>
                 <field name="product_id"/>
                 <field name="source_id"/>
@@ -123,14 +123,14 @@
                        decoration-warning="status == 'partial'"
                        decoration-danger="status in ['not_found', 'error']"/>
                 <field name="fields_updated"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_product_enrichment_log" model="ir.actions.act_window">
         <field name="name">Zenginleştirme Geçmişi</field>
         <field name="res_model">product.enrichment.log</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
 
@@ -165,13 +165,13 @@
                 </group>
 
                 <field name="result_ids" invisible="state != 'results'">
-                    <tree string="Sonuçlar" editable="bottom">
+                    <list string="Sonuçlar" editable="bottom">
                         <field name="source_id"/>
                         <field name="name"/>
                         <field name="brand"/>
                         <field name="price"/>
                         <field name="source_url" widget="url"/>
-                    </tree>
+                    </list>
                 </field>
 
                 <field name="selected_result_id" invisible="state != 'results'"
@@ -275,13 +275,13 @@
                         </group>
                     </group>
                     <field name="enrichment_log_ids" readonly="1">
-                        <tree>
+                        <list>
                             <field name="create_date"/>
                             <field name="source_id"/>
                             <field name="search_query"/>
                             <field name="status"/>
                             <field name="fields_updated"/>
-                        </tree>
+                        </list>
                     </field>
                 </page>
             </xpath>

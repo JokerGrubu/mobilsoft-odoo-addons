@@ -403,30 +403,13 @@
             <search string="XML Kaynakları">
                 <field name="name"/>
                 <field name="supplier_id"/>
-                <field name="xml_template"/>
-                <separator/>
                 <filter name="active_state" string="Aktif"
                         domain="[('state', '=', 'active')]"/>
-                <filter name="draft" string="Taslak"
-                        domain="[('state', '=', 'draft')]"/>
-                <filter name="paused" string="Duraklatılmış"
-                        domain="[('state', '=', 'paused')]"/>
-                <filter name="error" string="Hatalı"
-                        domain="[('state', '=', 'error')]"/>
-                <separator/>
-                <filter name="auto_sync" string="Otomatik Sync"
-                        domain="[('auto_sync', '=', True)]"/>
                 <filter name="archived" string="Arşivlenmiş"
                         domain="[('active', '=', False)]"/>
                 <separator/>
-                <group expand="0" string="Grupla">
-                    <filter name="group_by_state" string="Durum"
-                            context="{'group_by': 'state'}"/>
-                    <filter name="group_by_template" string="Şablon"
-                            context="{'group_by': 'xml_template'}"/>
-                    <filter name="group_by_supplier" string="Tedarikçi"
-                            context="{'group_by': 'supplier_id'}"/>
-                </group>
+                <filter name="filter_template" string="Şablona Göre"
+                        context="{'group_by': 'xml_template'}"/>
             </search>
         </field>
     </record>
