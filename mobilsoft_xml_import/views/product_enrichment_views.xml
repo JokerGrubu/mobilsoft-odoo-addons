@@ -295,8 +295,8 @@
 
     <menuitem id="menu_product_enrichment"
               name="Ürün Zenginleştirme"
-              parent="xml_import_menu_root"
-              sequence="30"/>
+              parent="mobilsoft_xml_import_menu_root"
+              sequence="25"/>
 
     <menuitem id="menu_enrichment_sources"
               name="Kaynaklar"
