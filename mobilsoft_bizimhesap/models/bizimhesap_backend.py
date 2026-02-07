@@ -1502,8 +1502,9 @@ class BizimHesapBackend(models.Model):
         # Tüm değerleri al
         product_vals = self._map_product_to_odoo(data)
 
-        # Mevcut ürünler için isim güncelleme yapılmaz - XML birincil kaynak
-        update_vals = {k: v for k, v in product_vals.items() if k != 'name'}
+        # Mevcut ürünler için isim ve barkod güncellenmez - XML birincil kaynak
+        # Barkod çakışması sorunlarını önlemek için barkod da korunur
+        update_vals = {k: v for k, v in product_vals.items() if k not in ('name', 'barcode')}
 
         if binding:
             # Mevcut kayıt - isim HARİÇ güncelle
