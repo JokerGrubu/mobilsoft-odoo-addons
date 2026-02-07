@@ -3,7 +3,7 @@
     'name': 'MobilSoft XML Ürün İçe Aktarma',
     'version': '19.0.2.4.0',
     'category': 'MobilSoft/Integrations',
-    'summary': 'XML ile ürün içe/dışa aktarma - Dropshipping ve Bayi desteği',
+    'summary': 'XML ile ürün içe/dışa aktarma - Zenginleştirme ve Dropshipping desteği',
     'description': """
 XML Ürün Yönetimi - Import & Export Modülü
 ==========================================
@@ -38,12 +38,14 @@ XML Ürün Yönetimi - Import & Export Modülü
     'data': [
         'security/ir.model.access.csv',
         'data/xml_templates.xml',
+        'data/enrichment_sources.xml',
         'views/xml_field_mapping_views.xml',
         'views/xml_source_views.xml',
         'views/xml_export_views.xml',
         'views/xml_import_log_views.xml',
         'views/product_views.xml',
         'views/sale_order_views.xml',
+        'views/product_enrichment_views.xml',
         'views/menu_views.xml',
     ],
     'installable': True,
