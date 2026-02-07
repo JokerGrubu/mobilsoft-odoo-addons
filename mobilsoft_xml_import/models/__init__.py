@@ -7,3 +7,4 @@ from . import xml_source
 from . import xml_export
 from . import product_template
 from . import sale_order
+from . import product_enrichment
