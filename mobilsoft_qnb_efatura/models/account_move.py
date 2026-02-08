@@ -281,6 +281,43 @@ class AccountMove(models.Model):
         if result.get('success'):
             self._qnb_add_pdf_to_invoice(result.get('content'))
 
+    def _qnb_fetch_incoming_pdf(self):
+        """Gelen e-fatura PDF'ini indir ve faturaya ekle"""
+        self.ensure_one()
+        if not self.qnb_ettn:
+            return
+        api_client = self.env['qnb.api.client']
+        result = api_client.download_document_pdf(
+            self.qnb_ettn,
+            document_type='EFATURA',
+            company=self.company_id
+        )
+        if result.get('success'):
+            self._qnb_add_pdf_to_invoice(result.get('content'))
+
+    def action_qnb_download_pdf(self):
+        """Manuel PDF indirme aksiyonu - kullanıcı butonu"""
+        for move in self:
+            if not move.qnb_ettn:
+                continue
+            try:
+                if move.move_type in ('out_invoice', 'out_refund'):
+                    move._qnb_fetch_outgoing_pdf()
+                elif move.move_type in ('in_invoice', 'in_refund'):
+                    move._qnb_fetch_incoming_pdf()
+            except Exception as e:
+                raise UserError(f"PDF indirme hatası: {str(e)}")
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Başarılı',
+                'message': f'{len(self)} fatura için PDF indirildi.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
     def _qnb_get_purchase_journal(self, company):
         return self.env['account.journal'].search([
             ('type', '=', 'purchase'),
@@ -490,6 +527,12 @@ class AccountMove(models.Model):
             )._create_document_from_attachment(attachment.id)
             move.message_post(body=_("QNB belgesi alındı."))
 
+            # PDF'i de indir ve ekle
+            try:
+                move._qnb_fetch_incoming_pdf()
+            except Exception as e:
+                _logger.warning(f"Gelen fatura PDF indirme hatası (ETTN: {ettn}): {str(e)}")
+
         self._qnb_set_last_fetch_date(company, end_date)
 
     def _qnb_fetch_outgoing_documents(self, batch_size=50):
@@ -619,6 +662,12 @@ class AccountMove(models.Model):
                         'mimetype': 'application/xml',
                     })
                     move.message_post(body=_("QNB giden e-Belge içe aktarıldı."), attachment_ids=attachment.ids)
+
+                    # PDF'i de indir ve ekle
+                    try:
+                        move._qnb_fetch_outgoing_pdf()
+                    except Exception as e:
+                        _logger.warning(f"Giden fatura PDF indirme hatası (ETTN: {ettn}): {str(e)}")
 
                     processed += 1
                     if doc_date:

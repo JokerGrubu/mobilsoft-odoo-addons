@@ -12,6 +12,12 @@
                         type="object"
                         class="btn-secondary"
                         invisible="not qnb_ettn"/>
+                <button name="action_qnb_download_pdf"
+                        string="PDF İndir"
+                        type="object"
+                        class="btn-secondary"
+                        invisible="not qnb_ettn"
+                        help="QNB'den e-fatura PDF'ini indir"/>
             </xpath>
 
             <!-- e-Belge Bilgileri Tab -->
