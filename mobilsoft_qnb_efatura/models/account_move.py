@@ -2,11 +2,14 @@
 
 import uuid
 import base64
+import logging
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
 
 
 class AccountMove(models.Model):
@@ -309,22 +312,47 @@ class AccountMove(models.Model):
     def _qnb_generate_odoo_pdf(self):
         """Odoo'nun standart fatura PDF'ini oluştur ve ekle (Nilvera tarzı)"""
         self.ensure_one()
-        if not self.invoice_pdf_report_id:
-            # Odoo'nun standart fatura raporunu oluştur
-            report = self.env.ref('account.account_invoices')
-            if report:
-                pdf_content, _ = report._render_qweb_pdf(report.id, self.id)
-                if pdf_content:
-                    attachment = self.env['ir.attachment'].create({
-                        'name': f'{self.name or "draft"}.pdf',
-                        'res_id': self.id,
-                        'res_model': 'account.move',
-                        'raw': pdf_content,
-                        'type': 'binary',
-                        'mimetype': 'application/pdf',
-                    })
-                    self.message_main_attachment_id = attachment
-                    self.with_context(no_new_invoice=True).message_post(attachment_ids=attachment.ids)
+
+        # Zaten PDF var mı kontrol et
+        existing_pdf = self.env['ir.attachment'].search([
+            ('res_model', '=', 'account.move'),
+            ('res_id', '=', self.id),
+            ('mimetype', '=', 'application/pdf'),
+        ], limit=1)
+
+        if existing_pdf:
+            # PDF zaten var, tekrar oluşturma
+            return
+
+        try:
+            # Odoo'nun standart fatura raporunu al
+            report = self.env.ref('account.account_invoices', raise_if_not_found=False)
+            if not report:
+                _logger.warning(f"Fatura raporu bulunamadı: {self.name}")
+                return
+
+            # PDF oluştur
+            pdf_content, _ = report._render_qweb_pdf([self.id])
+            if pdf_content:
+                attachment = self.env['ir.attachment'].create({
+                    'name': f'{self.name or "INV"}.pdf',
+                    'res_id': self.id,
+                    'res_model': 'account.move',
+                    'raw': pdf_content,
+                    'type': 'binary',
+                    'mimetype': 'application/pdf',
+                })
+                # Ana attachment olarak ayarla
+                self.message_main_attachment_id = attachment.id
+                # Chatter'a da ekle
+                self.with_context(no_new_invoice=True).message_post(
+                    body=_("PDF oluşturuldu"),
+                    attachment_ids=[attachment.id]
+                )
+        except Exception as e:
+            _logger.error(f"PDF oluşturma hatası ({self.name}): {str(e)}")
+            import traceback
+            _logger.error(traceback.format_exc())
 
     def action_qnb_download_pdf(self):
         """QNB'nin resmi PDF'ini indir (opsiyonel - Odoo PDF zaten var)"""
@@ -345,6 +373,37 @@ class AccountMove(models.Model):
                 'title': 'Başarılı',
                 'message': f'{len(self)} fatura için QNB resmi PDF indirildi.',
                 'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    def action_qnb_generate_pdf(self):
+        """Odoo PDF'i oluştur (tüm faturalar için toplu kullanım)"""
+        success_count = 0
+        error_count = 0
+
+        for move in self:
+            try:
+                move._qnb_generate_odoo_pdf()
+                success_count += 1
+            except Exception as e:
+                error_count += 1
+                _logger.warning(f"PDF oluşturma hatası - Fatura {move.name}: {str(e)}")
+
+        if error_count > 0:
+            message = f'{success_count} başarılı, {error_count} hatalı'
+            msg_type = 'warning'
+        else:
+            message = f'{success_count} fatura için PDF oluşturuldu'
+            msg_type = 'success'
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'PDF Oluşturma Tamamlandı',
+                'message': message,
+                'type': msg_type,
                 'sticky': False,
             }
         }

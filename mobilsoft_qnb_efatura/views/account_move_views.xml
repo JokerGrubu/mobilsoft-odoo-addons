@@ -12,6 +12,12 @@
                         type="object"
                         class="btn-secondary"
                         invisible="not qnb_ettn"/>
+                <button name="action_qnb_generate_pdf"
+                        string="PDF Oluştur"
+                        type="object"
+                        class="btn-primary"
+                        invisible="not qnb_ettn"
+                        help="Odoo fatura PDF'ini oluştur"/>
                 <button name="action_qnb_download_pdf"
                         string="QNB Resmi PDF"
                         type="object"
