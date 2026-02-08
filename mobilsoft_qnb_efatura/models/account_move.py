@@ -144,7 +144,18 @@ class AccountMove(models.Model):
                 ))
             if move.country_code == 'TR' and not move.qnb_uuid:
                 move.qnb_uuid = str(uuid.uuid4())
-        return super()._post(soft=soft)
+
+        result = super()._post(soft=soft)
+
+        # Post sonrası PDF oluştur (Nilvera gibi)
+        for move in self:
+            if move.qnb_ettn and move.move_type in ('out_invoice', 'out_refund', 'in_invoice', 'in_refund'):
+                try:
+                    move._qnb_generate_odoo_pdf()
+                except Exception as e:
+                    _logger.warning(f"Fatura {move.name} için PDF oluşturma hatası: {str(e)}")
+
+        return result
 
     def _qnb_types_to_update_status(self):
         """Durum güncellemesi yapılacak fatura türleri"""
@@ -282,7 +293,7 @@ class AccountMove(models.Model):
             self._qnb_add_pdf_to_invoice(result.get('content'))
 
     def _qnb_fetch_incoming_pdf(self):
-        """Gelen e-fatura PDF'ini indir ve faturaya ekle"""
+        """Gelen e-fatura PDF'ini QNB'den indir ve faturaya ekle"""
         self.ensure_one()
         if not self.qnb_ettn:
             return
@@ -295,8 +306,28 @@ class AccountMove(models.Model):
         if result.get('success'):
             self._qnb_add_pdf_to_invoice(result.get('content'))
 
+    def _qnb_generate_odoo_pdf(self):
+        """Odoo'nun standart fatura PDF'ini oluştur ve ekle (Nilvera tarzı)"""
+        self.ensure_one()
+        if not self.invoice_pdf_report_id:
+            # Odoo'nun standart fatura raporunu oluştur
+            report = self.env.ref('account.account_invoices')
+            if report:
+                pdf_content, _ = report._render_qweb_pdf(report.id, self.id)
+                if pdf_content:
+                    attachment = self.env['ir.attachment'].create({
+                        'name': f'{self.name or "draft"}.pdf',
+                        'res_id': self.id,
+                        'res_model': 'account.move',
+                        'raw': pdf_content,
+                        'type': 'binary',
+                        'mimetype': 'application/pdf',
+                    })
+                    self.message_main_attachment_id = attachment
+                    self.with_context(no_new_invoice=True).message_post(attachment_ids=attachment.ids)
+
     def action_qnb_download_pdf(self):
-        """Manuel PDF indirme aksiyonu - kullanıcı butonu"""
+        """QNB'nin resmi PDF'ini indir (opsiyonel - Odoo PDF zaten var)"""
         for move in self:
             if not move.qnb_ettn:
                 continue
@@ -306,13 +337,13 @@ class AccountMove(models.Model):
                 elif move.move_type in ('in_invoice', 'in_refund'):
                     move._qnb_fetch_incoming_pdf()
             except Exception as e:
-                raise UserError(f"PDF indirme hatası: {str(e)}")
+                raise UserError(f"QNB PDF indirme hatası: {str(e)}")
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': 'Başarılı',
-                'message': f'{len(self)} fatura için PDF indirildi.',
+                'message': f'{len(self)} fatura için QNB resmi PDF indirildi.',
                 'type': 'success',
                 'sticky': False,
             }
@@ -527,11 +558,11 @@ class AccountMove(models.Model):
             )._create_document_from_attachment(attachment.id)
             move.message_post(body=_("QNB belgesi alındı."))
 
-            # PDF'i de indir ve ekle
+            # Odoo PDF'i oluştur ve ekle (Nilvera gibi)
             try:
-                move._qnb_fetch_incoming_pdf()
+                move._qnb_generate_odoo_pdf()
             except Exception as e:
-                _logger.warning(f"Gelen fatura PDF indirme hatası (ETTN: {ettn}): {str(e)}")
+                _logger.warning(f"PDF oluşturma hatası (ETTN: {ettn}): {str(e)}")
 
         self._qnb_set_last_fetch_date(company, end_date)
 
@@ -663,11 +694,11 @@ class AccountMove(models.Model):
                     })
                     move.message_post(body=_("QNB giden e-Belge içe aktarıldı."), attachment_ids=attachment.ids)
 
-                    # PDF'i de indir ve ekle
+                    # Odoo PDF'i oluştur ve ekle (Nilvera gibi)
                     try:
-                        move._qnb_fetch_outgoing_pdf()
+                        move._qnb_generate_odoo_pdf()
                     except Exception as e:
-                        _logger.warning(f"Giden fatura PDF indirme hatası (ETTN: {ettn}): {str(e)}")
+                        _logger.warning(f"PDF oluşturma hatası (ETTN: {ettn}): {str(e)}")
 
                     processed += 1
                     if doc_date:

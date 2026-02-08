@@ -13,11 +13,11 @@
                         class="btn-secondary"
                         invisible="not qnb_ettn"/>
                 <button name="action_qnb_download_pdf"
-                        string="PDF İndir"
+                        string="QNB Resmi PDF"
                         type="object"
                         class="btn-secondary"
                         invisible="not qnb_ettn"
-                        help="QNB'den e-fatura PDF'ini indir"/>
+                        help="QNB'nin resmi e-fatura PDF'ini indir (opsiyonel)"/>
             </xpath>
 
             <!-- e-Belge Bilgileri Tab -->
