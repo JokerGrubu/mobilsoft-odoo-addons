@@ -9,6 +9,7 @@ import logging
 import re
 import json
 import base64
+import time
 from difflib import SequenceMatcher
 from io import BytesIO
 
@@ -584,13 +585,27 @@ class XmlProductSource(models.Model):
             if self.xml_username and self.xml_password:
                 auth = (self.xml_username, self.xml_password)
 
-            response = requests.get(
-                self.xml_url,
-                headers=headers,
-                auth=auth,
-                timeout=120,
-            )
-            response.raise_for_status()
+            # Bazı XML servisleri yavaş yanıt verebiliyor; timeout + retry ile daha stabil çalıştır.
+            # timeout=(connect, read)
+            last_exc = None
+            response = None
+            for attempt in range(1, 4):
+                try:
+                    response = requests.get(
+                        self.xml_url,
+                        headers=headers,
+                        auth=auth,
+                        timeout=(15, 600),
+                    )
+                    response.raise_for_status()
+                    break
+                except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
+                    last_exc = e
+                    if attempt >= 3:
+                        raise
+                    time.sleep(2 if attempt == 1 else 5)
+            if response is None and last_exc:
+                raise last_exc
 
             # Encoding düzeltme - content bytes olarak al
             # XML header'dan encoding'i oku
