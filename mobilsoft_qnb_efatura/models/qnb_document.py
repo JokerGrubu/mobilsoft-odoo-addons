@@ -1393,19 +1393,25 @@ class QnbDocument(models.Model):
                         ('company_id', '=', company.id)
                     ])
                     if not existing:
-                        # Partner bul veya oluştur
+                        # Partner bul (duplike önlemi: önce eşleştir, otomatik oluşturma tercihe bağlı)
                         partner = None
-                        sender_vkn = doc.get('sender_vkn')
+                        sender_vkn = (doc.get('sender_vkn') or '').strip()
                         if sender_vkn:
+                            vat_tr = f'TR{sender_vkn}'
                             partner = self.env['res.partner'].search([
-                                ('vat', '=', f'TR{sender_vkn}')
+                                '|', ('vat', '=', vat_tr), ('vat', '=', sender_vkn)
                             ], limit=1)
-                            if not partner:
+                            if not partner and company.qnb_create_new_partner:
                                 partner = self.env['res.partner'].create({
                                     'name': doc.get('sender_title', f'Firma {sender_vkn}'),
-                                    'vat': f'TR{sender_vkn}',
+                                    'vat': vat_tr,
                                     'is_company': True,
                                 })
+                            elif not partner:
+                                _logger.warning(
+                                    f"QNB gelen belge partner eşleşmedi (VKN={sender_vkn}). "
+                                    f"Otomatik partner oluşturma kapalı, partner boş bırakıldı."
+                                )
 
                         self.create({
                             'name': doc.get('belge_no', 'Yeni Belge'),
@@ -1469,19 +1475,25 @@ class QnbDocument(models.Model):
                         ('direction', '=', 'outgoing')
                     ])
                     if not existing:
-                        # Partner bul (giden belgede müşteri)
+                        # Partner bul (giden belgede müşteri) - duplike önlemi
                         partner = None
-                        recipient_vkn = doc.get('recipient_vkn')
+                        recipient_vkn = (doc.get('recipient_vkn') or '').strip()
                         if recipient_vkn:
+                            vat_tr = f'TR{recipient_vkn}'
                             partner = self.env['res.partner'].search([
-                                ('vat', '=', f'TR{recipient_vkn}')
+                                '|', ('vat', '=', vat_tr), ('vat', '=', recipient_vkn)
                             ], limit=1)
-                            if not partner:
+                            if not partner and company.qnb_create_new_partner:
                                 partner = self.env['res.partner'].create({
                                     'name': doc.get('recipient_title', f'Müşteri {recipient_vkn}'),
-                                    'vat': f'TR{recipient_vkn}',
+                                    'vat': vat_tr,
                                     'is_company': True,
                                 })
+                            elif not partner:
+                                _logger.warning(
+                                    f"QNB giden belge partner eşleşmedi (VKN={recipient_vkn}). "
+                                    f"Otomatik partner oluşturma kapalı, partner boş bırakıldı."
+                                )
 
                         self.create({
                             'name': doc.get('belge_no', 'Yeni Belge'),

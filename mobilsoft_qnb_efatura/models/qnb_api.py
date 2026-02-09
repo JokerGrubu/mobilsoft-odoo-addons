@@ -455,6 +455,24 @@ class QnbApiClient(models.AbstractModel):
     # BELGE DURUM SORGULAMA
     # ============================================
 
+    @staticmethod
+    def _normalize_outgoing_belge_turu(document_type: str) -> str:
+        """
+        QNB gidenBelgeIndirExt için kabul edilen belge türleri sınırlı.
+        Bazı yerlerden 'FATURA_UBL' gibi değerler gelebiliyor; burada normalize ediyoruz.
+        Kabul edilenler: FATURA, IRSALIYE, UYGULAMA_YANITI
+        """
+        dt = (document_type or "").strip().upper()
+        if dt in ("EFATURA", "EARSIV"):
+            return "FATURA"
+        if "FATURA" in dt:
+            return "FATURA"
+        if "IRSALIYE" in dt:
+            return "IRSALIYE"
+        if "UYGULAMA" in dt or "YANIT" in dt:
+            return "UYGULAMA_YANITI"
+        return dt or "FATURA"
+
     def get_document_status(self, ettn, document_type='EFATURA', company=None):
         """
         Belge durumu sorgula
@@ -466,12 +484,30 @@ class QnbApiClient(models.AbstractModel):
         client, history = self._get_client(company)
 
         try:
-            result = client.service.gidenBelgeDurumSorgula(
-                parametreler={
-                    'urun': document_type,
-                    'ettn': ettn
-                }
-            )
+            if not company:
+                company = self.env.company
+
+            vkn = self._get_company_vkn(company)
+
+            # WSDL versiyonları farklı olabiliyor:
+            # - Bazılarında: gidenBelgeDurumSorgula(vergiTcKimlikNo, belgeOid)
+            # - Bazılarında: gidenBelgeDurumSorgula(parametreler={urun, ettn})
+            try:
+                result = client.service.gidenBelgeDurumSorgula(
+                    vergiTcKimlikNo=vkn,
+                    belgeOid=ettn,
+                )
+            except TypeError:
+                result = client.service.gidenBelgeDurumSorgula(
+                    parametreler={
+                        'urun': document_type,
+                        'ettn': ettn
+                    }
+                )
+
+            # Zeep obje veya dict olabilir
+            if result and hasattr(result, "__dict__"):
+                result = result.__dict__
 
             if result:
                 return {
@@ -797,7 +833,7 @@ class QnbApiClient(models.AbstractModel):
                 company = self.env.company
 
             vkn = self._get_company_vkn(company)
-            belge_turu = 'FATURA' if document_type in ('EFATURA', 'EARSIV') else document_type
+            belge_turu = self._normalize_outgoing_belge_turu(document_type)
 
             result = client.service.gidenBelgeIndirExt(
                 vergiTcKimlikNo=vkn,
