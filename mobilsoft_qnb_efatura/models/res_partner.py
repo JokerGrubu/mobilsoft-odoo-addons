@@ -500,16 +500,21 @@ class ResPartner(models.Model):
     @api.model
     def _cron_check_efatura_status(self):
         from datetime import datetime, timedelta
-        thirty_days_ago = datetime.now() - timedelta(days=30)
+        started = datetime.now()
+        time_budget_seconds = 45
+        thirty_days_ago = started - timedelta(days=30)
 
         partners = self.search([
             ('vat', '!=', False),
+            ('qnb_customer_status', 'in', ('not_checked', 'earchive', 'einvoice')),
             '|',
             ('efatura_last_check', '=', False),
             ('efatura_last_check', '<', thirty_days_ago)
-        ], limit=100)  # Her seferde 100 partner
+        ], limit=20, order='efatura_last_check asc')  # küçük batch: timeout/lock azaltır
 
         for partner in partners:
+            if (datetime.now() - started).total_seconds() > time_budget_seconds:
+                break
             try:
                 partner._check_qnb_customer()
             except Exception:
