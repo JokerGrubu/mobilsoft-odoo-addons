@@ -1,32 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
-        <record id="action_qnb_document_all" model="ir.actions.act_window">
-            <field name="active" eval="False"/>
-        </record>
-        <record id="action_qnb_document_outgoing" model="ir.actions.act_window">
-            <field name="active" eval="False"/>
-        </record>
-        <record id="action_qnb_document_incoming" model="ir.actions.act_window">
-            <field name="active" eval="False"/>
-        </record>
-
-        <record id="action_qnb_fetch_all_documents" model="ir.actions.server">
-            <field name="active" eval="False"/>
-        </record>
-        <record id="action_qnb_sync_partners" model="ir.actions.server">
-            <field name="active" eval="False"/>
-        </record>
-        <record id="action_qnb_fix_missing_partners_from_list" model="ir.actions.server">
-            <field name="active" eval="False"/>
-        </record>
-        <record id="action_qnb_bulk_match" model="ir.actions.server">
-            <field name="active" eval="False"/>
-        </record>
-        <record id="action_bulk_rematch_products" model="ir.actions.server">
-            <field name="active" eval="False"/>
-        </record>
-
         <record id="view_qnb_document_line_list" model="ir.ui.view">
             <field name="active" eval="False"/>
         </record>
