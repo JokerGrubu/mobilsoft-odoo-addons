@@ -1439,83 +1439,86 @@ class XmlProductSource(models.Model):
 
             for element in products:
                 try:
-                    # Ürün verilerini çıkar
-                    data = self._extract_product_data(element)
+                    # Ürün bazında SQL hataları transaction'ı abort etmesin diye savepoint kullan.
+                    # (Aksi halde bir ürün hatasından sonra self.write/log.write InFailedSqlTransaction'a düşer.)
+                    with self.env.cr.savepoint():
+                        # Ürün verilerini çıkar
+                        data = self._extract_product_data(element)
 
-                    if not data.get('name'):
-                        skipped += 1
-                        continue
+                        if not data.get('name'):
+                            skipped += 1
+                            continue
 
-                    # Fiyat kontrolü
-                    price = float(data.get('price', 0) or 0)
-                    cost = float(data.get('cost_price', 0) or data.get('price', 0) or 0)
+                        # Fiyat kontrolü
+                        price = float(data.get('price', 0) or 0)
+                        cost = float(data.get('cost_price', 0) or data.get('price', 0) or 0)
 
-                    if self.min_price and price < self.min_price:
-                        skipped += 1
-                        continue
-                    if self.max_price and price > self.max_price:
-                        skipped += 1
-                        continue
+                        if self.min_price and price < self.min_price:
+                            skipped += 1
+                            continue
+                        if self.max_price and price > self.max_price:
+                            skipped += 1
+                            continue
 
-                    # Stok kontrolü (sadece min_stock > 0 ise kontrol et)
-                    stock = int(data.get('stock', 0) or 0)
-                    if self.min_stock > 0 and stock < self.min_stock:
-                        # Stok min_stock altında - mevcut ürünü kontrol et
+                        # Stok kontrolü (sadece min_stock > 0 ise kontrol et)
+                        stock = int(data.get('stock', 0) or 0)
+                        if self.min_stock > 0 and stock < self.min_stock:
+                            # Stok min_stock altında - mevcut ürünü kontrol et
+                            existing, match_type = self._find_existing_product(data)
+                            if existing and existing.exists():
+                                # Tedarikçi stoğunu güncelle
+                                existing.write({
+                                    'xml_supplier_stock': stock,
+                                    'xml_last_sync': fields.Datetime.now(),
+                                })
+                                # Stok 0 ise ve ayarlar aktifse işle
+                                if stock == 0 and (self.deactivate_zero_stock or self.delete_unsold_zero_stock):
+                                    self._handle_zero_stock_product(existing)
+                                elif self.deactivate_zero_stock and existing.exists():
+                                    # Stok min_stock altında ama 0 değil - sadece satışa kapat
+                                    existing.write({'sale_ok': False})
+                                    _logger.info(f"Stok yetersiz ({stock} < {self.min_stock}) - ürün satışa kapatıldı: {existing.name}")
+                            skipped += 1
+                            continue
+
+                        # Mevcut ürün ara
                         existing, match_type = self._find_existing_product(data)
-                        if existing and existing.exists():
-                            # Tedarikçi stoğunu güncelle
-                            existing.write({
-                                'xml_supplier_stock': stock,
-                                'xml_last_sync': fields.Datetime.now(),
-                            })
-                            # Stok 0 ise ve ayarlar aktifse işle
-                            if stock == 0 and (self.deactivate_zero_stock or self.delete_unsold_zero_stock):
-                                self._handle_zero_stock_product(existing)
-                            elif self.deactivate_zero_stock and existing.exists():
-                                # Stok min_stock altında ama 0 değil - sadece satışa kapat
-                                existing.write({'sale_ok': False})
-                                _logger.info(f"Stok yetersiz ({stock} < {self.min_stock}) - ürün satışa kapatıldı: {existing.name}")
-                        skipped += 1
-                        continue
 
-                    # Mevcut ürün ara
-                    existing, match_type = self._find_existing_product(data)
+                        # Parantezden varyant kontrolü
+                        name = str(data.get('name', '')).strip()
+                        base_name, variant_name = self._extract_base_and_variant(name)
 
-                    # Parantezden varyant kontrolü
-                    name = str(data.get('name', '')).strip()
-                    base_name, variant_name = self._extract_base_and_variant(name)
+                        if existing:
+                            # Eğer varyant modu aktif ve bu ürün varyantlı ise
+                            if self.variant_from_parentheses and self.create_variants and variant_name:
+                                # Bu varyant zaten var mı kontrol et (barkod ile)
+                                barcode = data.get('barcode')
+                                existing_variant = self.env['product.product'].search([
+                                    ('barcode', '=', barcode)
+                                ], limit=1) if barcode else None
 
-                    if existing:
-                        # Eğer varyant modu aktif ve bu ürün varyantlı ise
-                        if self.variant_from_parentheses and self.create_variants and variant_name:
-                            # Bu varyant zaten var mı kontrol et (barkod ile)
-                            barcode = data.get('barcode')
-                            existing_variant = self.env['product.product'].search([
-                                ('barcode', '=', barcode)
-                            ], limit=1) if barcode else None
-
-                            if not existing_variant:
-                                # Yeni varyant ekle
-                                self._create_color_variant(existing, variant_name, data, cost)
-                                updated += 1
-                                _logger.info(f"Varyant eklendi: {existing.name} - {variant_name}")
+                                if not existing_variant:
+                                    # Yeni varyant ekle
+                                    self._create_color_variant(existing, variant_name, data, cost)
+                                    updated += 1
+                                    _logger.info(f"Varyant eklendi: {existing.name} - {variant_name}")
+                                elif self.update_existing:
+                                    # Varyant zaten var, güncelle
+                                    self._update_product(existing, data, cost, price)
+                                    updated += 1
+                                else:
+                                    skipped += 1
                             elif self.update_existing:
-                                # Varyant zaten var, güncelle
                                 self._update_product(existing, data, cost, price)
                                 updated += 1
                             else:
                                 skipped += 1
-                        elif self.update_existing:
-                            self._update_product(existing, data, cost, price)
-                            updated += 1
                         else:
-                            skipped += 1
-                    else:
-                        if self.create_new_products:
-                            self._create_product(data, cost, price)
-                            created += 1
-                        else:
-                            skipped += 1
+                            if self.create_new_products:
+                                self._create_product(data, cost, price)
+                                created += 1
+                            else:
+                                skipped += 1
 
                 except Exception as e:
                     failed += 1
