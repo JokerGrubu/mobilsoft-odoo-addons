@@ -614,6 +614,43 @@ class AccountMove(models.Model):
             if not partner:
                 continue
 
+            doc_info = parsed.get('document_info') or {}
+            ref_value = doc.get('belge_no') or doc_info.get('invoice_id') or ettn
+
+            # Daha önce göç ile oluşturulmuş kayıt varsa (aynı partner + ref), duplike oluşturma.
+            existing_move = self.search([
+                ('move_type', '=', 'in_invoice'),
+                ('company_id', '=', company.id),
+                ('partner_id', '=', partner.id),
+                ('ref', '=', ref_value),
+            ], limit=1)
+            if existing_move:
+                update_vals = {}
+                if not existing_move.qnb_ettn:
+                    update_vals['qnb_ettn'] = ettn
+                if not existing_move.qnb_uuid and doc_info.get('uuid'):
+                    update_vals['qnb_uuid'] = doc_info.get('uuid')
+                if update_vals:
+                    existing_move.write(update_vals)
+
+                att_domain = [
+                    ('res_model', '=', 'account.move'),
+                    ('res_id', '=', existing_move.id),
+                    ('name', '=', f'{ettn}.xml'),
+                ]
+                if not self.env['ir.attachment'].search_count(att_domain):
+                    attachment = self.env['ir.attachment'].create({
+                        'name': f'{ettn}.xml',
+                        'res_id': existing_move.id,
+                        'res_model': 'account.move',
+                        'raw': xml_bytes,
+                        'type': 'binary',
+                        'mimetype': 'application/xml',
+                    })
+                    existing_move.message_post(body=_("QNB gelen e-Belge XML eklendi (duplike engellendi)."), attachment_ids=attachment.ids)
+
+                continue
+
             invoice_lines = []
             for line in (parsed.get('lines') or []):
                 product = self._qnb_find_or_create_product_from_line(company, line)
@@ -645,7 +682,6 @@ class AccountMove(models.Model):
                 }))
 
             doc_date = None
-            doc_info = parsed.get('document_info') or {}
             doc_date_raw = doc_info.get('issue_date') or doc.get('date')
             if doc_date_raw:
                 try:
@@ -662,7 +698,7 @@ class AccountMove(models.Model):
                 'move_type': 'in_invoice',
                 'partner_id': partner.id,
                 'invoice_date': doc_date or fields.Date.today(),
-                'ref': doc.get('belge_no') or doc_info.get('invoice_id') or ettn,
+                'ref': ref_value,
                 'company_id': company.id,
                 'currency_id': currency.id if currency else company.currency_id.id,
                 'invoice_line_ids': invoice_lines,
