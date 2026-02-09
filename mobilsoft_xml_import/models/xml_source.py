@@ -1764,21 +1764,16 @@ class XmlProductSource(models.Model):
 
     def _set_image_from_url(self, product, image_url):
         """
-        Ürüne görsel URL'sini kaydet ve indirip image_1920'ye yaz
+        Ürüne görsel URL'sini kaydet.
+
+        Not: Bu akış "download_images=False" iken kullanılır. Bu durumda görsel indirmek
+        ürün güncellemesini çok yavaşlatabildiği için sadece URL saklanır.
         """
         if not image_url:
             return
 
         # URL'yi kaydet
         product.write({'xml_image_url': image_url})
-
-        # Görseli indir ve image_1920'ye yaz
-        image_data = self._download_image(image_url)
-        if image_data:
-            product.write({'image_1920': image_data})
-            _logger.info(f"Görsel indirildi ve eklendi: {product.name}")
-        else:
-            _logger.warning(f"Görsel indirilemedi: {image_url}")
 
 
     def _add_extra_images_from_url(self, product, image_urls):
