@@ -1123,7 +1123,9 @@ class XmlProductSource(models.Model):
     def _find_existing_product(self, data):
         """Mevcut ürünü bul - Geliştirilmiş eşleştirme mantığı"""
         self.ensure_one()
-        Product = self.env['product.template']
+        # Arşivlenmiş ürünleri de eşleştirebilmek için active_test=False kullanıyoruz.
+        ProductT = self.env['product.template'].with_context(active_test=False)
+        ProductP = self.env['product.product'].with_context(active_test=False)
 
         sku = str(data.get('sku', '')).strip() if data.get('sku') else ''
         sku_prefix = sku.split()[0] if sku else ''  # İlk kelime
@@ -1131,7 +1133,7 @@ class XmlProductSource(models.Model):
         # 1. SKU Prefix (ilk kelime) ile eşleştir
         if self.match_by_sku_prefix and sku_prefix:
             # Önce tam prefix eşleşmesi
-            product = Product.search([
+            product = ProductT.search([
                 ('default_code', '=like', sku_prefix + '%')
             ], limit=1)
             if product:
@@ -1141,24 +1143,24 @@ class XmlProductSource(models.Model):
         if self.match_by_barcode and data.get('barcode'):
             barcode = str(data['barcode']).strip()
             if barcode:
-                # 2a. Önce barkod alanında ara
-                product = Product.search([('barcode', '=', barcode)], limit=1)
-                if product:
-                    return product, 'barcode'
+                # 2a. Önce product.product üzerinden (aktif+arşiv dahil) barkod ara
+                variant = ProductP.search([('barcode', '=', barcode)], limit=1)
+                if variant and variant.product_tmpl_id:
+                    return variant.product_tmpl_id, 'barcode'
 
                 # 2b. Barkod ürün adında olabilir (örn: "8699931326048-PROPODS3")
-                product = Product.search([('name', 'ilike', barcode)], limit=1)
+                product = ProductT.search([('name', 'ilike', barcode)], limit=1)
                 if product:
                     return product, 'barcode_in_name'
 
                 # 2c. Barkod SKU'da olabilir
-                product = Product.search([('default_code', '=', barcode)], limit=1)
+                product = ProductT.search([('default_code', '=', barcode)], limit=1)
                 if product:
                     return product, 'barcode_as_sku'
 
         # 3. SKU/Ürün kodu ile tam eşleştir
         if self.match_by_sku and sku:
-            product = Product.search([('default_code', '=', sku)], limit=1)
+            product = ProductT.search([('default_code', '=', sku)], limit=1)
             if product:
                 return product, 'sku_exact'
 
@@ -1166,7 +1168,7 @@ class XmlProductSource(models.Model):
         if self.match_by_description and data.get('description'):
             description = str(data['description']).strip().lower()
             if description and len(description) > 10:
-                all_products = Product.search([('description_sale', '!=', False)])
+                all_products = ProductT.search([('description_sale', '!=', False)])
                 for prod in all_products:
                     if not prod.description_sale:
                         continue
@@ -1186,7 +1188,7 @@ class XmlProductSource(models.Model):
             name = str(data['name']).strip()
             if name:
                 # Önce tam eşleşme
-                product = Product.search([('name', '=ilike', name)], limit=1)
+                product = ProductT.search([('name', '=ilike', name)], limit=1)
                 if product:
                     return product, 'name_exact'
 
@@ -1195,19 +1197,19 @@ class XmlProductSource(models.Model):
                     base_name, variant_name = self._extract_base_and_variant(name)
                     if base_name and variant_name:
                         # Ana isim ile tam eşleşme ara
-                        product = Product.search([('name', '=ilike', base_name)], limit=1)
+                        product = ProductT.search([('name', '=ilike', base_name)], limit=1)
                         if product:
                             return product, 'base_name_exact'
 
                         # Ana isim ile benzerlik ara
-                        all_products = Product.search([])
+                        all_products = ProductT.search([])
                         for prod in all_products:
                             ratio = SequenceMatcher(None, base_name.lower(), prod.name.lower()).ratio() * 100
                             if ratio >= 90:  # Ana isim için yüksek benzerlik
                                 return prod, f'base_name_similar_{int(ratio)}%'
 
                 # 5b. Normal benzerlik kontrolü
-                all_products = Product.search([])
+                all_products = ProductT.search([])
                 for prod in all_products:
                     ratio = SequenceMatcher(None, name.lower(), prod.name.lower()).ratio() * 100
                     if ratio >= self.name_match_ratio:
@@ -1504,11 +1506,19 @@ class XmlProductSource(models.Model):
                         base_name, variant_name = self._extract_base_and_variant(name)
 
                         if existing:
+                            # Arşivlenmiş ürün eşleştiyse aktif hale getir (tekilleştirme için)
+                            if hasattr(existing, 'active') and not existing.active:
+                                existing.write({'active': True, 'sale_ok': True, 'purchase_ok': True})
+                                # Şablon aktif olurken varyantları da aktif et (aksi halde barkod eşleşmesi zorlaşır)
+                                variants = existing.with_context(active_test=False).product_variant_ids
+                                if variants:
+                                    variants.write({'active': True})
+
                             # Eğer varyant modu aktif ve bu ürün varyantlı ise
                             if self.variant_from_parentheses and self.create_variants and variant_name:
                                 # Bu varyant zaten var mı kontrol et (barkod ile)
                                 barcode = data.get('barcode')
-                                existing_variant = self.env['product.product'].search([
+                                existing_variant = self.env['product.product'].with_context(active_test=False).search([
                                     ('barcode', '=', barcode)
                                 ], limit=1) if barcode else None
 
