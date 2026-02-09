@@ -540,11 +540,11 @@ class AccountMove(models.Model):
 
         return False
 
-    def _qnb_find_tax(self, company, tax_percent):
+    def _qnb_find_tax(self, company, tax_percent, tax_use='sale'):
         if not tax_percent:
             return False
         return self.env['account.tax'].search([
-            ('type_tax_use', '=', 'sale'),
+            ('type_tax_use', '=', tax_use),
             ('amount', '=', tax_percent),
             ('company_id', '=', company.id)
         ], limit=1)
@@ -598,24 +598,89 @@ class AccountMove(models.Model):
             if self.search_count([('qnb_ettn', '=', ettn), ('company_id', '=', company.id)]) > 0:
                 continue
 
-            content = download.get('content')
-            if isinstance(content, str):
-                content = content.encode('utf-8')
+            xml_bytes = self._qnb_normalize_xml_bytes(download.get('content'))
+            if not xml_bytes:
+                continue
+
+            parsed = self.env['qnb.document']._parse_invoice_xml_full(xml_bytes, direction='incoming')
+            partner_data = parsed.get('partner') or {}
+            fallback = {
+                'vat': (doc.get('sender_vkn') or doc.get('supplier_vkn') or doc.get('vkn') or '').strip(),
+                'name': (doc.get('sender_title') or doc.get('sender_name') or doc.get('supplier_title') or doc.get('title') or '').strip(),
+            }
+            profile = (parsed.get('document_info') or {}).get('profile') or ''
+            is_einvoice = str(profile).upper() != 'EARSIVFATURA'
+            partner = self._qnb_find_or_create_partner_from_data(company, partner_data, fallback, is_einvoice)
+            if not partner:
+                continue
+
+            invoice_lines = []
+            for line in (parsed.get('lines') or []):
+                product = self._qnb_find_or_create_product_from_line(company, line)
+                qty = line.get('quantity') or 1.0
+                unit_price = line.get('unit_price')
+                if not unit_price and line.get('line_total') and qty:
+                    unit_price = float(line.get('line_total')) / float(qty)
+
+                line_vals = {
+                    'name': line.get('product_description') or line.get('product_name') or (product.name if product else 'Ürün'),
+                    'quantity': qty,
+                    'price_unit': unit_price or 0.0,
+                }
+                if product:
+                    line_vals['product_id'] = product.id
+
+                tax = self._qnb_find_tax(company, line.get('tax_percent'), tax_use='purchase')
+                if tax:
+                    line_vals['tax_ids'] = [(6, 0, [tax.id])]
+
+                invoice_lines.append((0, 0, line_vals))
+
+            if not invoice_lines:
+                total_amount = doc.get('total') or (parsed.get('amounts') or {}).get('total') or 0.0
+                invoice_lines.append((0, 0, {
+                    'name': doc.get('belge_no') or (parsed.get('document_info') or {}).get('invoice_id') or 'QNB Fatura',
+                    'quantity': 1.0,
+                    'price_unit': float(total_amount or 0.0),
+                }))
+
+            doc_date = None
+            doc_info = parsed.get('document_info') or {}
+            doc_date_raw = doc_info.get('issue_date') or doc.get('date')
+            if doc_date_raw:
+                try:
+                    if isinstance(doc_date_raw, str) and len(doc_date_raw) == 8:
+                        doc_date_raw = f"{doc_date_raw[:4]}-{doc_date_raw[4:6]}-{doc_date_raw[6:8]}"
+                    doc_date = fields.Date.from_string(doc_date_raw)
+                except Exception:
+                    doc_date = fields.Date.today()
+
+            currency_name = (doc_info.get('currency') or doc.get('currency') or 'TRY')
+            currency = self.env['res.currency'].search([('name', '=', currency_name)], limit=1)
+
+            move = self.env['account.move'].create({
+                'move_type': 'in_invoice',
+                'partner_id': partner.id,
+                'invoice_date': doc_date or fields.Date.today(),
+                'ref': doc.get('belge_no') or doc_info.get('invoice_id') or ettn,
+                'company_id': company.id,
+                'currency_id': currency.id if currency else company.currency_id.id,
+                'invoice_line_ids': invoice_lines,
+                'qnb_ettn': ettn,
+                'qnb_state': 'delivered',
+                'qnb_uuid': doc_info.get('uuid') or False,
+                'journal_id': journal.id,
+            })
 
             attachment = self.env['ir.attachment'].create({
                 'name': f'{ettn}.xml',
-                'raw': content,
+                'res_id': move.id,
+                'res_model': 'account.move',
+                'raw': xml_bytes,
                 'type': 'binary',
                 'mimetype': 'application/xml',
             })
-
-            move = journal.with_context(
-                default_move_type='in_invoice',
-                default_company_id=company.id,
-                default_qnb_ettn=ettn,
-                default_qnb_state='delivered',
-            )._create_document_from_attachment(attachment.id)
-            move.message_post(body=_("QNB belgesi alındı."))
+            move.message_post(body=_("QNB gelen e-Belge içe aktarıldı."), attachment_ids=attachment.ids)
 
             # Odoo PDF'i oluştur ve ekle (Nilvera gibi)
             try:
