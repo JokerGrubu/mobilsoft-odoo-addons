@@ -795,10 +795,12 @@ class AccountMove(models.Model):
         if not companies:
             return
         invoices_to_update = self.search([
-            ('qnb_state', 'in', ['sent', 'sending', 'delivered']),
+            # Duplike/ürün/partner önlemleri ile birlikte, delivered durumundakileri tekrar sorgulamak gereksiz
+            # ve bazı eski belgelerde “bulunamadı” uyarılarını artırabiliyor.
+            ('qnb_state', 'in', ['sent', 'sending']),
             ('qnb_ettn', '!=', False),
             ('company_id', 'in', companies.ids),
-        ])
+        ], limit=200)
         for invoice in invoices_to_update:
             invoice._qnb_update_status_from_api()
 

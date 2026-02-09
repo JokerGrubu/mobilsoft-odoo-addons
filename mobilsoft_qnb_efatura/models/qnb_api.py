@@ -521,7 +521,13 @@ class QnbApiClient(models.AbstractModel):
             return {'success': False, 'message': 'Durum bilgisi alınamadı'}
 
         except Exception as e:
-            _logger.error(f"Belge durumu sorgulama hatası: {str(e)}")
+            msg = str(e)
+            # Bazı durumlarda QNB tarafı “yerelden alınan belge bulunamadı” gibi bir mesaj döndürüyor.
+            # Bu hata cron'larda çok sayıda belge için tekrarlanabildiğinden ERROR seviyesinde log şişirmesin.
+            if "bulunamad" in msg.lower():
+                _logger.warning(f"Belge durumu sorgulama uyarısı: {msg}")
+            else:
+                _logger.error(f"Belge durumu sorgulama hatası: {msg}")
             return {'success': False, 'message': str(e)}
 
     def get_document_history(self, ettn, document_type='EFATURA', company=None):
