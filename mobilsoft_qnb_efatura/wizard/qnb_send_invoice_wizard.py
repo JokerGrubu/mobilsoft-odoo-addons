@@ -39,10 +39,15 @@ class QnbSendInvoiceWizard(models.TransientModel):
 
     is_partner_efatura = fields.Boolean(
         string='Müşteri e-Fatura Kayıtlı',
-        related='partner_id.is_efatura_registered'
+        compute='_compute_is_partner_efatura'
     )
 
     note = fields.Text(string='Not')
+
+    @api.depends('partner_id', 'partner_id.l10n_tr_nilvera_customer_status')
+    def _compute_is_partner_efatura(self):
+        for r in self:
+            r.is_partner_efatura = getattr(r.partner_id, 'l10n_tr_nilvera_customer_status', None) == 'einvoice'
 
     @api.onchange('document_type')
     def _onchange_document_type(self):
@@ -62,7 +67,7 @@ class QnbSendInvoiceWizard(models.TransientModel):
             raise UserError(_("Sadece onaylanmış faturalar gönderilebilir!"))
 
         if self.document_type == 'efatura':
-            if not self.partner_id.is_efatura_registered:
+            if getattr(self.partner_id, 'l10n_tr_nilvera_customer_status', None) != 'einvoice':
                 raise UserError(_("Bu müşteri e-Fatura sistemine kayıtlı değil!"))
             return self.move_id.action_send_efatura()
         else:

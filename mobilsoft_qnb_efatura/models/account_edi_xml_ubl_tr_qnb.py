@@ -45,7 +45,7 @@ class AccountEdiXmlUblTrQnb(models.AbstractModel):
             'cbc:BuyerReference': None,
         })
 
-        if invoice.partner_id.qnb_customer_status == 'earchive':
+        if getattr(invoice.partner_id, 'l10n_tr_nilvera_customer_status', None) == 'earchive':
             document_node['cac:AdditionalDocumentReference'] = {
                 'cbc:ID': {'_text': invoice.company_id.qnb_earsiv_send_type or 'ELEKTRONIK'},
                 'cbc:IssueDate': {'_text': invoice.invoice_date},

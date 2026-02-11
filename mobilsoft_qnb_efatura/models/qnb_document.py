@@ -2328,14 +2328,14 @@ class QnbDocument(models.Model):
         if partner:
             return partner.id
 
-        # Yeni partner oluştur (ayar aktifse)
+        # Yeni partner oluştur (ayar aktifse) — Nilvera alanları ile
         if create_new and vat:
             vat_number = vat if str(vat).upper().startswith('TR') else f"TR{vat}"
             return self.env['res.partner'].create({
                 'name': name or f'Firma {vat}',
                 'vat': vat_number,
                 'is_company': True,
-                'is_efatura_registered': True,
+                'l10n_tr_nilvera_customer_status': 'einvoice',
             }).id
 
         return False

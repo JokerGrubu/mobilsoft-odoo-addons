@@ -58,8 +58,9 @@ class QNBBatchCheckWizard(models.TransientModel):
                 vkn = partner.vat.replace('TR', '').replace(' ', '')
                 result = api_client.check_registered_user(vkn)
 
-                if result.get('is_registered'):
-                    alias_name = (result.get('alias') or '').strip()
+                if result.get('success') and result.get('users'):
+                    user = result['users'][0]
+                    alias_name = (user.get('alias') or '').strip()
                     Alias = self.env['l10n_tr.nilvera.alias']
                     alias_rec = Alias.search([
                         ('partner_id', '=', partner.id),
@@ -75,7 +76,7 @@ class QNBBatchCheckWizard(models.TransientModel):
                     results['registered'].append({
                         'name': partner.name,
                         'vkn': vkn,
-                        'alias': result.get('alias', '')
+                        'alias': user.get('alias', '')
                     })
                 else:
                     partner.write({

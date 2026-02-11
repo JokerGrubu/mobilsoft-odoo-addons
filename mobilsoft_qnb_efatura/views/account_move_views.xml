@@ -44,8 +44,8 @@
                             <field name="partner_id" invisible="1"/>
                             <label for="partner_id" string="e-Fatura Kayıtlı"/>
                             <div>
-                                <span class="badge text-bg-success" invisible="not partner_id.is_efatura_registered">Evet</span>
-                                <span class="badge text-bg-warning" invisible="partner_id.is_efatura_registered">Hayır</span>
+                                <span class="badge text-bg-success" invisible="partner_id.l10n_tr_nilvera_customer_status != 'einvoice'">Evet</span>
+                                <span class="badge text-bg-warning" invisible="partner_id.l10n_tr_nilvera_customer_status == 'einvoice'">Hayır</span>
                             </div>
                         </group>
                     </group>
