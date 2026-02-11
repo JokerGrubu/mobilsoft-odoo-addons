@@ -22,6 +22,13 @@ class AccountMoveSend(models.AbstractModel):
             move.qnb_state in ('not_sent', 'error'),
         ])
 
+    @api.model
+    def _is_tr_nilvera_applicable(self, move):
+        """QNB kullanılıyorsa aynı fatura Nilvera ile gönderilmesin (mükerrer belge önleme)."""
+        if move.company_id.qnb_enabled:
+            return False
+        return super()._is_tr_nilvera_applicable(move)
+
     def _get_all_extra_edis(self) -> dict:
         res = super()._get_all_extra_edis()
         res.update({'tr_qnb': {'label': _("by QNB e-Solutions"), 'is_applicable': self._is_tr_qnb_applicable}})
