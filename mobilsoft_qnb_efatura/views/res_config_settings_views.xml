@@ -68,7 +68,7 @@
                         </setting>
                     </block>
 
-                    <block title="Veri düzeltme" name="qnb_data_fix" invisible="not qnb_enabled">
+                    <block title="Veri düzeltme" name="qnb_data_fix">
                         <div class="mt16">
                             <button name="action_qnb_fill_partner_vat_from_list" type="object"
                                     string="VAT Eksik Carileri QNB Listesinden Doldur"

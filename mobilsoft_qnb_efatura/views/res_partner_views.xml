@@ -8,8 +8,7 @@
         <field name="arch" type="xml">
             <!-- e-Fatura Bilgileri Tab -->
             <xpath expr="//page[@name='sales_purchases']" position="after">
-                <page string="e-Fatura" name="efatura_info" 
-                      invisible="not is_company and not parent_id">
+                <page string="e-Fatura" name="efatura_info">
                     <group>
                         <group string="e-Fatura Durumu (Nilvera / QNB ortak)">
                             <field name="l10n_tr_nilvera_customer_status" readonly="1"/>

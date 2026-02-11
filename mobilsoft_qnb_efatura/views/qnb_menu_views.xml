@@ -76,7 +76,7 @@
     <menuitem id="menu_qnb_config"
               name="Ayarlar"
               parent="menu_qnb_root"
-              action="base_setup.action_general_configuration"
+              action="action_qnb_config_settings"
               sequence="90"
               groups="base.group_system"/>
 </odoo>
