@@ -114,9 +114,8 @@ class ResCompany(models.Model):
     # Partner Eşleştirme
     qnb_create_new_partner = fields.Boolean(
         string='Yeni Partner Oluştur',
-        default=False,
-        help='QNB faturalarında bulunamayan partnerler için yeni kayıt oluştur. '
-             'Kapalıysa sadece mevcut partnerler güncellenir.'
+        default=True,
+        help='Gelen belgelerde eşleşmeyen partnerler için yeni cari oluştur. Açık olmalı.'
     )
     qnb_match_partner_by = fields.Selection([
         ('vat', 'VKN/TCKN (Vergi Kimlik No)'),
@@ -127,10 +126,9 @@ class ResCompany(models.Model):
 
     # Ürün Eşleştirme
     qnb_create_new_product = fields.Boolean(
-        string='Yeni Ürün Oluştur',
-        default=False,
-        help='QNB fatura satırlarında bulunamayan ürünler için yeni kayıt oluştur. '
-             'Kapalıysa sadece mevcut ürünler güncellenir.'
+        string='Yeni Ürün/Hizmet Oluştur',
+        default=True,
+        help='Gelen belgelerde eşleşmeyen ürün/hizmet satırları için yeni kayıt oluştur. Açık olmalı.'
     )
     qnb_match_product_by = fields.Selection([
         ('barcode', 'Barkod'),

@@ -6,6 +6,18 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.6.0] - 2026-02-11
+
+### Degistirilenler
+
+#### Gelen belge eslestirme kurallari
+- **qnb_create_new_partner** ve **qnb_create_new_product** varsayilan True: Eslesmeyen partner/urun icin yenisi olusturulur.
+- Config ekrani: "Gelen Belge Eslestirme" blogu eklendi (Partner/Urun eslestirme kriteri ve yeni olusturma secenekleri).
+- Yeni partner olusturulurken: adres (street, city, zip), ulke, il, vergi dairesi XML'den doldurulur.
+- Yeni urun olusturulurken: purchase_ok=True (alis faturasi icin), supplierinfo tedarikci kodu ile eklenir.
+
+---
+
 ## [19.0.1.5.0] - 2026-02-11
 
 ### Degistirilenler

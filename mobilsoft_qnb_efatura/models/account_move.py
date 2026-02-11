@@ -484,12 +484,46 @@ class AccountMove(models.Model):
                 'vat': vat_number,
                 'is_company': True,
                 'customer_rank': 1,
+                'supplier_rank': 1,
                 'l10n_tr_nilvera_customer_status': 'einvoice' if (is_einvoice and vat) else ('earchive' if vat else 'not_checked'),
             }
             if email:
                 create_vals['email'] = email
             if phone:
                 create_vals['phone'] = phone
+            if partner_data.get('street'):
+                create_vals['street'] = (partner_data.get('street') or '').strip()
+            if partner_data.get('street2'):
+                create_vals['street2'] = (partner_data.get('street2') or '').strip()
+            if partner_data.get('city'):
+                create_vals['city'] = (partner_data.get('city') or '').strip()
+            if partner_data.get('zip'):
+                create_vals['zip'] = (partner_data.get('zip') or '').strip()
+            if partner_data.get('website'):
+                create_vals['website'] = (partner_data.get('website') or '').strip()
+            if partner_data.get('country'):
+                country = self.env['res.country'].search([
+                    ('name', 'ilike', (partner_data.get('country') or '').strip())
+                ], limit=1)
+                if country:
+                    create_vals['country_id'] = country.id
+                    if partner_data.get('state'):
+                        state = self.env['res.country.state'].search([
+                            ('country_id', '=', country.id),
+                            ('name', 'ilike', (partner_data.get('state') or '').strip())
+                        ], limit=1)
+                        if state:
+                            create_vals['state_id'] = state.id
+            elif not create_vals.get('country_id'):
+                create_vals['country_id'] = self.env.ref('base.tr').id
+            if partner_data.get('tax_office') and 'l10n_tr_tax_office_id' in Partner._fields:
+                tax_office = (partner_data.get('tax_office') or '').strip()
+                if tax_office:
+                    tax_rec = self.env['l10n.tr.tax.office'].search([
+                        ('name', 'ilike', tax_office)
+                    ], limit=1)
+                    if tax_rec:
+                        create_vals['l10n_tr_tax_office_id'] = tax_rec.id
             partner = Partner.create(create_vals)
             if is_einvoice and partner and partner_data.get('alias'):
                 alias_name = (partner_data.get('alias') or '').strip()
@@ -541,7 +575,7 @@ class AccountMove(models.Model):
             vals = {
                 'name': product_name,
                 'sale_ok': True,
-                'purchase_ok': False,
+                'purchase_ok': True,
             }
             if product_code:
                 vals['default_code'] = product_code
