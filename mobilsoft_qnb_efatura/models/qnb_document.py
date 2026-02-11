@@ -797,6 +797,19 @@ class QnbDocument(models.Model):
         elem = element.find(xpath, namespaces)
         return elem.text.strip() if elem is not None and elem.text else None
 
+    def action_view_invoice(self):
+        """Bağlı faturayı formda aç"""
+        self.ensure_one()
+        if not self.move_id:
+            return
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move',
+            'res_id': self.move_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
     def action_create_invoice(self):
         """
         QNB Belgesinden Odoo Faturası Oluştur

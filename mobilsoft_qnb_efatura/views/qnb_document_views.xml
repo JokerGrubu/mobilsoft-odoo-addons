@@ -36,8 +36,8 @@
                 <header>
                     <button name="action_create_invoice" type="object" string="📋 Fatura Oluştur"
                             class="btn-primary" invisible="move_id or direction == 'outgoing'"/>
-                    <button name="%(account.action_move_in_invoice_type)d" type="action" string="📄 Faturayı Görüntüle"
-                            class="btn-info" invisible="not move_id" context="{'default_move_id': move_id}"/>
+                    <button name="action_view_invoice" type="object" string="📄 Faturayı Görüntüle"
+                            class="btn-info" invisible="not move_id"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,sending,sent,delivered,accepted"/>
                 </header>
@@ -223,19 +223,5 @@ action = env['qnb.document'].action_bulk_match_documents()
 action = env['qnb.document.line'].action_bulk_rematch_products()
         </field>
     </record>
-
-    <!-- QNB Menü Öğesi -->
-    <menuitem
-        id="menu_qnb_solutions"
-        name="QNB e-Solutions"
-        parent="base.menu_administration"
-        sequence="90"/>
-
-    <menuitem
-        id="menu_qnb_documents"
-        name="Gelen e-Belgeler"
-        parent="menu_qnb_solutions"
-        action="action_qnb_fetch_all_documents"
-        sequence="10"/>
 
 </odoo>

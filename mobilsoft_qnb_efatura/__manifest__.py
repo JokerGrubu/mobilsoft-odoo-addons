@@ -48,6 +48,8 @@ Teknik Özellikler:
         'views/res_config_settings_views.xml',
         'views/account_move_views.xml',
         'views/res_partner_views.xml',
+        'views/qnb_document_views.xml',
+        'wizard/qnb_wizard_views.xml',
         'views/qnb_menu_views.xml',
     ],
     'external_dependencies': {
