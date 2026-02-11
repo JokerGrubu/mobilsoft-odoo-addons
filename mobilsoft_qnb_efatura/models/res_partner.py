@@ -184,13 +184,15 @@ class ResPartner(models.Model):
             if len(street) > 4:
                 words = [w.strip() for w in street.split() if w.strip()]
                 if len(words) >= 2:
+                    last_word = words[-1]
                     State = self.env['res.country.state']
                     tr_states = State.search([('country_id.code', '=', 'TR')])
-                    state_names = {s.name.upper(): s for s in tr_states}
-                    last = words[-1].upper()
-                    if last in state_names:
-                        partner_data['state'] = state_names[last].name
-                        partner_data['city'] = words[-2]
+                    for st in tr_states:
+                        if (st.name and last_word and
+                                st.name.upper().replace('İ', 'I') == last_word.upper().replace('İ', 'I')):
+                            partner_data['state'] = st.name
+                            partner_data['city'] = words[-2]
+                            break
 
     def _get_latest_qnb_partner_data(self):
         """
