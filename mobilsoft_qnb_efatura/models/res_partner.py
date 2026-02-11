@@ -366,6 +366,59 @@ class ResPartner(models.Model):
             return None
         return partner_data
 
+    def _fetch_partner_data_from_nilvera_api(self):
+        """
+        Nilvera GetGlobalCustomerInfo API ile partner bilgilerini al.
+        Şirkette l10n_tr_nilvera_api_key tanımlı olmalı.
+        :return: partner_data dict (street, city, state, zip, phone, email, website, tax_office) veya None
+        """
+        self.ensure_one()
+        if not self.vat:
+            return None
+        digits = ''.join(filter(str.isdigit, str(self.vat)))
+        if len(digits) not in (10, 11):
+            return None
+        company = self.company_id or self.env.company
+        if not getattr(company, 'l10n_tr_nilvera_api_key', None) or not company.l10n_tr_nilvera_api_key:
+            return None
+        try:
+            from odoo.addons.l10n_tr_nilvera.lib.nilvera_client import _get_nilvera_client
+            with _get_nilvera_client(company, timeout_limit=15) as client:
+                resp = client.request('GET', f'/general/GlobalCompany/GetGlobalCustomerInfo/{digits}', params={'globalUserType': 'Invoice'})
+        except Exception as e:
+            _logger.debug("Nilvera GetGlobalCustomerInfo hatası partner %s: %s", self.id, e)
+            return None
+        if not resp:
+            return None
+        if isinstance(resp, list) and resp:
+            resp = resp[0]
+        if not isinstance(resp, dict):
+            return None
+        out = {}
+        if resp.get('Title'):
+            out['name'] = (resp.get('Title') or '').strip()
+        if resp.get('Address'):
+            out['street'] = (resp.get('Address') or '').strip()
+        if resp.get('City'):
+            out['state'] = (resp.get('City') or '').strip()
+        if resp.get('District'):
+            out['city'] = (resp.get('District') or '').strip()
+        if resp.get('PostalCode'):
+            out['zip'] = (resp.get('PostalCode') or '').strip()
+        if resp.get('Country'):
+            out['country'] = (resp.get('Country') or '').strip()
+        if resp.get('TaxDepartment'):
+            out['tax_office'] = (resp.get('TaxDepartment') or '').strip()
+        if resp.get('Phone'):
+            out['phone'] = (resp.get('Phone') or '').strip()
+        elif resp.get('Fax'):
+            out['phone'] = (resp.get('Fax') or '').strip()
+        if resp.get('Email'):
+            out['email'] = (resp.get('Email') or '').strip()
+        if resp.get('WebSite'):
+            out['website'] = (resp.get('WebSite') or '').strip()
+        return out if out else None
+
     def _apply_qnb_partner_data(self, partner_data, skip_name=False, fill_empty_only=False):
         """
         XML'den gelen partner_data dict'ini bu partner'a uygula: adres, il, ilçe, posta kodu,
@@ -569,10 +622,18 @@ class ResPartner(models.Model):
                     vals['l10n_tr_nilvera_customer_alias_id'] = False
                 partner.write(vals)
 
-                # GİB'den gelenler yazıldı; adres/iletişim bilgilerini fatura XML'inden al (yerel veya QNB API)
+                # GİB'den gelenler yazıldı; adres/iletişim bilgilerini al: QNB XML → QNB API → Nilvera API
                 partner_data = partner._get_latest_qnb_partner_data()
                 if not partner_data and len(partners) == 1:
                     partner_data = partner._fetch_partner_data_from_qnb_api()
+                nilvera_data = partner._fetch_partner_data_from_nilvera_api()
+                if nilvera_data:
+                    if partner_data:
+                        for k, v in nilvera_data.items():
+                            if v and not (partner_data.get(k) or '').strip():
+                                partner_data[k] = v
+                    else:
+                        partner_data = nilvera_data
                 if partner_data:
                     partner._normalize_city_state_partner_data(partner_data)
                     partner._apply_qnb_partner_data(partner_data, skip_name=True, fill_empty_only=False)
