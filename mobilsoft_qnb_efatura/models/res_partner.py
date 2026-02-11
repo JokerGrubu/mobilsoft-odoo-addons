@@ -161,22 +161,19 @@ class ResPartner(models.Model):
             }
         }
 
-    def action_update_title_from_qnb(self):
-        """QNB (kayıtlı kullanıcı) sorgusu ile ünvanı güncelle (VKN/TCKN ile)"""
-        api_client = self.env['qnb.api.client']
-
-        def is_placeholder_name(current_name, vat_number):
-            current_name = (current_name or '').strip()
-            if not current_name:
-                return True
-            if current_name.startswith(('Firma ', 'Tedarikçi ', 'VKN:')):
-                return True
-            if vat_number and current_name == vat_number:
-                return True
-            return False
+    def action_update_from_qnb_mukellef(self):
+        """
+        QNB mükellef sorgusu (kayıtlı kullanıcı) ile partner bilgilerini güncelle.
+        VKN/TCKN ile GİB'den ünvan ve e-Fatura posta kutusu (alias) alınır;
+        partner adı, l10n_tr_nilvera_customer_status ve l10n_tr_nilvera_customer_alias_id güncellenir.
+        """
+        company = self.env.company
+        api_client = self.env['qnb.api.client'].with_company(company)
+        Alias = self.env['l10n_tr.nilvera.alias']
 
         processed = 0
-        updated = 0
+        updated_name = 0
+        updated_alias = 0
         skipped = 0
         errors = 0
 
@@ -186,46 +183,70 @@ class ResPartner(models.Model):
                 if not partner.vat:
                     skipped += 1
                     continue
-
                 digits = ''.join(filter(str.isdigit, str(partner.vat)))
                 if len(digits) not in (10, 11):
                     skipped += 1
                     continue
 
-                result = api_client.check_registered_user(digits)
+                result = api_client.check_registered_user(digits, company=company)
                 if not (result.get('success') and result.get('users')):
+                    # e-Fatura kayıtlı değil; sadece durumu güncelle
+                    if getattr(partner, 'l10n_tr_nilvera_customer_status', None) is not None:
+                        partner.write({
+                            'l10n_tr_nilvera_customer_status': 'earchive' if partner.vat else 'not_checked',
+                            'l10n_tr_nilvera_customer_alias_id': False,
+                            'qnb_last_check_date': fields.Datetime.now(),
+                        })
                     skipped += 1
                     continue
 
-                title = (result['users'][0].get('title') or '').strip()
-                if not title:
-                    skipped += 1
-                    continue
+                user = result['users'][0]
+                title = (user.get('title') or '').strip()
+                alias_name = (user.get('alias') or '').strip()
 
-                if is_placeholder_name(partner.name, partner.vat) and (partner.name or '').strip() != title:
-                    partner.write({'name': title})
-                    updated += 1
+                vals = {
+                    'l10n_tr_nilvera_customer_status': 'einvoice',
+                    'qnb_last_check_date': fields.Datetime.now(),
+                }
+                if title and (partner.name or '').strip() != title:
+                    vals['name'] = title
+                    updated_name += 1
+                if alias_name:
+                    alias_rec = Alias.search([
+                        ('partner_id', '=', partner.id),
+                        ('name', '=', alias_name),
+                    ], limit=1)
+                    if not alias_rec:
+                        alias_rec = Alias.create({'name': alias_name, 'partner_id': partner.id})
+                        updated_alias += 1
+                    vals['l10n_tr_nilvera_customer_alias_id'] = alias_rec.id
                 else:
+                    vals['l10n_tr_nilvera_customer_alias_id'] = False
+                partner.write(vals)
+                if not title and not alias_name:
                     skipped += 1
-            except Exception:
+            except Exception as e:
                 errors += 1
-                continue
+                import logging
+                logging.getLogger(__name__).warning("QNB mükellef güncelleme hatası partner id=%s: %s", partner.id, e)
 
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
-                'title': 'QNB Ünvan Güncelle',
+                'title': _('QNB Mükellef ile Güncelle'),
                 'message': (
-                    f'Partner: {processed}\n'
-                    f'Güncellendi: {updated}\n'
-                    f'Atlandı: {skipped}\n'
-                    f'Hata: {errors}'
+                    _('İşlenen: %s | Ünvan güncellendi: %s | Alias güncellendi: %s | Atlandı: %s | Hata: %s')
+                    % (processed, updated_name, updated_alias, skipped, errors)
                 ),
-                'type': 'success' if updated else 'info',
+                'type': 'success' if (updated_name or updated_alias) else 'info',
                 'sticky': False,
-            }
+            },
         }
+
+    def action_update_title_from_qnb(self):
+        """QNB (kayıtlı kullanıcı) sorgusu ile ünvanı güncelle (VKN/TCKN ile) — eski davranış; mükellef güncelleme için action_update_from_qnb_mukellef kullanın."""
+        return self.action_update_from_qnb_mukellef()
 
     def action_update_from_qnb_xml(self):
         """QNB XML içeriğinden partner bilgilerini güncelle (seçili partner için)"""
