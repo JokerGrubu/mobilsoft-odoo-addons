@@ -68,9 +68,10 @@
                         </setting>
                     </block>
 
-                    <block title="Gelen Belge Eşleştirme" name="qnb_match_settings" invisible="not qnb_enabled">
+                    <block title="Giden Belge Eşleştirme" name="qnb_match_settings" invisible="not qnb_enabled">
+                        <p class="text-muted mb-0" style="font-size: 0.9em;">Gelen belgeler Nilvera ile aynı Odoo UBL import akışını kullanır. Aşağıdaki ayarlar giden belgeler için geçerlidir.</p>
                         <setting id="qnb_match_partner" string="Partner (Cari) Eşleştirme"
-                                 help="Gelen belgelerdeki tedarikçi/müşteri bilgileri nasıl eşleştirilsin? Eşleşmezse yeni cari oluşturulsun mu?">
+                                 help="Giden belgelerdeki tedarikçi/müşteri bilgileri nasıl eşleştirilsin? Eşleşmezse yeni cari oluşturulsun mu?">
                             <field name="qnb_match_partner_by" widget="radio"/>
                             <field name="qnb_create_new_partner"/>
                         </setting>

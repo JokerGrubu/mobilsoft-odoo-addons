@@ -6,6 +6,18 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.7.0] - 2026-02-11
+
+### Degistirilenler
+
+#### QNB gelen belgeler = Nilvera ile ayni UBL import
+- Gelen e-belgeler artik Odoo standart UBL import akisini kullaniyor (`account.edi.xml.ubl.tr`).
+- Manuel partner/urun eslestirme (qnb_find_or_create_*) kaldirildi; Nilvera ile ayni `_create_document_from_attachment` akisi.
+- Partner/urun eslestirmesi Odoo standart `_import_partner` ve UBL `_import_fill_invoice` ile yapilir.
+- Hata durumunda Nilvera gibi bos fatura + attachment olusturulur.
+
+---
+
 ## [19.0.1.6.0] - 2026-02-11
 
 ### Degistirilenler

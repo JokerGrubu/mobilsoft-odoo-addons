@@ -104,14 +104,14 @@ class AccountMove(models.Model):
         return self._cron_qnb_get_invoice_status()
 
     def _get_import_file_type(self, file_data):
-        """QNB UBL-TR dosyalarını tanımla (Nilvera uyumlu)"""
-        # EXTENDS 'account'
+        """QNB UBL-TR dosyaları Nilvera ile aynı Odoo UBL import akışını kullanır."""
+        # EXTENDS 'account' — TR1.2 için Nilvera formatı (account.edi.xml.ubl.tr) kullan
         if (
             file_data['xml_tree'] is not None
             and (customization_id := file_data['xml_tree'].findtext('{*}CustomizationID'))
             and 'TR1.2' in customization_id
         ):
-            return 'account.edi.xml.ubl.tr.qnb'
+            return 'account.edi.xml.ubl.tr'
         return super()._get_import_file_type(file_data)
 
     @api.model
@@ -623,7 +623,20 @@ class AccountMove(models.Model):
                 xml_bytes = payload
         return xml_bytes
 
+    def _qnb_extract_uuid_from_xml(self, xml_bytes):
+        """UBL-TR XML'den UUID değerini çıkar (Nilvera ile aynı yapı)."""
+        try:
+            from lxml import etree
+            root = etree.fromstring(xml_bytes)
+            uuid_val = root.findtext('.//{*}UUID') or root.findtext('./{*}UUID')
+            return (uuid_val or '').strip() or None
+        except Exception:
+            return None
+
     def _qnb_fetch_incoming_documents(self):
+        """
+        Gelen e-belgeleri QNB API'den çeker; Odoo UBL import akışı (Nilvera ile aynı) ile fatura oluşturur.
+        """
         company = self.env.company
         api_client = self.env['qnb.api.client']
         start_date = self._qnb_get_last_fetch_date(company)
@@ -654,127 +667,47 @@ class AccountMove(models.Model):
             if not xml_bytes:
                 continue
 
-            parsed = self.env['qnb.document']._parse_invoice_xml_full(xml_bytes, direction='incoming')
-            partner_data = parsed.get('partner') or {}
-            fallback = {
-                'vat': (doc.get('sender_vkn') or doc.get('supplier_vkn') or doc.get('vkn') or '').strip(),
-                'name': (doc.get('sender_title') or doc.get('sender_name') or doc.get('supplier_title') or doc.get('title') or '').strip(),
-            }
-            profile = (parsed.get('document_info') or {}).get('profile') or ''
-            is_einvoice = str(profile).upper() != 'EARSIVFATURA'
-            partner = self._qnb_find_or_create_partner_from_data(company, partner_data, fallback, is_einvoice)
-            if not partner:
-                continue
-
-            doc_info = parsed.get('document_info') or {}
-            ref_value = doc.get('belge_no') or doc_info.get('invoice_id') or ettn
-
-            # Daha önce göç ile oluşturulmuş kayıt varsa (aynı partner + ref), duplike oluşturma.
-            existing_move = self.search([
-                ('move_type', '=', 'in_invoice'),
-                ('company_id', '=', company.id),
-                ('partner_id', '=', partner.id),
-                ('ref', '=', ref_value),
-            ], limit=1)
-            if existing_move:
-                update_vals = {}
-                if not existing_move.qnb_ettn:
-                    update_vals['qnb_ettn'] = ettn
-                if not existing_move.qnb_uuid and doc_info.get('uuid'):
-                    update_vals['qnb_uuid'] = doc_info.get('uuid')
-                if update_vals:
-                    existing_move.write(update_vals)
-
-                att_domain = [
-                    ('res_model', '=', 'account.move'),
-                    ('res_id', '=', existing_move.id),
-                    ('name', '=', f'{ettn}.xml'),
-                ]
-                if not self.env['ir.attachment'].search_count(att_domain):
-                    attachment = self.env['ir.attachment'].create({
-                        'name': f'{ettn}.xml',
-                        'res_id': existing_move.id,
-                        'res_model': 'account.move',
-                        'raw': xml_bytes,
-                        'type': 'binary',
-                        'mimetype': 'application/xml',
-                    })
-                    existing_move.message_post(body=_("QNB gelen e-Belge XML eklendi (duplike engellendi)."), attachment_ids=attachment.ids)
-
-                continue
-
-            invoice_lines = []
-            for line in (parsed.get('lines') or []):
-                product = self._qnb_find_or_create_product_from_line(company, line, partner=partner)
-                qty = line.get('quantity') or 1.0
-                unit_price = line.get('unit_price')
-                if not unit_price and line.get('line_total') and qty:
-                    unit_price = float(line.get('line_total')) / float(qty)
-
-                line_vals = {
-                    'name': line.get('product_description') or line.get('product_name') or (product.name if product else 'Ürün'),
-                    'quantity': qty,
-                    'price_unit': unit_price or 0.0,
-                }
-                if product:
-                    line_vals['product_id'] = product.id
-
-                tax = self._qnb_find_tax(company, line.get('tax_percent'), tax_use='purchase')
-                if tax:
-                    line_vals['tax_ids'] = [(6, 0, [tax.id])]
-
-                invoice_lines.append((0, 0, line_vals))
-
-            if not invoice_lines:
-                total_amount = doc.get('total') or (parsed.get('amounts') or {}).get('total') or 0.0
-                invoice_lines.append((0, 0, {
-                    'name': doc.get('belge_no') or (parsed.get('document_info') or {}).get('invoice_id') or 'QNB Fatura',
-                    'quantity': 1.0,
-                    'price_unit': float(total_amount or 0.0),
-                }))
-
-            doc_date = None
-            doc_date_raw = doc_info.get('issue_date') or doc.get('date')
-            if doc_date_raw:
-                try:
-                    if isinstance(doc_date_raw, str) and len(doc_date_raw) == 8:
-                        doc_date_raw = f"{doc_date_raw[:4]}-{doc_date_raw[4:6]}-{doc_date_raw[6:8]}"
-                    doc_date = fields.Date.from_string(doc_date_raw)
-                except Exception:
-                    doc_date = fields.Date.today()
-
-            currency_name = (doc_info.get('currency') or doc.get('currency') or 'TRY')
-            currency = self.env['res.currency'].search([('name', '=', currency_name)], limit=1)
-
-            move = self.env['account.move'].create({
-                'move_type': 'in_invoice',
-                'partner_id': partner.id,
-                'invoice_date': doc_date or fields.Date.today(),
-                'ref': ref_value,
-                'company_id': company.id,
-                'currency_id': currency.id if currency else company.currency_id.id,
-                'invoice_line_ids': invoice_lines,
-                'qnb_ettn': ettn,
-                'qnb_state': 'delivered',
-                'qnb_uuid': doc_info.get('uuid') or False,
-                'journal_id': journal.id,
-            })
-
+            # Nilvera ile aynı: attachment oluştur, Odoo UBL import ile fatura üret
             attachment = self.env['ir.attachment'].create({
                 'name': f'{ettn}.xml',
-                'res_id': move.id,
-                'res_model': 'account.move',
                 'raw': xml_bytes,
                 'type': 'binary',
                 'mimetype': 'application/xml',
             })
-            move.message_post(body=_("QNB gelen e-Belge içe aktarıldı."), attachment_ids=attachment.ids)
 
-            # Odoo PDF'i oluştur ve ekle (Nilvera gibi)
+            uuid_val = self._qnb_extract_uuid_from_xml(xml_bytes)
             try:
-                move._qnb_generate_odoo_pdf()
+                invoices = journal.with_context(
+                    default_move_type='in_invoice',
+                )._create_document_from_attachment(attachment.id)
             except Exception as e:
-                _logger.warning(f"PDF oluşturma hatası (ETTN: {ettn}): {str(e)}")
+                _logger.warning(f"QNB UBL import hatası (ETTN: {ettn}): {e}")
+                # Nilvera gibi: hata olursa boş fatura + attachment ile devam et
+                invoices = self.env['account.move'].create({
+                    'move_type': 'in_invoice',
+                    'company_id': company.id,
+                    'journal_id': journal.id,
+                    'qnb_ettn': ettn,
+                    'qnb_uuid': uuid_val,
+                    'qnb_state': 'delivered',
+                    'message_main_attachment_id': attachment.id,
+                })
+                attachment.write({'res_model': 'account.move', 'res_id': invoices.id})
+                invoices.message_post(body=_("QNB belge UBL import sırasında hata oluştu. Manuel kontrol gerekebilir."))
+
+            # QNB alanlarını her durumda güncelle
+            for move in invoices:
+                move.write({
+                    'qnb_ettn': ettn,
+                    'qnb_uuid': uuid_val or move.qnb_uuid,
+                    'qnb_state': 'delivered',
+                })
+
+            for move in invoices:
+                try:
+                    move._qnb_generate_odoo_pdf()
+                except Exception as e:
+                    _logger.warning(f"PDF oluşturma hatası (ETTN: {ettn}): {str(e)}")
 
         self._qnb_set_last_fetch_date(company, end_date)
 
