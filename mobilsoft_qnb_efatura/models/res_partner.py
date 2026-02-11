@@ -394,8 +394,10 @@ class ResPartner(models.Model):
                     same = self.env['res.partner'].search(domain, limit=1)
                     if same:
                         same.write(contact_vals)
-                        continue
-                self.env['res.partner'].create(contact_vals)
+                    else:
+                        self.env['res.partner'].create(contact_vals)
+                else:
+                    self.env['res.partner'].create(contact_vals)
 
     def _do_batch_update_from_qnb_mukellef(self, partners=None):
         """
