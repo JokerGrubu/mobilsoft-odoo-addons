@@ -2285,6 +2285,128 @@ class QnbDocument(models.Model):
             }
         }
 
+    @api.model
+    def action_fill_partner_vat_from_qnb_list(self):
+        """
+        VAT eksik partner'ları QNB gelen belge listesinden (gelenBelgeleriListele) doldur.
+        Bu partner'ların en az bir gelen QNB belgesi (ettn) olmalı; listeden sender_vkn alınır.
+        """
+        from datetime import date, timedelta
+        import calendar
+
+        company = self.env.company
+        api_client = self.env['qnb.api.client'].with_company(company)
+        Partner = self.env['res.partner']
+
+        # Faturada geçen ama vat boş partner'lar
+        move_partner_ids = self.env['account.move'].search([
+            ('partner_id', '!=', False),
+            ('move_type', 'in', ['out_invoice', 'out_refund', 'in_invoice', 'in_refund']),
+        ]).mapped('partner_id').ids
+        partners_missing_vat = Partner.search([
+            ('id', 'in', move_partner_ids),
+            '|', ('vat', '=', False), ('vat', '=', ''),
+        ])
+        if not partners_missing_vat:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('VAT Doldur (QNB Liste)'),
+                    'message': _('VAT eksik (faturada geçen) partner bulunamadı.'),
+                    'type': 'info',
+                    'sticky': False,
+                },
+            }
+
+        # Bu partner'lara ait gelen belgeler (ettn dolu)
+        docs = self.search([
+            ('company_id', '=', company.id),
+            ('direction', '=', 'incoming'),
+            ('partner_id', 'in', partners_missing_vat.ids),
+            ('ettn', '!=', False),
+        ], order='document_date desc')
+        if not docs:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('VAT Doldur (QNB Liste)'),
+                    'message': _('VAT eksik partner\'lara ait QNB gelen belge bulunamadı (%s partner).') % len(partners_missing_vat),
+                    'type': 'warning',
+                    'sticky': False,
+                },
+            }
+
+        api_type_by_doc_type = {
+            'efatura': 'EFATURA',
+            'eirsaliye': 'IRSALIYE',
+        }
+
+        def month_start(d):
+            return date(d.year, d.month, 1)
+
+        def month_end(d):
+            last_day = calendar.monthrange(d.year, d.month)[1]
+            return date(d.year, d.month, last_day)
+
+        def next_month(d):
+            return (d.replace(day=28) + timedelta(days=4)).replace(day=1)
+
+        def normalize_digits(val):
+            return ''.join(ch for ch in str(val or '') if ch.isdigit())
+
+        by_ettn = {}
+        dates = [d.document_date for d in docs if d.document_date]
+        if dates:
+            start = month_start(min(dates))
+            end = min(month_end(max(dates)), date.today())
+            current = start
+            while current <= end:
+                result = api_client.get_incoming_documents(
+                    month_start(current), month_end(current),
+                    document_type='EFATURA',
+                    company=company,
+                )
+                if result.get('success'):
+                    for it in (result.get('documents') or []):
+                        ettn = (it.get('ettn') or '').strip()
+                        if ettn:
+                            by_ettn[ettn.lower()] = it
+                current = next_month(current)
+
+        updated = 0
+        for partner in partners_missing_vat:
+            partner_docs = docs.filtered(lambda d: d.partner_id == partner)
+            for doc in partner_docs:
+                info = by_ettn.get((doc.ettn or '').strip().lower())
+                if not info:
+                    continue
+                digits = normalize_digits(info.get('sender_vkn'))
+                if not digits or len(digits) not in (10, 11):
+                    continue
+                vat_number = 'TR%s' % digits
+                try:
+                    partner.write({'vat': vat_number})
+                    updated += 1
+                    _logger.info("VAT QNB listesinden dolduruldu: %s (id=%s) -> %s", partner.name, partner.id, vat_number)
+                except Exception as e:
+                    _logger.warning("VAT yazılamadı partner id=%s: %s", partner.id, e)
+                break
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('VAT Doldur (QNB Liste)'),
+                'message': _('VAT eksik: %s partner, QNB belgesi olan: %s, listeden güncellenen: %s.') % (
+                    len(partners_missing_vat), len(docs.mapped('partner_id')), updated,
+                ),
+                'type': 'success' if updated else 'warning',
+                'sticky': False,
+            },
+        }
+
     def _find_or_create_partner(self, doc_data, company):
         """
         Partneri bul veya oluştur

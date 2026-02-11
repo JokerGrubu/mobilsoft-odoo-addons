@@ -214,6 +214,11 @@ class ResConfigSettings(models.TransientModel):
         self.ensure_one()
         return self.env['qnb.document'].action_fix_missing_partners_from_qnb_list()
 
+    def action_qnb_fill_partner_vat_from_list(self):
+        """VAT eksik partner'ları QNB gelen belge listesinden (sender_vkn) doldur"""
+        self.ensure_one()
+        return self.env['qnb.document'].action_fill_partner_vat_from_qnb_list()
+
     def action_qnb_bulk_match_documents(self):
         """QNB belgelerini yevmiye/fatura kayıtlarıyla eşleştir"""
         self.ensure_one()
