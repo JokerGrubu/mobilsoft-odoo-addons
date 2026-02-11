@@ -224,6 +224,44 @@ class ResPartner(models.Model):
             doc_vat = f"TR{doc_digits}" if doc_digits else False
             if doc_vat == vat_number:
                 return partner_data
+
+        # qnb.document'da XML yoksa: bu carinin faturalarındaki (account.move) XML eklerinden dene
+        Move = self.env['account.move']
+        moves = Move.search([
+            ('partner_id', '=', self.id),
+            ('company_id', 'in', self.env.companies.ids),
+        ], order='invoice_date desc, id desc', limit=50)
+        if not moves:
+            return None
+        Att = self.env['ir.attachment']
+        for move in moves:
+            atts = Att.search([
+                ('res_model', '=', 'account.move'),
+                ('res_id', '=', move.id),
+                '|',
+                ('name', 'ilike', '%.xml'),
+                ('mimetype', 'ilike', '%xml'),
+            ], limit=5)
+            for att in atts:
+                xml_bytes = None
+                if getattr(att, 'raw', None):
+                    xml_bytes = att.raw
+                elif att.datas:
+                    try:
+                        xml_bytes = base64.b64decode(att.datas)
+                    except Exception:
+                        continue
+                if not xml_bytes or not xml_bytes.strip().startswith(b'<'):
+                    continue
+                QnbDoc = self.env['qnb.document']
+                direction = 'incoming' if move.move_type in ('in_invoice', 'in_refund') else 'outgoing'
+                parsed = QnbDoc._parse_invoice_xml_full(xml_bytes, direction=direction)
+                partner_data = (parsed or {}).get('partner') or {}
+                vat_raw = partner_data.get('vat') or ''
+                doc_digits = ''.join(filter(str.isdigit, str(vat_raw)))
+                doc_vat = f"TR{doc_digits}" if doc_digits else False
+                if doc_vat == vat_number:
+                    return partner_data
         return None
 
     def _apply_qnb_partner_data(self, partner_data, skip_name=False):
