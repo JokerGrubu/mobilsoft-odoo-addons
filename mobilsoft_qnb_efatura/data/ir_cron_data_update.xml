@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- noupdate=0: upgrade sırasında interval 5 dk olarak güncellenir -->
+    <!-- noupdate=0: upgrade sırasında güncellenir / yeni cron eklenir -->
     <data noupdate="0">
         <record id="ir_cron_qnb_fetch_incoming" model="ir.cron">
             <field name="interval_number">5</field>
@@ -10,6 +10,16 @@
         </record>
         <record id="ir_cron_qnb_check_status" model="ir.cron">
             <field name="interval_number">5</field>
+        </record>
+        <!-- Nilvera partner güncelleme: VKN'ı olan carilerin adres/iletişim bilgilerini Nilvera GetGlobalCustomerInfo ile günceller -->
+        <record id="ir_cron_nilvera_update_partners" model="ir.cron">
+            <field name="name">Nilvera: Cari Bilgilerini Güncelle</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_update_partners_from_qnb_mukellef()</field>
+            <field name="interval_number">6</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
         </record>
     </data>
 </odoo>

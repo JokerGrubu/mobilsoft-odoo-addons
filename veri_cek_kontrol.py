@@ -142,10 +142,51 @@ def _run(env):
         r.append(traceback.format_exc())
     
     # ═══════════════════════════════════════════════════════════════
-    # 4. GELEN FATURALAR ODOO'DA NEREDE?
+    # 4. NİLVERA PARTNER GÜNCELLEME
     # ═══════════════════════════════════════════════════════════════
     r.append("\n" + "-" * 50)
-    r.append("4. GELEN FATURALAR - ODOO KONUMU")
+    r.append("4. NİLVERA PARTNER GÜNCELLEME")
+    r.append("-" * 50)
+    
+    try:
+        Partner = env['res.partner']
+        Co = env['res.company']
+        # Nilvera API anahtarı var mı?
+        has_key = bool(getattr(Co.search([], limit=1), 'l10n_tr_nilvera_api_key', None))
+        r.append(f"Nilvera API anahtarı: {'Var' if has_key else 'YOK (Ayarlar > Faturalama > Nilvera)'}")
+        
+        # Cron var mı?
+        Cr = env['ir.cron']
+        cr_nilv = Cr.search([('name', 'ilike', 'Nilvera'), ('name', 'ilike', 'Cari')], limit=1)
+        r.append(f"Nilvera partner cron: {'OK' if cr_nilv else 'BULUNAMADI'}")
+        
+        if has_key:
+            r.append(">>> Nilvera partner güncelleme çalıştırılıyor...")
+            partners = Partner.search([
+                ('vat', '!=', False), ('vat', '!=', ''),
+                '|', '|',
+                ('street', 'in', [False, '']),
+                ('city', 'in', [False, '']),
+                ('phone', 'in', [False, '']),
+            ], limit=10, order='id asc')
+            r.append(f"  Örnek eksik bilgili partner: {len(partners)}")
+            if partners:
+                stats = Partner._do_batch_update_nilvera_only(partners)
+                r.append(f"  İşlenen: {stats['processed']} | Güncellenen: {stats['updated']} | Hata: {stats['errors']}")
+                if stats['updated'] > 0:
+                    r.append("  >>> BAŞARILI - Partnerler güncellendi")
+                else:
+                    r.append("  (Güncellenen yok - API cevap vermemiş veya veri aynı olabilir)")
+        else:
+            r.append("  (API anahtarı yok - Nilvera partner güncelleme atlandı)")
+    except Exception as e:
+        r.append(f"HATA: {e}")
+    
+    # ═══════════════════════════════════════════════════════════════
+    # 5. GELEN FATURALAR ODOO'DA NEREDE?
+    # ═══════════════════════════════════════════════════════════════
+    r.append("\n" + "-" * 50)
+    r.append("5. GELEN FATURALAR - ODOO KONUMU")
     r.append("-" * 50)
     r.append("Muhasebe > Vendör Faturaları (in_invoice)")
     r.append("Filtre: qnb_ettn dolu olanlar = QNB'den gelen")
