@@ -147,7 +147,13 @@ class BizimHesapBackend(models.Model):
     sync_supplier_price = fields.Boolean(
         string='Tedarikçi Fiyatı Senkronize Et',
         default=True,
-        help='BizimHesap buyingPrice → Odoo xml_supplier_price',
+        help='BizimHesap buyingPrice → Odoo tedarikçi fiyatı (product.supplierinfo ile senkron)',
+    )
+    product_supplier_id = fields.Many2one(
+        'res.partner',
+        string='Ürün Tedarikçisi (BizimHesap)',
+        domain=[('supplier_rank', '>', 0)],
+        help='Tedarikçi fiyatı senkronize edilirken alış fiyatı bu tedarikçiye yazılır (product.supplierinfo). Boşsa fiyat senkronu atlanır.',
     )
 
     # ═══════════════════════════════════════════════════════════════
@@ -1721,14 +1727,17 @@ class BizimHesapBackend(models.Model):
                 notes.append(f"Kategori: {category}")
             vals['description_purchase'] = '\n'.join(notes)
 
-        # Tedarikçi fiyatı (USD → TRY dönüşümü)
-        if self.sync_supplier_price:
+        # Tedarikçi fiyatı (product.supplierinfo ile senkron; xml_supplier_id gerekli)
+        if self.sync_supplier_price and self.product_supplier_id:
             buying_price = float(data.get('buyingPrice', 0) or 0)
             if buying_price > 0:
-                # BizimHesap buyingPrice muhtemelen USD - TRY'ye çevir
                 supplier_price_try = buying_price * self.supplier_currency_rate
+                vals['xml_supplier_id'] = self.product_supplier_id.id
                 vals['xml_supplier_price'] = supplier_price_try
-                _logger.debug(f"Tedarikçi fiyatı: {buying_price} USD × {self.supplier_currency_rate} = {supplier_price_try} TRY")
+                # xml_supplier_sku opsiyonel (BizimHesap'ta yoksa default_code kullanılır; inverse supplierinfo'ya yazar)
+                if data.get('code'):
+                    vals['xml_supplier_sku'] = data.get('code') or ''
+                _logger.debug(f"Tedarikçi fiyatı: {buying_price} USD × {self.supplier_currency_rate} = {supplier_price_try} TRY → {self.product_supplier_id.name}")
 
         return vals
     

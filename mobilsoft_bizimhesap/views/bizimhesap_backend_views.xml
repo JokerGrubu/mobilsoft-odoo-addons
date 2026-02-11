@@ -113,6 +113,20 @@
                                 </group>
                             </group>
 
+                            <group string="Ürün / Tedarikçi Fiyatı">
+                                <group>
+                                    <field name="sync_supplier_price" widget="boolean_toggle"/>
+                                    <field name="product_supplier_id"
+                                           invisible="not sync_supplier_price"
+                                           options="{'no_create': True}"
+                                           placeholder="Tedarikçi seçin (fiyat product.supplierinfo'ya yazılır)"/>
+                                    <field name="supplier_currency_rate"
+                                           invisible="not sync_supplier_price"
+                                           string="USD → TRY Kur"/>
+                                </group>
+                                <group/>
+                            </group>
+
                             <group string="Son Senkronizasyonlar">
                                 <group>
                                     <field name="last_sync_date" readonly="1" widget="datetime"/>
