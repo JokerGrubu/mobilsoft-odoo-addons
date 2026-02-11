@@ -1774,7 +1774,13 @@ class BizimHesapBackend(models.Model):
         return {'created': created, 'updated': updated, 'failed': failed}
     
     def _import_invoice(self, data):
-        """Tek fatura import et"""
+        """
+        Tek fatura import et.
+        Mükerrer kayıt önleme: Aynı fatura QNB veya başka kaynaktan zaten varsa
+        (partner + ref aynı) yeni kayıt oluşturulmaz; sadece binding varsa güncellenir.
+        BizimHesap sadece geçmiş kayıt izleme için kullanıldığından, asıl fatura
+        kaynağı QNB (Nilvera benzeri) ile çakışmamalı.
+        """
         external_id = str(data.get('id'))
         
         binding = self.env['bizimhesap.invoice.binding'].search([
@@ -1790,6 +1796,31 @@ class BizimHesapBackend(models.Model):
         
         if not invoice_vals:
             return 'skipped'
+        
+        # Mükerrer kayıt önleme: Aynı partner + ref (fatura no) ile kayıt var mı?
+        # (QNB veya başka entegratörden gelmiş olabilir - tek fatura tek kayıt)
+        ref_value = invoice_vals.get('ref') or data.get('invoiceNumber') or ''
+        if ref_value and invoice_vals.get('partner_id') and invoice_vals.get('move_type'):
+            existing = self.env['account.move'].search([
+                ('company_id', '=', self.company_id.id),
+                ('partner_id', '=', invoice_vals['partner_id']),
+                ('ref', '=', ref_value),
+                ('move_type', '=', invoice_vals['move_type']),
+            ], limit=1)
+            if existing:
+                _logger.info(
+                    "BizimHesap fatura atlandı (zaten mevcut kayıt - mükerrer önleme): "
+                    "partner_id=%s ref=%s", invoice_vals['partner_id'], ref_value
+                )
+                # İsteğe bağlı: mevcut faturaya binding ekle (BizimHesap'tan da izlendiğini işaretle)
+                self.env['bizimhesap.invoice.binding'].create({
+                    'backend_id': self.id,
+                    'external_id': external_id,
+                    'odoo_id': existing.id,
+                    'sync_date': fields.Datetime.now(),
+                    'external_data': json.dumps(data),
+                })
+                return 'skipped'
         
         invoice = self.env['account.move'].create(invoice_vals)
         
