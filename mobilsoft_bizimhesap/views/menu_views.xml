@@ -2,10 +2,16 @@
 <odoo>
 
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!-- MAIN MENU -->
+    <!-- MAIN MENU: Tek kök "MobilSoft" - masaüstünde çift BizimHesap görünümü önlenir -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
+    <menuitem id="mobilsoft_menu_root"
+              name="MobilSoft"
+              sequence="50"
+              web_icon="mobilsoft_bizimhesap,static/description/icon.png"/>
+
     <menuitem id="bizimhesap_menu_root"
               name="BizimHesap"
+              parent="mobilsoft_menu_root"
               sequence="55"/>
 
     <!-- ═══════════════════════════════════════════════════════════════ -->
