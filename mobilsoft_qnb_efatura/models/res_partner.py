@@ -93,7 +93,9 @@ class ResPartner(models.Model):
         return res
 
     def _check_qnb_customer(self):
-        """QNB API ile e-fatura kaydını kontrol et; sonucu Nilvera alanlarına yaz (ortak yapı)."""
+        """
+        e-Fatura kaydını kontrol et. Nilvera öncelikli; yoksa QNB/GİB kullanılır (geriye uyumluluk).
+        """
         self.ensure_one()
         if not self.vat:
             self.write({
@@ -104,20 +106,29 @@ class ResPartner(models.Model):
             return False
 
         vkn = ''.join(filter(str.isdigit, self.vat))
-        if not vkn:
+        if len(vkn) not in (10, 11):
             self.write({
                 'l10n_tr_nilvera_customer_status': 'not_checked',
                 'qnb_last_check_date': fields.Datetime.now(),
             })
             return False
 
+        # Önce Nilvera Check API dene (tercih edilen)
+        if hasattr(self, '_check_nilvera_customer'):
+            try:
+                if self._check_nilvera_customer():
+                    self.qnb_last_check_date = fields.Datetime.now()
+                    return True
+            except Exception:
+                pass
+
+        # Nilvera yoksa QNB/GİB (geriye uyumluluk)
         api_client = self.env['qnb.api.client']
         result = api_client.check_registered_user(vkn)
 
         if result.get('success') and result.get('users'):
             user = result['users'][0]
             alias_name = (user.get('alias') or '').strip()
-            # Nilvera yapısı: l10n_tr.nilvera.alias (name, partner_id)
             Alias = self.env['l10n_tr.nilvera.alias']
             existing = Alias.search([
                 ('partner_id', '=', self.id),
@@ -140,7 +151,7 @@ class ResPartner(models.Model):
         return False
 
     def action_check_efatura_status(self):
-        """e-Fatura kayıt durumunu kontrol et"""
+        """e-Fatura kayıt durumunu kontrol et (Nilvera öncelikli)"""
         self.ensure_one()
 
         if not self.vat:
@@ -149,17 +160,51 @@ class ResPartner(models.Model):
         result = self._check_qnb_customer()
         alias = self.l10n_tr_nilvera_customer_alias_id.name if self.l10n_tr_nilvera_customer_alias_id else ''
         if result:
-            message = f"✅ {self.name} e-Fatura sistemine kayıtlı!\nPosta Kutusu: {alias or '-'}"
+            message = _("✅ %s e-Fatura sistemine kayıtlı!\nPosta Kutusu: %s") % (self.name, alias or '-')
         else:
-            message = f"ℹ️ {self.name} e-Fatura sistemine kayıtlı değil."
+            message = _("ℹ️ %s e-Fatura sistemine kayıtlı değil.") % self.name
 
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
-                'title': 'e-Fatura Kayıt Durumu',
+                'title': _('e-Fatura Kayıt Durumu'),
                 'message': message,
                 'type': 'success' if self.l10n_tr_nilvera_customer_status == 'einvoice' else 'warning',
+                'sticky': False,
+            }
+        }
+
+    def action_fetch_from_nilvera(self):
+        """Nilvera'dan tüm cari bilgilerini çek ve uygula (QNB/GİB kullanılmaz)"""
+        self.ensure_one()
+        if not self.vat:
+            raise UserError(_("VKN/TCKN bilgisi girilmemiş!"))
+
+        digits = ''.join(filter(str.isdigit, str(self.vat)))
+        if len(digits) not in (10, 11):
+            raise UserError(_("Geçersiz VKN/TCKN!"))
+
+        partner_data = self._fetch_partner_data_from_nilvera_api()
+        if not partner_data:
+            raise UserError(_("Nilvera'da bu VKN/TCKN ile veri bulunamadı. API anahtarı kontrol edin."))
+
+        self._normalize_city_state_partner_data(partner_data)
+        self._apply_qnb_partner_data(partner_data, skip_name=False, fill_empty_only=False)
+
+        if hasattr(self, '_check_nilvera_customer'):
+            try:
+                self._check_nilvera_customer()
+            except Exception:
+                pass
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Nilvera ile Güncelle'),
+                'message': _('✅ %s bilgileri Nilvera\'dan güncellendi.') % self.name,
+                'type': 'success',
                 'sticky': False,
             }
         }
@@ -665,8 +710,7 @@ class ResPartner(models.Model):
 
     def _do_batch_update_nilvera_only(self, partners=None):
         """
-        GİB atlanır; sadece QNB XML + Nilvera ile güncelle (hızlı toplu işlem).
-        Ünvan/alias GİB'den gelmez; sadece adres, iletişim, vergi dairesi.
+        Sadece Nilvera ile güncelle (QNB/GİB yok). Tüm veri Nilvera GetGlobalCustomerInfo'dan gelir.
         """
         partners = partners or self
         updated = 0
@@ -678,20 +722,15 @@ class ResPartner(models.Model):
                 digits = ''.join(filter(str.isdigit, str(partner.vat)))
                 if len(digits) not in (10, 11):
                     continue
-                partner_data = partner._get_latest_qnb_partner_data()
-                if not partner_data and len(partners) <= 1:
-                    partner_data = partner._fetch_partner_data_from_qnb_api()
-                nilvera_data = partner._fetch_partner_data_from_nilvera_api()
-                if nilvera_data:
-                    if partner_data:
-                        for k, v in nilvera_data.items():
-                            if v and not (partner_data.get(k) or '').strip():
-                                partner_data[k] = v
-                    else:
-                        partner_data = nilvera_data
+                partner_data = partner._fetch_partner_data_from_nilvera_api()
                 if partner_data:
                     partner._normalize_city_state_partner_data(partner_data)
                     partner._apply_qnb_partner_data(partner_data, skip_name=False, fill_empty_only=False)
+                    if hasattr(partner, '_check_nilvera_customer'):
+                        try:
+                            partner._check_nilvera_customer()
+                        except Exception:
+                            pass
                     updated += 1
             except Exception as e:
                 errors += 1
@@ -896,17 +935,14 @@ class ResPartner(models.Model):
     @api.model
     def _cron_update_partners_from_qnb_mukellef(self):
         """
-        Otomatik cron: VKN'ı olan carilerin ünvan, alias, adres, il, ilçe, telefon, e-posta, web
-        bilgilerini GİB + QNB/Nilvera kaynaklı XML ile günceller. Eksik veya eski bilgisi olanlara
-        öncelik verir; her çalışmada sınırlı sayıda cari işlenir (API/timeout dengesi).
+        Otomatik cron: VKN'ı olan carilerin bilgilerini Nilvera ile günceller (QNB/GİB yok).
+        Eksik bilgisi olanlara öncelik verir; her çalışmada sınırlı sayıda cari işlenir.
         """
         from datetime import datetime, timedelta
 
-        # Önce adres/iletişim eksik veya hiç mükellef güncellemesi yapılmamış cariler
         domain_vat = [('vat', '!=', False), ('vat', '!=', '')]
         week_ago = datetime.now() - timedelta(days=7)
 
-        # 1) Eksik bilgisi olanlar (adres, ilçe, telefon, e-posta, web boş) — öncelik
         domain_incomplete = domain_vat + [
             '|', '|', '|', '|',
             ('street', 'in', [False, '']),
@@ -916,7 +952,6 @@ class ResPartner(models.Model):
             ('website', 'in', [False, '']),
         ]
         incomplete = self.search(domain_incomplete, limit=25, order='id asc')
-        # 2) Hiç güncellenmemiş veya 7 günden eski (qnb_last_check_date)
         others = self.search(
             domain_vat + [
                 '|',
@@ -926,7 +961,6 @@ class ResPartner(models.Model):
             limit=40,
             order='qnb_last_check_date asc',
         )
-        # Önce eksik bilgili cariler, sonra diğerleri (tekrarsız, toplam max 40)
         seen = set(incomplete.ids)
         other_ids = [p.id for p in others if p.id not in seen][:max(0, 40 - len(incomplete))]
         partner_ids = list(incomplete.ids) + other_ids
@@ -934,10 +968,9 @@ class ResPartner(models.Model):
         if not partners:
             return True
 
-        stats = self.browse()._do_batch_update_from_qnb_mukellef(partners)
+        stats = self.browse()._do_batch_update_nilvera_only(partners)
         _logger.info(
-            "QNB cron partner güncelleme: işlenen=%s ünvan=%s alias=%s xml=%s atlandı=%s hata=%s",
-            stats['processed'], stats['updated_name'], stats['updated_alias'],
-            stats['updated_xml'], stats['skipped'], stats['errors'],
+            "Nilvera cron partner güncelleme: işlenen=%s güncellenen=%s hata=%s",
+            stats['processed'], stats['updated'], stats['errors'],
         )
         return True

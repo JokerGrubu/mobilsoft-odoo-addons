@@ -45,6 +45,7 @@ Teknik Özellikler:
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
         'data/ir_cron_data.xml',
+        'wizard/qnb_check_partner_wizard_views.xml',
         'views/res_config_settings_views.xml',
         'views/account_move_views.xml',
         'views/res_partner_views.xml',

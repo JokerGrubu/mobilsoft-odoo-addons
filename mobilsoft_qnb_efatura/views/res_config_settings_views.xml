@@ -70,6 +70,12 @@
 
                     <block title="Veri düzeltme" name="qnb_data_fix">
                         <div class="mt16">
+                            <button name="action_qnb_update_partners_nilvera_only" type="object"
+                                    string="Carileri Nilvera ile Güncelle"
+                                    class="btn-primary" icon="fa-refresh"/>
+                            <span class="text-muted ms-2">VKN'lı tüm carilerin ünvan, adres, telefon, e-posta vb. bilgileri Nilvera'dan güncellenir. (Önerilen yöntem)</span>
+                        </div>
+                        <div class="mt16">
                             <button name="action_qnb_fill_partner_vat_from_list" type="object"
                                     string="VAT Eksik Carileri QNB Listesinden Doldur"
                                     class="btn-secondary" icon="fa-id-card"/>
@@ -77,15 +83,9 @@
                         </div>
                         <div class="mt16">
                             <button name="action_qnb_update_partners_from_mukellef" type="object"
-                                    string="Carileri QNB Mükellef Bilgisiyle Güncelle"
-                                    class="btn-primary" icon="fa-refresh"/>
-                            <span class="text-muted ms-2">VKN'ı olan tüm carilerde GİB mükellef sorgusu (kayıtlı kullanıcı) yapılır; ünvan ve e-Fatura posta kutusu (alias) güncellenir.</span>
-                        </div>
-                        <div class="mt16">
-                            <button name="action_qnb_update_partners_nilvera_only" type="object"
-                                    string="Carileri Sadece Nilvera ile Güncelle (Hızlı)"
-                                    class="btn-secondary" icon="fa-bolt"/>
-                            <span class="text-muted ms-2">VKN'lı tüm carileri sadece Nilvera + QNB XML ile günceller; GİB çağrısı yok, daha hızlı.</span>
+                                    string="Carileri GİB ile Güncelle (Eski yöntem)"
+                                    class="btn-secondary" icon="fa-history"/>
+                            <span class="text-muted ms-2">GİB mükellef sorgusu ile ünvan ve e-Fatura posta kutusu; yavaş, sadece gerektiğinde kullanın.</span>
                         </div>
                     </block>
 

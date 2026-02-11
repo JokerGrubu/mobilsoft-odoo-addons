@@ -22,20 +22,20 @@
                             <field name="balance_2025_net" readonly="1"/>
                         </group>
                         <group string="İşlemler">
-                            <button name="action_check_efatura_status" 
-                                    string="GİB'den Kontrol Et (QNB)" 
+                            <button name="action_fetch_from_nilvera" 
+                                    string="Nilvera'dan Sorgula ve Doldur" 
                                     type="object" 
                                     class="btn-primary"
                                     icon="fa-search"
                                     invisible="not vat"/>
-                            <button name="action_update_from_qnb_mukellef" 
-                                    string="QNB Mükellef Bilgisiyle Güncelle" 
+                            <button name="action_check_efatura_status" 
+                                    string="e-Fatura Durumunu Kontrol Et" 
                                     type="object" 
                                     class="btn-secondary"
-                                    icon="fa-refresh"
+                                    icon="fa-check"
                                     invisible="not vat"/>
                             <div class="text-muted" invisible="vat">
-                                <i class="fa fa-info-circle"/> e-Fatura kontrolü için VKN/TCKN girilmelidir.
+                                <i class="fa fa-info-circle"/> Tüm bilgiler Nilvera'dan gelir. VKN/TCKN girin ve "Nilvera'dan Sorgula ve Doldur"a tıklayın.
                             </div>
                         </group>
                     </group>
@@ -43,11 +43,11 @@
                         <div class="alert alert-info" role="alert">
                             <i class="fa fa-info-circle"/>
                             <span invisible="l10n_tr_nilvera_customer_status != 'einvoice'">
-                                Bu firma GİB'de e-Fatura mükellefi olarak kayıtlıdır. 
+                                Bu firma e-Fatura mükellefi olarak kayıtlıdır. 
                                 Kesilen faturalar <strong>e-Fatura</strong> olarak gönderilecektir.
                             </span>
                             <span invisible="l10n_tr_nilvera_customer_status == 'einvoice'">
-                                Bu firma GİB'de e-Fatura mükellefi olarak kayıtlı değildir. 
+                                Bu firma e-Fatura mükellefi olarak kayıtlı değildir. 
                                 Kesilen faturalar <strong>e-Arşiv</strong> olarak gönderilecektir.
                             </span>
                         </div>

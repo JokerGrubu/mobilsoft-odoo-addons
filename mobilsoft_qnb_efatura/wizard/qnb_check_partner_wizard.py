@@ -142,3 +142,16 @@ class QnbCheckPartnerWizard(models.TransientModel):
             'view_mode': 'form',
             'target': 'new',
         }
+
+    def action_view_partner(self):
+        """Oluşturulan/güncellenen carisi formda aç"""
+        self.ensure_one()
+        if not self.partner_id:
+            return
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'res.partner',
+            'res_id': self.partner_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
