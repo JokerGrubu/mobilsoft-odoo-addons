@@ -10,11 +10,10 @@
             <xpath expr="//page[@name='sales_purchases']" position="after">
                 <page string="e-Fatura" name="efatura_info">
                     <group>
-                        <group string="e-Fatura Durumu (Nilvera / QNB ortak)">
+                        <group string="e-Fatura Durumu">
                             <field name="l10n_tr_nilvera_customer_status" readonly="1"/>
                             <field name="l10n_tr_nilvera_customer_alias_id" readonly="1" 
                                    invisible="l10n_tr_nilvera_customer_status != 'einvoice'"/>
-                            <field name="qnb_last_check_date" readonly="1"/>
                         </group>
                         <group string="2025 Bakiye (31.12.2025)">
                             <field name="balance_2025_receivable" readonly="1"/>
@@ -22,7 +21,7 @@
                             <field name="balance_2025_net" readonly="1"/>
                         </group>
                     </group>
-                    <group string="Bilgi" invisible="not qnb_last_check_date">
+                    <group string="Bilgi" invisible="not vat">
                         <div class="alert alert-info" role="alert">
                             <i class="fa fa-info-circle"/>
                             <span invisible="l10n_tr_nilvera_customer_status != 'einvoice'">

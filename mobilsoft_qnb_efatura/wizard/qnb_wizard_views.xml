@@ -66,37 +66,6 @@
         </field>
     </record>
 
-    <!-- Batch Check Wizard Form -->
-    <record id="view_qnb_batch_check_wizard_form" model="ir.ui.view">
-        <field name="name">qnb.batch.check.wizard.form</field>
-        <field name="model">qnb.batch.check.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Toplu e-Fatura Mükellefi Kontrolü">
-                <group>
-                    <field name="partner_ids" widget="many2many_tags" 
-                           domain="[('is_company', '=', True), ('vat', '!=', False)]"
-                           options="{'no_create': True}"/>
-                </group>
-                <group invisible="not result_text">
-                    <field name="result_text" widget="html" nolabel="1"/>
-                </group>
-                <div class="alert alert-info" role="alert" invisible="result_text">
-                    <i class="fa fa-info-circle"/>
-                    Seçili müşterilerin VKN/TCKN bilgileri GİB'den sorgulanacaktır.
-                    <br/>
-                    Müşteri seçilmezse tüm şirket müşterileri kontrol edilecektir.
-                </div>
-                <footer>
-                    <button string="Kontrol Et" name="action_check" type="object" 
-                            class="btn-primary" invisible="result_text"/>
-                    <button string="Tüm Müşterileri Kontrol Et" name="action_check_all" 
-                            type="object" class="btn-secondary" invisible="result_text"/>
-                    <button string="Kapat" class="btn-secondary" special="cancel"/>
-                </footer>
-            </form>
-        </field>
-    </record>
-
     <!-- Credit Info Wizard Form -->
     <record id="view_qnb_credit_info_wizard_form" model="ir.ui.view">
         <field name="name">qnb.credit.info.wizard.form</field>

@@ -10,6 +10,9 @@
                 <field name="l10n_tr_tax_office_id" 
                        placeholder="Vergi dairesi seçin..."
                        options="{'no_create': True}"/>
+                <div class="text-muted mt1">
+                    <i class="fa fa-info-circle"/> VKN/TCKN yazıp Enter veya Tab ile çıkın — bilgiler Nilvera'dan otomatik gelir.
+                </div>
             </field>
         </field>
     </record>
