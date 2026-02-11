@@ -3,6 +3,9 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import base64
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class ResPartner(models.Model):
@@ -223,12 +226,9 @@ class ResPartner(models.Model):
                 else:
                     vals['l10n_tr_nilvera_customer_alias_id'] = False
                 partner.write(vals)
-                if not title and not alias_name:
-                    skipped += 1
             except Exception as e:
                 errors += 1
-                import logging
-                logging.getLogger(__name__).warning("QNB mükellef güncelleme hatası partner id=%s: %s", partner.id, e)
+                _logger.warning("QNB mükellef güncelleme hatası partner id=%s: %s", partner.id, e)
 
         return {
             'type': 'ir.actions.client',

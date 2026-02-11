@@ -75,6 +75,12 @@
                                     class="btn-secondary" icon="fa-id-card"/>
                             <span class="text-muted ms-2">Faturada geçen ama VKN boş carilerin VKN'sini QNB gelen belge listesinden alır.</span>
                         </div>
+                        <div class="mt16">
+                            <button name="action_qnb_update_partners_from_mukellef" type="object"
+                                    string="Carileri QNB Mükellef Bilgisiyle Güncelle"
+                                    class="btn-primary" icon="fa-refresh"/>
+                            <span class="text-muted ms-2">VKN'ı olan tüm carilerde GİB mükellef sorgusu (kayıtlı kullanıcı) yapılır; ünvan ve e-Fatura posta kutusu (alias) güncellenir.</span>
+                        </div>
                     </block>
 
                     <block title="Kullanım" name="qnb_usage" invisible="not qnb_enabled">

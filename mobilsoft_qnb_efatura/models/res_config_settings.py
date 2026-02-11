@@ -219,6 +219,26 @@ class ResConfigSettings(models.TransientModel):
         self.ensure_one()
         return self.env['qnb.document'].action_fill_partner_vat_from_qnb_list()
 
+    def action_qnb_update_partners_from_mukellef(self):
+        """VKN'ı olan tüm carileri QNB mükellef sorgusu (kayıtlı kullanıcı) ile güncelle: ünvan + e-Fatura alias/durum"""
+        self.ensure_one()
+        partners = self.env['res.partner'].search([
+            ('vat', '!=', False),
+            ('vat', '!=', ''),
+        ])
+        if not partners:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'QNB Mükellef Güncelle',
+                    'message': 'VKN/TCKN bilgisi olan cari bulunamadı.',
+                    'type': 'warning',
+                    'sticky': False,
+                },
+            }
+        return partners.action_update_from_qnb_mukellef()
+
     def action_qnb_bulk_match_documents(self):
         """QNB belgelerini yevmiye/fatura kayıtlarıyla eşleştir"""
         self.ensure_one()
