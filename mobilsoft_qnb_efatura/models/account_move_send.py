@@ -126,7 +126,7 @@ class AccountMoveSend(models.AbstractModel):
 
         # 4. Partner vergi dairesi kontrolü (e-Fatura mükellefleri için)
         einvoice_partners_missing_ref = tr_qnb_moves.partner_id.filtered(
-            lambda p: p.qnb_customer_status == 'einvoice' and not p.ref and p.country_code == 'TR'
+            lambda p: getattr(p, 'l10n_tr_nilvera_customer_status', None) == 'einvoice' and not p.ref and p.country_code == 'TR'
         )
 
         if einvoice_partners_missing_ref:
@@ -162,7 +162,7 @@ class AccountMoveSend(models.AbstractModel):
         partners_invalid_status = tr_qnb_moves.filtered(
             lambda m: (
                 m.partner_id.invoice_edi_format != 'ubl_tr_qnb'
-                or m.partner_id.qnb_customer_status == 'not_checked'
+                or getattr(m.partner_id, 'l10n_tr_nilvera_customer_status', None) == 'not_checked'
             )
         ).partner_id
 

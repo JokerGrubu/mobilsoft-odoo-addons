@@ -59,11 +59,18 @@ class QNBBatchCheckWizard(models.TransientModel):
                 result = api_client.check_registered_user(vkn)
 
                 if result.get('is_registered'):
+                    alias_name = (result.get('alias') or '').strip()
+                    Alias = self.env['l10n_tr.nilvera.alias']
+                    alias_rec = Alias.search([
+                        ('partner_id', '=', partner.id),
+                        ('name', '=', alias_name),
+                    ], limit=1)
+                    if not alias_rec and alias_name:
+                        alias_rec = Alias.create({'name': alias_name, 'partner_id': partner.id})
                     partner.write({
-                        'is_efatura_registered': True,
-                        'efatura_alias': result.get('alias', ''),
-                        'efatura_alias_type': result.get('alias_type', ''),
-                        'efatura_check_date': fields.Datetime.now(),
+                        'l10n_tr_nilvera_customer_status': 'einvoice',
+                        'l10n_tr_nilvera_customer_alias_id': alias_rec.id if alias_rec else False,
+                        'qnb_last_check_date': fields.Datetime.now(),
                     })
                     results['registered'].append({
                         'name': partner.name,
@@ -72,10 +79,9 @@ class QNBBatchCheckWizard(models.TransientModel):
                     })
                 else:
                     partner.write({
-                        'is_efatura_registered': False,
-                        'efatura_alias': False,
-                        'efatura_alias_type': False,
-                        'efatura_check_date': fields.Datetime.now(),
+                        'l10n_tr_nilvera_customer_status': 'earchive' if partner.vat else 'not_checked',
+                        'l10n_tr_nilvera_customer_alias_id': False,
+                        'qnb_last_check_date': fields.Datetime.now(),
                     })
                     results['not_registered'].append({
                         'name': partner.name,

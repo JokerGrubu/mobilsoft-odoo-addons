@@ -56,11 +56,11 @@ class AccountMove(models.Model):
         for move in self:
             move.qnb_document_count = len(move.qnb_document_ids)
 
-    @api.depends('partner_id', 'partner_id.is_efatura_registered')
+    @api.depends('partner_id', 'partner_id.l10n_tr_nilvera_customer_status')
     def _compute_qnb_document_type(self):
         for move in self:
             if move.move_type in ('out_invoice', 'out_refund'):
-                if move.partner_id.is_efatura_registered:
+                if getattr(move.partner_id, 'l10n_tr_nilvera_customer_status', None) == 'einvoice':
                     move.qnb_document_type = 'efatura'
                 else:
                     move.qnb_document_type = 'earsiv'
@@ -175,9 +175,9 @@ class AccountMove(models.Model):
         self.ensure_one()
         if not self.partner_id.vat:
             return False
-        if self.partner_id.qnb_customer_status == 'not_checked':
+        if getattr(self.partner_id, 'l10n_tr_nilvera_customer_status', None) == 'not_checked':
             self.partner_id._check_qnb_customer()
-        return self.partner_id.qnb_customer_status == 'einvoice'
+        return getattr(self.partner_id, 'l10n_tr_nilvera_customer_status', None) == 'einvoice'
 
     def _qnb_get_partner_vkn(self):
         self.ensure_one()
@@ -484,7 +484,7 @@ class AccountMove(models.Model):
                 'vat': vat_number,
                 'is_company': True,
                 'customer_rank': 1,
-                'is_efatura_registered': True if is_einvoice and vat else False,
+                'l10n_tr_nilvera_customer_status': 'einvoice' if (is_einvoice and vat) else ('earchive' if vat else 'not_checked'),
             }
             if vat:
                 create_vals['qnb_partner_vkn'] = vat.replace('TR', '').replace(' ', '').replace('-', '')
@@ -492,7 +492,14 @@ class AccountMove(models.Model):
                 create_vals['email'] = email
             if phone:
                 create_vals['phone'] = phone
-            return Partner.create(create_vals)
+            partner = Partner.create(create_vals)
+            if is_einvoice and partner and partner_data.get('alias'):
+                alias_name = (partner_data.get('alias') or '').strip()
+                if alias_name:
+                    Alias = self.env['l10n_tr.nilvera.alias']
+                    alias = Alias.create({'name': alias_name, 'partner_id': partner.id})
+                    partner.l10n_tr_nilvera_customer_alias_id = alias
+            return partner
 
         return False
 

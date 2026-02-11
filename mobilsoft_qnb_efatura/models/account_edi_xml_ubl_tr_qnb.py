@@ -17,7 +17,7 @@ class AccountEdiXmlUblTrQnb(models.AbstractModel):
         if invoice.country_code != 'TR':
             return
 
-        if invoice.partner_id.qnb_customer_status == 'not_checked':
+        if getattr(invoice.partner_id, 'l10n_tr_nilvera_customer_status', None) == 'not_checked':
             invoice.partner_id._check_qnb_customer()
 
         if invoice._qnb_check_negative_lines():
@@ -27,7 +27,7 @@ class AccountEdiXmlUblTrQnb(models.AbstractModel):
         prefix, year, number = parts['prefix1'][:3], parts['year'], str(parts['seq']).zfill(9)
         invoice_id = f"{prefix.upper()}{year}{number}"
 
-        is_einvoice = invoice.partner_id.qnb_customer_status == 'einvoice'
+        is_einvoice = getattr(invoice.partner_id, 'l10n_tr_nilvera_customer_status', None) == 'einvoice'
         profile_id = invoice.company_id.qnb_efatura_scenario if is_einvoice else 'EARSIVFATURA'
 
         document_node.update({

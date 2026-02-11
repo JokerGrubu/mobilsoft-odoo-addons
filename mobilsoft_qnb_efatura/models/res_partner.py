@@ -10,45 +10,15 @@ class ResPartner(models.Model):
 
     invoice_edi_format = fields.Selection(selection_add=[('ubl_tr_qnb', "Türkiye (UBL TR 1.2 - QNB)")])
 
-    # e-Fatura Bilgileri
+    # e-Fatura Bilgileri — Nilvera ile ortak alanlar kullanılıyor (l10n_tr_nilvera_customer_status, l10n_tr_nilvera_customer_alias_id)
+    # QNB sadece "son kontrol tarihi" için ek alan tutar (cron için)
     company_currency_id = fields.Many2one(
         related='company_id.currency_id',
         readonly=True
     )
-    is_efatura_registered = fields.Boolean(
-        string='e-Fatura Kayıtlı',
-        default=False,
-        help='Bu firma GİB e-Fatura sistemine kayıtlı mı?'
-    )
-    efatura_alias = fields.Char(
-        string='e-Fatura Posta Kutusu',
-        help='Alıcının e-Fatura posta kutusu etiketi (örn: urn:mail:defaultpk@xxx.com)'
-    )
-    efatura_alias_type = fields.Selection([
-        ('pk', 'Posta Kutusu (PK)'),
-        ('gb', 'Gönderici Birimi (GB)')
-    ], string='Etiket Tipi', default='pk',
-        help='Posta Kutusu: Normal kullanıcı\nGönderici Birimi: Entegratör')
-
-    efatura_registration_date = fields.Date(
-        string='e-Fatura Kayıt Tarihi',
-        help='GİB sistemine kayıt tarihi'
-    )
-    efatura_last_check = fields.Datetime(
-        string='Son Kontrol Tarihi',
-        help='e-Fatura kaydı son kontrol edilme tarihi'
-    )
-    qnb_customer_status = fields.Selection(
-        selection=[
-            ('not_checked', "Not Verified"),
-            ('earchive', "E-Archive"),
-            ('einvoice', "E-Invoice"),
-        ],
-        string="QNB Durum",
-        copy=False,
-        default='not_checked',
-        readonly=True,
-        tracking=True,
+    qnb_last_check_date = fields.Datetime(
+        string='QNB Son Kontrol',
+        help='QNB ile e-Fatura kaydı son kontrol edilme tarihi (cron için)'
     )
 
     balance_2025_receivable = fields.Monetary(
@@ -91,10 +61,10 @@ class ResPartner(models.Model):
         store=True,
         help='Otomatik hesaplanan fatura gönderim yöntemi')
 
-    @api.depends('is_efatura_registered', 'vat')
+    @api.depends('l10n_tr_nilvera_customer_status', 'vat')
     def _compute_invoice_send_method(self):
         for partner in self:
-            if partner.is_efatura_registered:
+            if getattr(partner, 'l10n_tr_nilvera_customer_status', None) == 'einvoice':
                 partner.invoice_send_method = 'efatura'
             elif partner.vat:
                 partner.invoice_send_method = 'earsiv'
@@ -120,14 +90,22 @@ class ResPartner(models.Model):
         return res
 
     def _check_qnb_customer(self):
+        """QNB API ile e-fatura kaydını kontrol et; sonucu Nilvera alanlarına yaz (ortak yapı)."""
         self.ensure_one()
         if not self.vat:
-            self.qnb_customer_status = 'not_checked'
+            self.write({
+                'l10n_tr_nilvera_customer_status': 'not_checked',
+                'l10n_tr_nilvera_customer_alias_id': False,
+                'qnb_last_check_date': fields.Datetime.now(),
+            })
             return False
 
         vkn = ''.join(filter(str.isdigit, self.vat))
         if not vkn:
-            self.qnb_customer_status = 'not_checked'
+            self.write({
+                'l10n_tr_nilvera_customer_status': 'not_checked',
+                'qnb_last_check_date': fields.Datetime.now(),
+            })
             return False
 
         api_client = self.env['qnb.api.client']
@@ -135,20 +113,26 @@ class ResPartner(models.Model):
 
         if result.get('success') and result.get('users'):
             user = result['users'][0]
+            alias_name = (user.get('alias') or '').strip()
+            # Nilvera yapısı: l10n_tr.nilvera.alias (name, partner_id)
+            Alias = self.env['l10n_tr.nilvera.alias']
+            existing = Alias.search([
+                ('partner_id', '=', self.id),
+                ('name', '=', alias_name),
+            ], limit=1)
+            if not existing and alias_name:
+                existing = Alias.create({'name': alias_name, 'partner_id': self.id})
             self.write({
-                'is_efatura_registered': True,
-                'efatura_alias': user.get('alias', ''),
-                'efatura_registration_date': user.get('first_creation_time', False),
-                'efatura_last_check': fields.Datetime.now(),
-                'qnb_customer_status': 'einvoice',
+                'l10n_tr_nilvera_customer_status': 'einvoice',
+                'l10n_tr_nilvera_customer_alias_id': existing.id if existing else False,
+                'qnb_last_check_date': fields.Datetime.now(),
             })
             return True
 
         self.write({
-            'is_efatura_registered': False,
-            'efatura_alias': False,
-            'efatura_last_check': fields.Datetime.now(),
-            'qnb_customer_status': 'earchive' if self.vat else 'not_checked',
+            'l10n_tr_nilvera_customer_status': 'earchive' if self.vat else 'not_checked',
+            'l10n_tr_nilvera_customer_alias_id': False,
+            'qnb_last_check_date': fields.Datetime.now(),
         })
         return False
 
@@ -160,8 +144,9 @@ class ResPartner(models.Model):
             raise UserError(_("VKN/TCKN bilgisi girilmemiş!"))
 
         result = self._check_qnb_customer()
+        alias = self.l10n_tr_nilvera_customer_alias_id.name if self.l10n_tr_nilvera_customer_alias_id else ''
         if result:
-            message = f"✅ {self.name} e-Fatura sistemine kayıtlı!\nPosta Kutusu: {self.efatura_alias or '-'}"
+            message = f"✅ {self.name} e-Fatura sistemine kayıtlı!\nPosta Kutusu: {alias or '-'}"
         else:
             message = f"ℹ️ {self.name} e-Fatura sistemine kayıtlı değil."
 
@@ -171,7 +156,7 @@ class ResPartner(models.Model):
             'params': {
                 'title': 'e-Fatura Kayıt Durumu',
                 'message': message,
-                'type': 'success' if self.is_efatura_registered else 'warning',
+                'type': 'success' if self.l10n_tr_nilvera_customer_status == 'einvoice' else 'warning',
                 'sticky': False,
             }
         }
@@ -506,11 +491,11 @@ class ResPartner(models.Model):
 
         partners = self.search([
             ('vat', '!=', False),
-            ('qnb_customer_status', 'in', ('not_checked', 'earchive', 'einvoice')),
+            ('l10n_tr_nilvera_customer_status', 'in', ('not_checked', 'earchive', 'einvoice')),
             '|',
-            ('efatura_last_check', '=', False),
-            ('efatura_last_check', '<', thirty_days_ago)
-        ], limit=20, order='efatura_last_check asc')  # küçük batch: timeout/lock azaltır
+            ('qnb_last_check_date', '=', False),
+            ('qnb_last_check_date', '<', thirty_days_ago)
+        ], limit=20, order='qnb_last_check_date asc')  # küçük batch: timeout/lock azaltır
 
         for partner in partners:
             if (datetime.now() - started).total_seconds() > time_budget_seconds:
