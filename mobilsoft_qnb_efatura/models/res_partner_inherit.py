@@ -20,11 +20,7 @@ class ResPartner(models.Model):
         index=True
     )
 
-    bizimhesap_partner_code = fields.Char(
-        string='BizimHesap Partner Kodu',
-        help='BizimHesap sisteminden gelen partner kodu',
-        index=True
-    )
+    # Cari kodu standart ref alanında tutuluyor (BizimHesap zaten ref'e yazıyor).
 
     external_partner_codes = fields.Text(
         string='Diğer Harici Kodlar',
@@ -91,10 +87,12 @@ class ResPartner(models.Model):
                     _logger.debug(f"✅ QNB VKN ile eşleşti: {vat} → {partner.name}")
                     return partner, True, 'external_code'
             elif source == 'bizimhesap':
-                partner = Partner.search([('bizimhesap_partner_code', '=', vat)], limit=1)
-                if partner:
-                    _logger.debug(f"✅ BizimHesap kodu ile eşleşti: {vat} → {partner.name}")
-                    return partner, True, 'external_code'
+                ref_code = (external_data.get('ref') or external_data.get('code') or '').strip()
+                if ref_code:
+                    partner = Partner.search([('ref', '=', ref_code)], limit=1)
+                    if partner:
+                        _logger.debug(f"✅ BizimHesap ref ile eşleşti: {ref_code} → {partner.name}")
+                        return partner, True, 'external_code'
 
         # 2. VAT (VKN/TCKN) İLE KONTROL
         if vat:
@@ -153,8 +151,8 @@ class ResPartner(models.Model):
 
         if source == 'qnb' and not partner.qnb_partner_vkn:
             vals['qnb_partner_vkn'] = code
-        elif source == 'bizimhesap' and not partner.bizimhesap_partner_code:
-            vals['bizimhesap_partner_code'] = code
+        elif source == 'bizimhesap' and code and not partner.ref:
+            vals['ref'] = code
 
         try:
             partner.write(vals)

@@ -496,7 +496,7 @@ class AccountMove(models.Model):
 
         return False
 
-    def _qnb_find_or_create_product_from_line(self, company, line_data):
+    def _qnb_find_or_create_product_from_line(self, company, line_data, partner=None):
         Product = self.env['product.product']
         create_new = company.qnb_create_new_product
 
@@ -504,10 +504,17 @@ class AccountMove(models.Model):
         product_name = (line_data.get('product_name') or line_data.get('product_description') or '').strip()
         barcode = (line_data.get('barcode') or '').strip()
 
+        if product_code and partner:
+            si = self.env['product.supplierinfo'].search([
+                ('partner_id', '=', partner.id),
+                ('product_code', '=', product_code),
+            ], limit=1)
+            if si and si.product_tmpl_id:
+                product = Product.search([('product_tmpl_id', '=', si.product_tmpl_id.id)], limit=1)
+                if product:
+                    return product
+
         if product_code:
-            product = Product.search([('qnb_product_code', '=', product_code)], limit=1)
-            if product:
-                return product
             product = Product.search([('default_code', '=', product_code)], limit=1)
             if product:
                 return product
@@ -533,10 +540,16 @@ class AccountMove(models.Model):
             }
             if product_code:
                 vals['default_code'] = product_code
-                vals['qnb_product_code'] = product_code
             if barcode:
                 vals['barcode'] = barcode
-            return Product.create(vals)
+            new_product = Product.create(vals)
+            if partner and product_code and new_product.product_tmpl_id:
+                self.env['product.supplierinfo'].create({
+                    'product_tmpl_id': new_product.product_tmpl_id.id,
+                    'partner_id': partner.id,
+                    'product_code': product_code,
+                })
+            return new_product
 
         return False
 
@@ -653,7 +666,7 @@ class AccountMove(models.Model):
 
             invoice_lines = []
             for line in (parsed.get('lines') or []):
-                product = self._qnb_find_or_create_product_from_line(company, line)
+                product = self._qnb_find_or_create_product_from_line(company, line, partner=partner)
                 qty = line.get('quantity') or 1.0
                 unit_price = line.get('unit_price')
                 if not unit_price and line.get('line_total') and qty:
@@ -788,7 +801,7 @@ class AccountMove(models.Model):
 
                     invoice_lines = []
                     for line in (parsed.get('lines') or []):
-                        product = self._qnb_find_or_create_product_from_line(company, line)
+                        product = self._qnb_find_or_create_product_from_line(company, line, partner=partner)
                         qty = line.get('quantity') or 1.0
                         unit_price = line.get('unit_price')
                         if not unit_price and line.get('line_total') and qty:

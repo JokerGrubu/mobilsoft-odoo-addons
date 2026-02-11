@@ -13,18 +13,7 @@ _logger = logging.getLogger(__name__)
 class ProductProduct(models.Model):
     _inherit = 'product.product'
 
-    # Harici Sistemlerden Gelen Kodlar
-    qnb_product_code = fields.Char(
-        string='QNB Ürün Kodu',
-        help='QNB e-Fatura/e-Arşiv XML\'inden gelen ürün kodu (SellersItemIdentification)',
-        index=True
-    )
-
-    bizimhesap_product_code = fields.Char(
-        string='BizimHesap Ürün Kodu',
-        help='BizimHesap sisteminden gelen ürün kodu',
-        index=True
-    )
+    # Ürün kodu: standart default_code ve product.supplierinfo (tedarikçi bazlı product_code) kullanılıyor.
 
     external_product_codes = fields.Text(
         string='Diğer Harici Kodlar',
@@ -42,16 +31,6 @@ class ProductProduct(models.Model):
     last_matched_date = fields.Datetime(
         string='Son Eşleştirme Tarihi'
     )
-
-    # SQL Constraint: QNB ve BizimHesap kodları unique olmalı (boş değilse)
-    _sql_constraints = [
-        ('qnb_product_code_unique',
-         'UNIQUE(qnb_product_code)',
-         'Bu QNB ürün kodu zaten başka bir üründe kullanılıyor!'),
-        ('bizimhesap_product_code_unique',
-         'UNIQUE(bizimhesap_product_code)',
-         'Bu BizimHesap ürün kodu zaten başka bir üründe kullanılıyor!')
-    ]
 
     def match_or_create_from_external(self, source, external_data):
         """
@@ -79,18 +58,12 @@ class ProductProduct(models.Model):
         barcode = external_data.get('barcode')
         description = external_data.get('description', '')
 
-        # 1. ÖNCE HARICI KOD KONTROLÜ (en hızlı ve güvenilir)
+        # 1. ÖNCE HARICI KOD KONTROLÜ (standart default_code)
         if product_code:
-            # Source'a göre ilgili alanda ara
-            if source == 'qnb':
-                product = Product.search([('qnb_product_code', '=', product_code)], limit=1)
+            if source == 'bizimhesap':
+                product = Product.search([('default_code', '=', product_code)], limit=1)
                 if product:
-                    _logger.debug(f"✅ QNB kodu ile eşleşti: {product_code} → {product.name}")
-                    return product, True, 'external_code'
-            elif source == 'bizimhesap':
-                product = Product.search([('bizimhesap_product_code', '=', product_code)], limit=1)
-                if product:
-                    _logger.debug(f"✅ BizimHesap kodu ile eşleşti: {product_code} → {product.name}")
+                    _logger.debug(f"✅ BizimHesap/default_code ile eşleşti: {product_code} → {product.name}")
                     return product, True, 'external_code'
 
         # 2. BARKOD İLE KONTROL
@@ -195,11 +168,10 @@ class ProductProduct(models.Model):
             'last_matched_source': source,
             'last_matched_date': fields.Datetime.now()
         }
-
-        if source == 'qnb' and not product.qnb_product_code:
-            vals['qnb_product_code'] = code
-        elif source == 'bizimhesap' and not product.bizimhesap_product_code:
-            vals['bizimhesap_product_code'] = code
+        if source == 'bizimhesap' and code and not product.default_code:
+            vals['default_code'] = code
+        if source == 'qnb' and code and not product.default_code:
+            vals['default_code'] = code
 
         try:
             product.write(vals)
