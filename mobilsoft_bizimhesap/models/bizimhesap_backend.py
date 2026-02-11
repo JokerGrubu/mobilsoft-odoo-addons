@@ -1365,17 +1365,13 @@ class BizimHesapBackend(models.Model):
         product_code = line_data.get('code') or line_data.get('productCode')
         product_name = line_data.get('title') or line_data.get('productName') or 'Bilinmeyen Ürün'
 
-        # Ürün bul veya oluştur
-        product = None
-        if product_code:
-            product = self.env['product.product'].search([
-                ('default_code', '=', product_code)
-            ], limit=1)
-
-        if not product:
-            product = self.env['product.product'].search([
-                ('name', 'ilike', product_name)
-            ], limit=1)
+        # Odoo standart _retrieve_product ile eşleştir (Nilvera/UBL ile aynı mantık)
+        product = self.env['product.product']._retrieve_product(
+            company=company,
+            barcode=(line_data.get('barcode') or '').strip() or None,
+            default_code=(product_code or '').strip() or None,
+            name=(product_name or '').strip().split('\n', 1)[0] or None,
+        )
 
         if not product:
             # Ürün bulunamadı, genel ürün kullan veya oluştur
@@ -1542,24 +1538,39 @@ class BizimHesapBackend(models.Model):
             })
             return 'updated'
         
-        # Protokollerle eşleştirme
+        # Önce Odoo standart _retrieve_product dene (Nilvera/UBL ile aynı mantık)
+        product = self.env['product.product']._retrieve_product(
+            company=self.company_id,
+            barcode=(data.get('barcode') or '').strip() or None,
+            default_code=(data.get('code') or '').strip() or None,
+            name=(data.get('title') or '').strip().split('\n', 1)[0] or None,
+        )
+        if product:
+            product.with_context(sync_source='bizimhesap').write(update_vals)
+            self.env['bizimhesap.product.binding'].create({
+                'backend_id': self.id,
+                'external_id': external_id,
+                'odoo_id': product.id,
+                'sync_date': fields.Datetime.now(),
+                'external_data': json.dumps(data),
+            })
+            _logger.info(f"Ürün eşleşti (_retrieve_product): {data.get('title')}")
+            return 'updated'
+
+        # Fallback: Protokollerle eşleştirme (varyant, isim benzerliği %50)
         source_product = {
             'name': data.get('title', ''),
             'default_code': data.get('code'),
             'barcode': data.get('barcode'),
         }
-        
-        # Tüm mevcut ürünleri al
         all_products = self.env['product.product'].search_read(
             [],
             ['id', 'name', 'default_code', 'barcode', 'product_tmpl_id']
         )
-        
-        # Protokol ile eşleştir
         match = {'match_type': 'new'}
         if SYNC_PROTOCOLS:
             match = SYNC_PROTOCOLS.match_product(source_product, all_products)
-        
+
         if match['match_type'] == 'exact':
             # Kesin eşleşme - barkod ile bulundu
             # İsim HARİÇ güncelle (XML birincil kaynak)
