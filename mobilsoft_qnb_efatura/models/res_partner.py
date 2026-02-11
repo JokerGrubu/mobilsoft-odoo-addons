@@ -333,13 +333,13 @@ class ResPartner(models.Model):
                         bank_vals['bank_id'] = bank.id
                 Bank.create(bank_vals)
 
-    def action_update_from_qnb_mukellef(self):
+    def _do_batch_update_from_qnb_mukellef(self, partners=None):
         """
-        QNB mükellef sorgusu (kayıtlı kullanıcı) ile partner bilgilerini güncelle.
-        - GİB'den: ünvan, e-Fatura posta kutusu (alias), durum.
-        - Ardından bu partner için QNB'de kayıtlı en son belgeden (XML) adres, il, ilçe, posta kodu,
-          vergi dairesi, telefon, e-posta, web sitesi güncellenir (varsa).
+        GİB + QNB XML ile partner güncellemesi (ünvan, alias, adres, il, ilçe, telefon, e-posta, web).
+        Hem butondan hem cron'dan kullanılır. partners verilmezse self kullanılır.
+        :return: dict with processed, updated_name, updated_alias, updated_xml, skipped, errors
         """
+        partners = partners or self
         company = self.env.company
         api_client = self.env['qnb.api.client'].with_company(company)
         Alias = self.env['l10n_tr.nilvera.alias']
@@ -351,7 +351,7 @@ class ResPartner(models.Model):
         skipped = 0
         errors = 0
 
-        for partner in self:
+        for partner in partners:
             processed += 1
             try:
                 if not partner.vat:
@@ -408,15 +408,33 @@ class ResPartner(models.Model):
                 _logger.warning("QNB mükellef güncelleme hatası partner id=%s: %s", partner.id, e)
 
         return {
+            'processed': processed,
+            'updated_name': updated_name,
+            'updated_alias': updated_alias,
+            'updated_xml': updated_xml,
+            'skipped': skipped,
+            'errors': errors,
+        }
+
+    def action_update_from_qnb_mukellef(self):
+        """
+        QNB mükellef sorgusu (kayıtlı kullanıcı) ile partner bilgilerini güncelle.
+        - GİB'den: ünvan, e-Fatura posta kutusu (alias), durum.
+        - Ardından bu partner için QNB'de kayıtlı en son belgeden (XML) adres, il, ilçe, posta kodu,
+          vergi dairesi, telefon, e-posta, web sitesi güncellenir (varsa).
+        """
+        stats = self._do_batch_update_from_qnb_mukellef(self)
+        return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': _('QNB Mükellef ile Güncelle'),
                 'message': (
                     _('İşlenen: %s | Ünvan: %s | Alias: %s | XML (adres/iletişim): %s | Atlandı: %s | Hata: %s')
-                    % (processed, updated_name, updated_alias, updated_xml, skipped, errors)
+                    % (stats['processed'], stats['updated_name'], stats['updated_alias'],
+                       stats['updated_xml'], stats['skipped'], stats['errors'])
                 ),
-                'type': 'success' if (updated_name or updated_alias or updated_xml) else 'info',
+                'type': 'success' if (stats['updated_name'] or stats['updated_alias'] or stats['updated_xml']) else 'info',
                 'sticky': False,
             },
         }
@@ -591,4 +609,53 @@ class ResPartner(models.Model):
             except Exception:
                 continue
 
+        return True
+
+    @api.model
+    def _cron_update_partners_from_qnb_mukellef(self):
+        """
+        Otomatik cron: VKN'ı olan carilerin ünvan, alias, adres, il, ilçe, telefon, e-posta, web
+        bilgilerini GİB + QNB/Nilvera kaynaklı XML ile günceller. Eksik veya eski bilgisi olanlara
+        öncelik verir; her çalışmada sınırlı sayıda cari işlenir (API/timeout dengesi).
+        """
+        from datetime import datetime, timedelta
+
+        # Önce adres/iletişim eksik veya hiç mükellef güncellemesi yapılmamış cariler
+        domain_vat = [('vat', '!=', False), ('vat', '!=', '')]
+        week_ago = datetime.now() - timedelta(days=7)
+
+        # 1) Eksik bilgisi olanlar (adres, ilçe, telefon, e-posta, web boş) — öncelik
+        domain_incomplete = domain_vat + [
+            '|', '|', '|', '|',
+            ('street', 'in', [False, '']),
+            ('city', 'in', [False, '']),
+            ('phone', 'in', [False, '']),
+            ('email', 'in', [False, '']),
+            ('website', 'in', [False, '']),
+        ]
+        incomplete = self.search(domain_incomplete, limit=25, order='id asc')
+        # 2) Hiç güncellenmemiş veya 7 günden eski (qnb_last_check_date)
+        others = self.search(
+            domain_vat + [
+                '|',
+                ('qnb_last_check_date', '=', False),
+                ('qnb_last_check_date', '<', week_ago),
+            ],
+            limit=40,
+            order='qnb_last_check_date asc',
+        )
+        # Önce eksik bilgili cariler, sonra diğerleri (tekrarsız, toplam max 40)
+        seen = set(incomplete.ids)
+        other_ids = [p.id for p in others if p.id not in seen][:max(0, 40 - len(incomplete))]
+        partner_ids = list(incomplete.ids) + other_ids
+        partners = self.browse(partner_ids)
+        if not partners:
+            return True
+
+        stats = self.browse()._do_batch_update_from_qnb_mukellef(partners)
+        _logger.info(
+            "QNB cron partner güncelleme: işlenen=%s ünvan=%s alias=%s xml=%s atlandı=%s hata=%s",
+            stats['processed'], stats['updated_name'], stats['updated_alias'],
+            stats['updated_xml'], stats['skipped'], stats['errors'],
+        )
         return True
