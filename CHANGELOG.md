@@ -6,6 +6,15 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.14.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Degistirilenler
+- "Simdi Cek" butonlari kaldirildi; gelen/giden belgeler tamamen otomatik (5 dakikada bir).
+- Cron 15 dk -> 5 dk (ir_cron_data_update.xml ile mevcut kurulumlarda guncellenir).
+- QNB ayar gorunurlugu: account.group_account_manager -> account.group_account_user (Muhasebeci yetkisi yeterli).
+
+---
+
 ## [19.0.1.13.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Degistirilenler

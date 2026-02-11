@@ -199,46 +199,6 @@ class ResConfigSettings(models.TransientModel):
         self.ensure_one()
         return self.env['qnb.document'].action_fetch_all_documents()
 
-    def action_qnb_fetch_incoming_now(self):
-        """Gelen e-faturaları şimdi çek (cron'u manuel tetikle). Son 7 günü tekrar tarar."""
-        self.ensure_one()
-        from datetime import timedelta
-        Param = self.env['ir.config_parameter'].sudo()
-        key = f"qnb_incoming_last_fetch_date.{self.company_id.id}"
-        new_start = (fields.Date.today() - timedelta(days=7)).strftime("%Y-%m-%d")
-        Param.set_param(key, new_start)
-        self.env['account.move'].with_company(self.company_id)._qnb_fetch_incoming_documents()
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Gelen Belgeler Çekildi'),
-                'message': _('QNB\'den gelen e-faturalar alındı. Muhasebe > Vendör Faturalarından kontrol edin.'),
-                'type': 'success',
-                'sticky': False,
-            }
-        }
-
-    def action_qnb_fetch_outgoing_now(self):
-        """Giden e-faturaları şimdi çek (cron'u manuel tetikle). Son 7 günü tekrar tarar."""
-        self.ensure_one()
-        from datetime import timedelta
-        Param = self.env['ir.config_parameter'].sudo()
-        key = f"qnb_outgoing_last_fetch_date.{self.company_id.id}"
-        new_start = fields.Date.today() - timedelta(days=7)
-        Param.set_param(key, new_start.strftime("%Y-%m-%d"))
-        self.env['account.move'].with_company(self.company_id)._qnb_fetch_outgoing_documents(batch_size=50)
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Giden Belgeler Çekildi'),
-                'message': _('QNB\'den giden e-faturalar alındı. Muhasebe > Müşteri Faturalarından kontrol edin.'),
-                'type': 'success',
-                'sticky': False,
-            }
-        }
-
     def action_qnb_sync_partners_from_documents(self):
         """QNB belgelerinden partner bilgilerini XML'den güncelle"""
         self.ensure_one()

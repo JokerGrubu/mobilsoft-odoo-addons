@@ -6,7 +6,7 @@
             <field name="model_id" ref="model_account_move"/>
             <field name="state">code</field>
             <field name="code">model._cron_qnb_get_new_incoming_documents()</field>
-            <field name="interval_number">15</field>
+            <field name="interval_number">5</field>
             <field name="interval_type">minutes</field>
             <field name="active" eval="True"/>
         </record>
@@ -16,7 +16,7 @@
             <field name="model_id" ref="model_account_move"/>
             <field name="state">code</field>
             <field name="code">model._cron_qnb_get_sale_pdf()</field>
-            <field name="interval_number">15</field>
+            <field name="interval_number">5</field>
             <field name="interval_type">minutes</field>
             <field name="active" eval="True"/>
         </record>
@@ -26,7 +26,7 @@
             <field name="model_id" ref="model_account_move"/>
             <field name="state">code</field>
             <field name="code">model._cron_qnb_get_invoice_status()</field>
-            <field name="interval_number">15</field>
+            <field name="interval_number">5</field>
             <field name="interval_type">minutes</field>
             <field name="active" eval="True"/>
         </record>
