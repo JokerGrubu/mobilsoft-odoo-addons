@@ -6,6 +6,14 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.11.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Duzeltmeler
+- action_view_invoice: move_id yoksa uyari doner (AttributeError oncesi).
+- qnb_document: sanitize_account_number lazy import (modul yukleme hatasi riski azaltildi).
+
+---
+
 ## [19.0.1.10.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Degistirilenler

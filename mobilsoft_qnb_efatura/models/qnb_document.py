@@ -6,7 +6,6 @@ Gelen ve giden belgelerin takibi
 
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
-from odoo.addons.base.models.res_bank import sanitize_account_number
 import base64
 import logging
 
@@ -802,7 +801,16 @@ class QnbDocument(models.Model):
         """Bağlı faturayı formda aç"""
         self.ensure_one()
         if not self.move_id:
-            return
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Fatura Yok'),
+                    'message': _('Bu belgeye bağlı fatura bulunamadı.'),
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
         return {
             'type': 'ir.actions.act_window',
             'res_model': 'account.move',
@@ -2076,6 +2084,7 @@ class QnbDocument(models.Model):
                 # IBAN varsa partner banka hesabı oluştur/eşleştir (Odoo sanitize standard)
                 iban_raw = (partner_data.get('iban') or '').replace(' ', '')
                 if iban_raw:
+                    from odoo.addons.base.models.res_bank import sanitize_account_number
                     Bank = self.env['res.partner.bank']
                     iban_sanitized = sanitize_account_number(iban_raw)
                     existing_bank = Bank.search([
