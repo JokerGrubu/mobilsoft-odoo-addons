@@ -413,6 +413,27 @@ class BizimHesapBackend(models.Model):
         return self._api_request('GET', f'/inventory/{warehouse_id}')
     
     # Invoices (Faturalar)
+    def get_invoices(self, start_date=None, end_date=None):
+        """
+        Fatura listesini getir - B2B API.
+        BizimHesap B2B API'de fatura listesi endpoint'i yoksa boş döner (çökme olmaz).
+        """
+        try:
+            params = {}
+            if start_date:
+                params['startDate'] = start_date.strftime('%Y-%m-%d')
+            if end_date:
+                params['endDate'] = end_date.strftime('%Y-%m-%d') if end_date else fields.Date.today().strftime('%Y-%m-%d')
+            result = self._api_request('GET', '/invoices', params=params if params else None)
+            if isinstance(result, dict) and 'data' in result:
+                return result
+            if isinstance(result, list):
+                return {'data': result}
+            return {'data': []}
+        except (UserError, Exception) as e:
+            _logger.warning("BizimHesap fatura listesi alınamadı (API desteklemiyor olabilir): %s", e)
+            return {'data': []}
+
     def create_invoice(self, data):
         """
         Yeni fatura oluştur - B2B API
@@ -1986,7 +2007,7 @@ class BizimHesapBackend(models.Model):
         
         # API'ye gönder
         try:
-            response = self._make_request('POST', '/addinvoice', data=data)
+            response = self._api_request('POST', '/addinvoice', data=data)
             
             if response.get('error'):
                 raise UserError(f"BizimHesap Hata: {response.get('error')}")
