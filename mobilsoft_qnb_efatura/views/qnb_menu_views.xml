@@ -42,10 +42,9 @@
         </field>
     </record>
 
-    <!-- Top Level Menu (Root) -->
+    <!-- Top Level Menu (Root) - varsayılan Odoo menü simgesi -->
     <menuitem id="mobilsoft_qnb_efatura_menu_root"
               name="QNB e-Solutions"
-              web_icon="mobilsoft_qnb_efatura,static/description/icon.svg"
               sequence="55"/>
 
     <!-- e-Belge Alt Menü -->

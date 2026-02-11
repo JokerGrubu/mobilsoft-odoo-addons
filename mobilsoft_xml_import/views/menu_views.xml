@@ -3,8 +3,8 @@
 
     <!-- Ana Menü (Root) -->
     <menuitem id="mobilsoft_xml_import_menu_root"
-        name="XML Ürün Yönetimi"
-        web_icon="mobilsoft_xml_import,static/description/icon.png"
+        name="XML Ürün"
+        web_icon="mobilsoft_xml_import,static/description/icon.svg"
         sequence="60"/>
 
     <!-- İçe Aktarım (Import) Menüsü -->

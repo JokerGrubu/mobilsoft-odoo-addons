@@ -6,8 +6,7 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <menuitem id="bizimhesap_menu_root"
               name="BizimHesap"
-              sequence="55"
-              web_icon="mobilsoft_bizimhesap,static/description/icon.png"/>
+              sequence="55"/>
 
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- CONFIGURATION MENU -->
