@@ -716,17 +716,17 @@ class QnbDocument(models.Model):
                 if not result['partner'].get('website'):
                     result['partner']['website'] = self._get_xml_text(party, './/cbc:WebsiteURI', ns)
 
-            # === ÖDEME BİLGİLERİ ===
-            payment = root.find('.//cac:PaymentMeans', ns)
-            if payment is not None:
-                result['payment']['means_code'] = self._get_xml_text(payment, './/cbc:PaymentMeansCode', ns)
-                result['payment']['instruction'] = self._get_xml_text(payment, './/cbc:InstructionNote', ns)
-                # IBAN / banka bilgileri
+            # === ÖDEME BİLGİLERİ (tüm PaymentMeans; birden fazla IBAN olabilir) ===
+            result['partner']['bank_accounts'] = []
+            for payment in root.findall('.//cac:PaymentMeans', ns):
+                if payment is None:
+                    continue
+                if not result['payment'].get('means_code'):
+                    result['payment']['means_code'] = self._get_xml_text(payment, './/cbc:PaymentMeansCode', ns)
+                    result['payment']['instruction'] = self._get_xml_text(payment, './/cbc:InstructionNote', ns)
                 iban = self._get_xml_text(payment, './/cac:PayeeFinancialAccount/cbc:ID[@schemeID="IBAN"]', ns)
                 if not iban:
                     iban = self._get_xml_text(payment, './/cac:PayeeFinancialAccount/cbc:ID', ns)
-                if iban:
-                    result['partner']['iban'] = iban
                 bank_name = self._get_xml_text(payment, './/cac:PayeeFinancialAccount/cbc:Name', ns)
                 if not bank_name:
                     bank_name = self._get_xml_text(
@@ -734,8 +734,14 @@ class QnbDocument(models.Model):
                         './/cac:PayeeFinancialAccount/cac:FinancialInstitutionBranch/cac:FinancialInstitution/cbc:Name',
                         ns
                     )
-                if bank_name:
-                    result['partner']['bank_name'] = bank_name
+                if iban:
+                    result['partner']['bank_accounts'].append({
+                        'iban': iban,
+                        'bank_name': (bank_name or '').strip(),
+                    })
+                    if not result['partner'].get('iban'):
+                        result['partner']['iban'] = iban
+                        result['partner']['bank_name'] = (bank_name or '').strip()
 
             # === FATURA SATIRLARI (Ürünler) ===
             invoice_lines = root.findall('.//cac:InvoiceLine', ns)

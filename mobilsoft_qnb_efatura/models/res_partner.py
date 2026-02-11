@@ -318,20 +318,50 @@ class ResPartner(models.Model):
                 update_vals['state_id'] = state.id
         if update_vals:
             self.write(update_vals)
-        iban = (partner_data.get('iban') or '').replace(' ', '')
-        if iban:
-            Bank = self.env['res.partner.bank']
+
+        # Tüm banka hesapları (XML'de birden fazla PaymentMeans olabilir)
+        Bank = self.env['res.partner.bank']
+        bank_accounts = partner_data.get('bank_accounts') or []
+        if not bank_accounts and (partner_data.get('iban') or partner_data.get('bank_name')):
+            bank_accounts = [{
+                'iban': (partner_data.get('iban') or '').replace(' ', ''),
+                'bank_name': (partner_data.get('bank_name') or '').strip(),
+            }]
+        for acc in bank_accounts:
+            iban = (acc.get('iban') or '').replace(' ', '')
+            if not iban:
+                continue
             existing_bank = Bank.search([('partner_id', '=', self.id), ('acc_number', '=', iban)], limit=1)
             if not existing_bank:
                 bank_vals = {'partner_id': self.id, 'acc_number': iban}
                 if 'company_id' in Bank._fields and self.company_id:
                     bank_vals['company_id'] = self.company_id.id
-                bank_name = (partner_data.get('bank_name') or '').strip()
+                bank_name = (acc.get('bank_name') or '').strip()
                 if bank_name and 'bank_id' in Bank._fields:
                     bank = self.env['res.bank'].search([('name', 'ilike', bank_name)], limit=1)
                     if bank:
                         bank_vals['bank_id'] = bank.id
                 Bank.create(bank_vals)
+
+        # İletişim kişisi (contact): varsa ilişkili kişi olarak oluştur/güncelle
+        contact_name = (partner_data.get('contact_name') or '').strip()
+        if contact_name:
+            contact_vals = {'name': contact_name, 'parent_id': self.id, 'type': 'contact'}
+            for key in ('phone', 'email'):
+                val = (partner_data.get(key) or '').strip()
+                if val:
+                    contact_vals[key] = val
+            existing_contact = self.env['res.partner'].search([
+                ('parent_id', '=', self.id),
+                ('type', '=', 'contact'),
+                ('name', 'ilike', contact_name),
+            ], limit=1)
+            if existing_contact:
+                update_contact = {k: v for k, v in contact_vals.items() if k != 'parent_id' and k != 'type'}
+                if update_contact:
+                    existing_contact.write(update_contact)
+            else:
+                self.env['res.partner'].create(contact_vals)
 
     def _do_batch_update_from_qnb_mukellef(self, partners=None):
         """
