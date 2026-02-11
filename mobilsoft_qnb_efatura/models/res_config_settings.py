@@ -214,62 +214,6 @@ class ResConfigSettings(models.TransientModel):
         self.ensure_one()
         return self.env['qnb.document'].action_fix_missing_partners_from_qnb_list()
 
-    def action_qnb_fill_partner_vat_from_list(self):
-        """VAT eksik partner'ları QNB gelen belge listesinden (sender_vkn) doldur"""
-        self.ensure_one()
-        return self.env['qnb.document'].action_fill_partner_vat_from_qnb_list()
-
-    def action_qnb_update_partners_from_mukellef(self):
-        """VKN'ı olan tüm carileri QNB mükellef sorgusu (kayıtlı kullanıcı) ile güncelle: ünvan + e-Fatura alias/durum"""
-        self.ensure_one()
-        partners = self.env['res.partner'].search([
-            ('vat', '!=', False),
-            ('vat', '!=', ''),
-        ])
-        if not partners:
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'QNB Mükellef Güncelle',
-                    'message': 'VKN/TCKN bilgisi olan cari bulunamadı.',
-                    'type': 'warning',
-                    'sticky': False,
-                },
-            }
-        return partners.action_update_from_qnb_mukellef()
-
-    def action_qnb_update_partners_nilvera_only(self):
-        """VKN'lı tüm carileri sadece Nilvera + QNB XML ile güncelle (GİB yok, hızlı)"""
-        self.ensure_one()
-        partners = self.env['res.partner'].search([
-            ('vat', '!=', False),
-            ('vat', '!=', ''),
-        ])
-        if not partners:
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'Nilvera Güncelle',
-                    'message': 'VKN/TCKN bilgisi olan cari bulunamadı.',
-                    'type': 'warning',
-                    'sticky': False,
-                },
-            }
-        stats = partners._do_batch_update_nilvera_only()
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Nilvera ile Güncelle'),
-                'message': _('İşlenen: %s | Güncellenen: %s | Hata: %s') % (
-                    stats['processed'], stats['updated'], stats['errors']),
-                'type': 'success' if stats['updated'] else 'info',
-                'sticky': False,
-            },
-        }
-
     def action_qnb_bulk_match_documents(self):
         """QNB belgelerini yevmiye/fatura kayıtlarıyla eşleştir"""
         self.ensure_one()
