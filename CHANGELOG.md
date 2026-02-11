@@ -6,6 +6,13 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.2.7.0] - 2026-02-11 (mobilsoft_xml_import)
+
+### Eklenenler
+- ir_cron.xml: XML Import otomatik ürün senkronizasyonu için cron (saatte 1) — auto_sync açık kaynaklar artık otomatik çalışır.
+
+---
+
 ## [19.0.1.14.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Degistirilenler
