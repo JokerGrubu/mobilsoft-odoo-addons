@@ -486,8 +486,6 @@ class AccountMove(models.Model):
                 'customer_rank': 1,
                 'l10n_tr_nilvera_customer_status': 'einvoice' if (is_einvoice and vat) else ('earchive' if vat else 'not_checked'),
             }
-            if vat:
-                create_vals['qnb_partner_vkn'] = vat.replace('TR', '').replace(' ', '').replace('-', '')
             if email:
                 create_vals['email'] = email
             if phone:

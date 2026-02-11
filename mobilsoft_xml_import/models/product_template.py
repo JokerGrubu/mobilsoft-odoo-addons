@@ -28,13 +28,21 @@ class ProductTemplate(models.Model):
     
     xml_supplier_sku = fields.Char(
         string='Tedarikçi Stok Kodu',
-        help='Tedarikçinin kullandığı stok kodu',
+        help='Tedarikçinin kullandığı stok kodu (product.supplierinfo ile senkron)',
+        compute='_compute_xml_supplier_from_seller',
+        inverse='_inverse_xml_supplier_from_seller',
+        store=True,
+        readonly=False,
     )
     
     xml_supplier_price = fields.Float(
         string='Tedarikçi Fiyatı',
         digits='Product Price',
-        help='Tedarikçiden alış fiyatı',
+        help='Tedarikçiden alış fiyatı (product.supplierinfo ile senkron)',
+        compute='_compute_xml_supplier_from_seller',
+        inverse='_inverse_xml_supplier_from_seller',
+        store=True,
+        readonly=False,
     )
     
     xml_supplier_stock = fields.Integer(
@@ -121,6 +129,45 @@ class ProductTemplate(models.Model):
                     if url:
                         html_parts.append(f'<img src="{url}" style="max-width:100px; max-height:100px; margin:3px; border:1px solid #ddd; border-radius:4px;" />')
             product.xml_image_html = '<div style="display:flex; flex-wrap:wrap; gap:5px;">' + ''.join(html_parts) + '</div>' if html_parts else ''
+
+    @api.depends('seller_ids', 'seller_ids.price', 'seller_ids.product_code', 'xml_supplier_id')
+    def _compute_xml_supplier_from_seller(self):
+        """Tedarikçi fiyat ve stok kodunu xml_supplier_id'ye ait supplierinfo satırından al."""
+        for product in self:
+            if product.xml_supplier_id:
+                sel = product.seller_ids.filtered(
+                    lambda s: s.partner_id == product.xml_supplier_id
+                )[:1]
+                if sel:
+                    product.xml_supplier_price = sel.price
+                    product.xml_supplier_sku = sel.product_code or ''
+                else:
+                    product.xml_supplier_price = 0.0
+                    product.xml_supplier_sku = ''
+            else:
+                product.xml_supplier_price = 0.0
+                product.xml_supplier_sku = ''
+
+    def _inverse_xml_supplier_from_seller(self):
+        """Tedarikçi fiyat/stok kodu yazıldığında supplierinfo satırını güncelle veya oluştur."""
+        for product in self:
+            if not product.xml_supplier_id:
+                continue
+            sel = product.seller_ids.filtered(
+                lambda s: s.partner_id == product.xml_supplier_id
+            )[:1]
+            if sel:
+                sel.write({
+                    'price': product.xml_supplier_price,
+                    'product_code': product.xml_supplier_sku or '',
+                })
+            else:
+                self.env['product.supplierinfo'].create({
+                    'product_tmpl_id': product.id,
+                    'partner_id': product.xml_supplier_id.id,
+                    'price': product.xml_supplier_price,
+                    'product_code': product.xml_supplier_sku or '',
+                })
 
     @api.depends('list_price', 'xml_supplier_price')
     def _compute_xml_profit(self):

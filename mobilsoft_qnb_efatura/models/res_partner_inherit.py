@@ -13,14 +13,7 @@ _logger = logging.getLogger(__name__)
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
-    # Harici Sistemlerden Gelen Kodlar
-    qnb_partner_vkn = fields.Char(
-        string='QNB VKN/TCKN',
-        help='QNB e-Fatura/e-Arşiv XML\'inden gelen VKN veya TCKN',
-        index=True
-    )
-
-    # Cari kodu standart ref alanında tutuluyor (BizimHesap zaten ref'e yazıyor).
+    # VKN/TCKN standart vat alanında tutuluyor; eşleştirme vat ile yapılıyor (qnb_partner_vkn kaldırıldı).
 
     external_partner_codes = fields.Text(
         string='Diğer Harici Kodlar',
@@ -39,12 +32,11 @@ class ResPartner(models.Model):
         string='Son Eşleştirme Tarihi'
     )
 
-    # SQL Constraint: VKN/TCKN unique olmalı (boş değilse)
-    _sql_constraints = [
-        ('qnb_partner_vkn_unique',
-         'UNIQUE(qnb_partner_vkn)',
-         'Bu VKN/TCKN zaten başka bir partnerde kullanılıyor!')
-    ]
+    def _vat_normalize(self, vat_value):
+        """VKN/TCKN'dan sadece rakamları al (TR, boşluk, tire temizlenir)."""
+        if not vat_value:
+            return ''
+        return ''.join(c for c in str(vat_value).strip() if c.isdigit())
 
     def match_or_create_from_external(self, source, external_data):
         """
@@ -78,15 +70,18 @@ class ResPartner(models.Model):
         if vat:
             vat = vat.replace('TR', '').replace(' ', '').replace('-', '')
 
-        # 1. ÖNCE HARICI KOD KONTROLÜ (VKN/TCKN)
+        # 1. ÖNCE HARICI KOD KONTROLÜ (VKN/TCKN) — standart vat ile
         if vat:
-            # Source'a göre ilgili alanda ara
-            if source == 'qnb':
-                partner = Partner.search([('qnb_partner_vkn', '=', vat)], limit=1)
+            digits = self._vat_normalize(vat)
+            if digits:
+                # vat alanında rakam veya TR+rakam olarak ara
+                partner = Partner.search([
+                    '|', ('vat', '=', digits), ('vat', '=', f'TR{digits}')
+                ], limit=1)
                 if partner:
-                    _logger.debug(f"✅ QNB VKN ile eşleşti: {vat} → {partner.name}")
+                    _logger.debug(f"✅ VAT ile eşleşti ({source}): {vat} → {partner.name}")
                     return partner, True, 'external_code'
-            elif source == 'bizimhesap':
+            if source == 'bizimhesap':
                 ref_code = (external_data.get('ref') or external_data.get('code') or '').strip()
                 if ref_code:
                     partner = Partner.search([('ref', '=', ref_code)], limit=1)
@@ -149,8 +144,8 @@ class ResPartner(models.Model):
             'last_matched_date': fields.Datetime.now()
         }
 
-        if source == 'qnb' and not partner.qnb_partner_vkn:
-            vals['qnb_partner_vkn'] = code
+        if source == 'qnb' and code and not partner.vat:
+            vals['vat'] = f'TR{code}' if not (str(code).upper().startswith('TR')) else code
         elif source == 'bizimhesap' and code and not partner.ref:
             vals['ref'] = code
 

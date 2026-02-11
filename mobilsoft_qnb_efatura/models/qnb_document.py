@@ -1699,19 +1699,18 @@ class QnbDocument(models.Model):
                              '&', ('debit', '>=', amount_lo), ('debit', '<=', amount_hi),
                              '&', ('credit', '>=', amount_lo), ('credit', '<=', amount_hi)]
 
-            # Partner merge / VAT farklılığı durumlarında alternatif partnerleri de dene
+            # Partner merge / VAT farklılığı durumlarında alternatif partnerleri de dene (standart vat)
             partner_ids = [self.partner_id.id]
             vat_raw = (self.partner_id.vat or '').strip()
-            qnb_vkn_raw = (getattr(self.partner_id, 'qnb_partner_vkn', False) or '').strip()
-            vat_candidates = {v for v in [vat_raw, qnb_vkn_raw] if v}
+            vat_candidates = {vat_raw} if vat_raw else set()
             if vat_raw:
-                if vat_raw.upper().startswith('TR'):
-                    vat_candidates.add(vat_raw[2:])
-                else:
-                    vat_candidates.add(f"TR{vat_raw}")
+                digits = ''.join(c for c in vat_raw if c.isdigit())
+                if digits:
+                    vat_candidates.add(digits)
+                    vat_candidates.add(f"TR{digits}")
             if vat_candidates:
                 Partner = self.env['res.partner'].sudo()
-                alt_partners = Partner.search(['|', ('vat', 'in', list(vat_candidates)), ('qnb_partner_vkn', 'in', list(vat_candidates))])
+                alt_partners = Partner.search([('vat', 'in', list(vat_candidates))])
                 if alt_partners:
                     partner_ids = list(set(partner_ids + alt_partners.ids))
 

@@ -1734,14 +1734,7 @@ class XmlProductSource(models.Model):
         if dropship_route:
             product.write({'route_ids': [(4, dropship_route.id)]})
 
-        # Tedarikçi bilgisi ekle
-        if self.supplier_id:
-            self.env['product.supplierinfo'].create({
-                'product_tmpl_id': product.id,
-                'partner_id': self.supplier_id.id,
-                'price': cost_price,
-                'product_code': data.get('sku'),
-            })
+        # Tedarikçi fiyat/kod product.supplierinfo ile senkron (product_template inverse ile yazılıyor)
 
         _logger.info(f"Yeni ürün oluşturuldu (Dropship): {product.name}")
 
