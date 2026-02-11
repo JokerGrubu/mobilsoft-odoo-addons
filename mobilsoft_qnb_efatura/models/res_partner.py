@@ -264,18 +264,22 @@ class ResPartner(models.Model):
                     return partner_data
         return None
 
-    def _apply_qnb_partner_data(self, partner_data, skip_name=False):
+    def _apply_qnb_partner_data(self, partner_data, skip_name=False, fill_empty_only=False):
         """
         XML'den gelen partner_data dict'ini bu partner'a uygula: adres, il, ilçe, posta kodu,
-        vergi dairesi, telefon, e-posta, web sitesi, ülke/il; varsa IBAN.
-        skip_name=True ise name alanı yazılmaz (mükellef güncellemesinde ünvan zaten GİB'den gelir).
+        vergi dairesi, telefon, e-posta, web sitesi, ülke/il; varsa IBAN, ilişkili kişi.
+        - skip_name=True: name yazılmaz (mükellef güncellemesinde ünvan GİB'den gelir).
+        - fill_empty_only=True: Sadece şu an boş olan alanlar XML ile doldurulur (GİB sonrası eksikleri tamamla).
         """
         self.ensure_one()
         update_vals = {}
         if not skip_name:
             name_raw = (partner_data.get('name') or '').strip()
-            if name_raw and (self.name or '').strip() != name_raw:
-                update_vals['name'] = name_raw
+            if name_raw:
+                if fill_empty_only and (self.name or '').strip():
+                    pass
+                elif (self.name or '').strip() != name_raw:
+                    update_vals['name'] = name_raw
         for src_key, dst_key in [
             ('street', 'street'),
             ('street2', 'street2'),
@@ -290,11 +294,18 @@ class ResPartner(models.Model):
             if not isinstance(val, str):
                 continue
             val = val.strip()
-            if val and (self[dst_key] or '').strip() != val:
+            if not val:
+                continue
+            current = (self[dst_key] or '').strip()
+            if fill_empty_only and current:
+                continue
+            if current != val:
                 update_vals[dst_key] = val
         tax_office = (partner_data.get('tax_office') or '').strip()
         if tax_office:
-            if 'l10n_tr_tax_office_id' in self._fields:
+            if fill_empty_only and (getattr(self, 'l10n_tr_tax_office_id', None) or (getattr(self, 'l10n_tr_tax_office_name', None) or '').strip()):
+                pass
+            elif 'l10n_tr_tax_office_id' in self._fields:
                 tax_model = self.env['l10n.tr.tax.office']
                 tax_rec = tax_model.search([('name', 'ilike', tax_office)], limit=1)
                 if tax_rec and self.l10n_tr_tax_office_id != tax_rec:
@@ -304,18 +315,24 @@ class ResPartner(models.Model):
                     update_vals['l10n_tr_tax_office_name'] = tax_office
         country_name = (partner_data.get('country') or '').strip()
         if country_name and 'country_id' in self._fields:
-            country = self.env['res.country'].search([('name', 'ilike', country_name)], limit=1)
-            if country and self.country_id != country:
-                update_vals['country_id'] = country.id
+            if fill_empty_only and self.country_id:
+                pass
+            else:
+                country = self.env['res.country'].search([('name', 'ilike', country_name)], limit=1)
+                if country and self.country_id != country:
+                    update_vals['country_id'] = country.id
         state_name = (partner_data.get('state') or '').strip()
         if state_name and 'state_id' in self._fields:
-            domain = [('name', 'ilike', state_name)]
-            if update_vals.get('country_id') or self.country_id:
-                country_id = update_vals.get('country_id') or self.country_id.id
-                domain.append(('country_id', '=', country_id))
-            state = self.env['res.country.state'].search(domain, limit=1)
-            if state and self.state_id != state:
-                update_vals['state_id'] = state.id
+            if fill_empty_only and self.state_id:
+                pass
+            else:
+                domain = [('name', 'ilike', state_name)]
+                if update_vals.get('country_id') or self.country_id:
+                    country_id = update_vals.get('country_id') or self.country_id.id
+                    domain.append(('country_id', '=', country_id))
+                state = self.env['res.country.state'].search(domain, limit=1)
+                if state and self.state_id != state:
+                    update_vals['state_id'] = state.id
         if update_vals:
             self.write(update_vals)
 
@@ -444,11 +461,11 @@ class ResPartner(models.Model):
                     vals['l10n_tr_nilvera_customer_alias_id'] = False
                 partner.write(vals)
 
-                # XML'den adres, iletişim, vergi dairesi vb. güncelle (bu partner için QNB'de belge varsa)
+                # GİB'den gelenler yazıldı; eksik alanları fatura XML'inden tamamla (sadece boş alanlar)
                 partner_data = partner._get_latest_qnb_partner_data()
                 if partner_data:
                     partner._normalize_city_state_partner_data(partner_data)
-                    partner._apply_qnb_partner_data(partner_data, skip_name=True)
+                    partner._apply_qnb_partner_data(partner_data, skip_name=True, fill_empty_only=True)
                     updated_xml += 1
             except Exception as e:
                 errors += 1
