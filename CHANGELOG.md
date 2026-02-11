@@ -6,6 +6,29 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.4.0] - 2026-02-11
+
+### Degistirilenler
+
+#### Nilvera Tek Kaynak (QNB/GIB partner guncelleme kaldirildi)
+- **l10n_tr_tax_office_mobilsoft:** VKN/TCKN girip Enter veya Tab ile Nilvera API (GetGlobalCustomerInfo) cagriliyor; cari alanlari (adres, il, ilce, vergi dairesi, telefon, e-posta, web sitesi) otomatik dolduruluyor.
+- **mobilsoft_qnb_efatura:** QNB ve GIB ile cari guncelleme kaldirildi: wizard, toplu kontrol, config butonlari, partner cron'lari silindi. Cariler artik sadece Nilvera (VKN onchange) ile otomatik doldurulur.
+
+#### UI Temizlik
+- Cari form: "Nilvera'dan Sorgula", "e-Fatura Durumunu Kontrol Et" butonlari ve qnb_last_check_date alani kaldirildi.
+- Konfigurasyon: Veri duzeltme blogu (Carileri Nilvera ile Guncelle, VAT Eksik, Carileri GIB ile Guncelle) kaldirildi.
+
+#### QNB e-Belge Ekrani
+- qnb_document_views.xml manifeste eklendi (onceden yuklenmiyordu).
+- "Faturayi Goruntule" butonu action_view_invoice ile duzeltildi.
+- qnb_wizard_views.xml manifeste eklendi (send invoice, reject, credit info wizard'lari).
+
+### Silinenler
+- qnb_check_partner_wizard, qnb_batch_check_wizard
+- ir_cron_qnb_check_partners, ir_cron_qnb_update_partners_mukellef
+
+---
+
 ## [19.0.1.0.0] - 2026-01-30
 
 ### Eklenenler

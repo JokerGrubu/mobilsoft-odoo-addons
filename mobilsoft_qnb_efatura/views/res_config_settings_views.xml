@@ -71,7 +71,7 @@
                     <block title="Kullanım" name="qnb_usage" invisible="not qnb_enabled">
                         <div class="text-muted">
                             Giden faturalar standart “Gönder” ekranından iletilir. Gelen faturalar otomatik cron ile gelir.
-                            QNB belge ekranı kaldırılmıştır.
+                            Belgeler QNB e-Solutions → e-Belge menüsünden görüntülenir.
                         </div>
                     </block>
 
