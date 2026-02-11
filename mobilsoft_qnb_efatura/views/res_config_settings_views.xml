@@ -64,6 +64,9 @@
                         <setting id="qnb_auto_fetch_outgoing" string="Giden Belgeleri Otomatik Al"
                                  help="Giden e-Fatura/e-Arşiv faturalarını Odoo'ya al ve PDF'ini indir">
                             <field name="qnb_auto_fetch_outgoing"/>
+                            <button name="action_qnb_fetch_outgoing_now" type="object"
+                                    string="Şimdi Çek" class="btn-link" icon="fa-download"
+                                    invisible="not qnb_enabled or (not qnb_efatura_enabled and not qnb_earsiv_enabled)"/>
                         </setting>
                         <setting id="qnb_auto_check" string="Durumu Otomatik Kontrol Et"
                                  help="Gönderilen belgelerin durumunu periyodik olarak kontrol et">

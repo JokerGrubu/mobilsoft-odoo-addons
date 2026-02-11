@@ -6,6 +6,14 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.13.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Degistirilenler
+- Giden belgeler "Simdi Cek" butonu (Ayarlar > QNB > Giden Belgeleri Otomatik Al): Son 7 gunu tarayarak giden e-fatura/e-Arsiv faturalarini manuel ceker.
+- qnb_diagnostic.py: Giden bilgiler eklendi (son cekim giden, son 30 gun QNB giden sayisi, cron giden).
+
+---
+
 ## [19.0.1.12.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Degistirilenler
