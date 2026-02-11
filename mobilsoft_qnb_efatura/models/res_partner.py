@@ -193,14 +193,17 @@ class ResPartner(models.Model):
         vat_number = f"TR{digits}"
 
         QnbDoc = self.env['qnb.document']
+        # Önce bu cariye veya bu carinin faturalarına bağlı belgeler
         docs = QnbDoc.search([
+            '|',
             ('partner_id', '=', self.id),
+            ('move_id.partner_id', '=', self.id),
             ('xml_content', '!=', False),
-        ], order='document_date desc, id desc', limit=20)
+        ], order='document_date desc, id desc', limit=30)
         if not docs:
             docs = QnbDoc.search([
                 ('xml_content', '!=', False),
-            ], order='document_date desc, id desc', limit=100)
+            ], order='document_date desc, id desc', limit=150)
         for doc in docs:
             raw = doc.xml_content
             if not raw:
@@ -469,27 +472,26 @@ class ResPartner(models.Model):
 
         ettn = match.get('ettn')
         if match_direction == 'incoming':
-                xml_result = api_client.download_incoming_document(ettn, match_type, self.company_id)
-                xml_bytes = xml_result.get('content') if xml_result and xml_result.get('success') else None
-            else:
-                download_type = match_type.replace('_UBL', '') if match_type else 'FATURA'
-                xml_result = api_client.download_outgoing_document(ettn, document_type=download_type, company=self.company_id)
-                xml_bytes = xml_result.get('content') if xml_result and xml_result.get('success') else None
+            xml_result = api_client.download_incoming_document(ettn, match_type, self.company_id)
+            xml_bytes = xml_result.get('content') if xml_result and xml_result.get('success') else None
+        else:
+            download_type = match_type.replace('_UBL', '') if match_type else 'FATURA'
+            xml_result = api_client.download_outgoing_document(ettn, document_type=download_type, company=self.company_id)
+            xml_bytes = xml_result.get('content') if xml_result and xml_result.get('success') else None
 
-            if not xml_bytes:
-                raise UserError(_("QNB’den XML indirilemedi."))
+        if not xml_bytes:
+            raise UserError(_("QNB’den XML indirilemedi."))
 
-            parsed = QnbDoc._parse_invoice_xml_full(xml_bytes, direction=match_direction)
-            partner_data = (parsed or {}).get('partner') or {}
-            vat_raw = partner_data.get('vat') or ''
-            doc_digits = ''.join(filter(str.isdigit, str(vat_raw)))
-            doc_vat = f"TR{doc_digits}" if doc_digits else False
+        parsed = QnbDoc._parse_invoice_xml_full(xml_bytes, direction=match_direction)
+        partner_data = (parsed or {}).get('partner') or {}
+        vat_raw = partner_data.get('vat') or ''
+        doc_digits = ''.join(filter(str.isdigit, str(vat_raw)))
+        doc_vat = f"TR{doc_digits}" if doc_digits else False
+        if doc_vat != vat_number:
+            raise UserError(_("QNB XML içinde VKN eşleşmedi."))
 
-            if doc_vat != vat_number:
-                raise UserError(_("QNB XML içinde VKN eşleşmedi."))
-
-            self._normalize_city_state_partner_data(partner_data)
-            self._apply_qnb_partner_data(partner_data, skip_name=False)
+        self._normalize_city_state_partner_data(partner_data)
+        self._apply_qnb_partner_data(partner_data, skip_name=False)
 
         return {
             'type': 'ir.actions.client',
