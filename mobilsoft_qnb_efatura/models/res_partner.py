@@ -343,24 +343,41 @@ class ResPartner(models.Model):
                         bank_vals['bank_id'] = bank.id
                 Bank.create(bank_vals)
 
-        # İletişim kişisi (contact): varsa ilişkili kişi olarak oluştur/güncelle
+        # İletişim kişisi (contact): XML'de ad varsa onu kullan, yoksa telefon/e-posta varsa "İletişim" ile tek kayıt oluştur
         contact_name = (partner_data.get('contact_name') or '').strip()
+        contact_phone = (partner_data.get('phone') or '').strip()
+        contact_email = (partner_data.get('email') or '').strip()
+        if not contact_name and (contact_phone or contact_email):
+            contact_name = _('İletişim')
         if contact_name:
             contact_vals = {'name': contact_name, 'parent_id': self.id, 'type': 'contact'}
-            for key in ('phone', 'email'):
-                val = (partner_data.get(key) or '').strip()
-                if val:
-                    contact_vals[key] = val
+            if contact_phone:
+                contact_vals['phone'] = contact_phone
+            if contact_email:
+                contact_vals['email'] = contact_email
             existing_contact = self.env['res.partner'].search([
                 ('parent_id', '=', self.id),
                 ('type', '=', 'contact'),
                 ('name', 'ilike', contact_name),
             ], limit=1)
             if existing_contact:
-                update_contact = {k: v for k, v in contact_vals.items() if k != 'parent_id' and k != 'type'}
+                update_contact = {k: v for k, v in contact_vals.items() if k not in ('parent_id', 'type')}
                 if update_contact:
                     existing_contact.write(update_contact)
             else:
+                # Aynı telefon veya e-posta ile ilişkili kişi var mı? Varsa güncelle, yoksa yeni oluştur
+                domain = [('parent_id', '=', self.id), ('type', '=', 'contact')]
+                if contact_phone and contact_email:
+                    domain += ['|', ('phone', '=', contact_phone), ('email', '=', contact_email)]
+                elif contact_phone:
+                    domain += [('phone', '=', contact_phone)]
+                elif contact_email:
+                    domain += [('email', '=', contact_email)]
+                if contact_phone or contact_email:
+                    same = self.env['res.partner'].search(domain, limit=1)
+                    if same:
+                        same.write(contact_vals)
+                        continue
                 self.env['res.partner'].create(contact_vals)
 
     def _do_batch_update_from_qnb_mukellef(self, partners=None):
