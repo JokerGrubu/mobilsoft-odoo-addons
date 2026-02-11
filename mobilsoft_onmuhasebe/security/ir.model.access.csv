@@ -1,3 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_cheque_promissory_user,mobilsoft.cheque.promissory.user,model_mobilsoft_cheque_promissory,base.group_user,1,1,1,1
-access_dashboard_user,mobilsoft.dashboard.user,model_mobilsoft_dashboard,base.group_user,1,1,1,1

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'MobilSoft BizimHesap Entegrasyonu',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.0.1',
     'category': 'MobilSoft/Integrations',
     'summary': 'BizimHesap Ön Muhasebe Entegrasyonu',
     'description': """
