@@ -6,6 +6,28 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.9.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Degistirilenler
+
+#### Partner eslestirme = Odoo standart _retrieve_partner
+- res_partner_inherit.match_or_create_from_external: Odoo standart _retrieve_partner kullanir (vat, phone, email, name).
+- account_move._qnb_find_or_create_partner_from_data: _retrieve_partner ile arama (match_by: vat/name/both).
+- Banka hesabi eslestirme: sanitize_account_number + sanitized_acc_number (Odoo standart).
+- _vat_normalize kaldirildi.
+
+---
+
+## [19.0.1.0.4] - 2026-02-11 (mobilsoft_bizimhesap)
+
+### Degistirilenler
+
+#### Partner import = Odoo standart oncelik
+- _import_partner: Once Odoo standart _retrieve_partner (vat, phone, email, name, ref).
+- Bulunamazsa SyncProtocols (branch/similar) fallback.
+
+---
+
 ## [19.0.2.6.0] - 2026-02-11 (mobilsoft_xml_import)
 
 ### Degistirilenler

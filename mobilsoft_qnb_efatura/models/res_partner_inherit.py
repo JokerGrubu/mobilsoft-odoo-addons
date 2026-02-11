@@ -32,15 +32,11 @@ class ResPartner(models.Model):
         string='Son Eşleştirme Tarihi'
     )
 
-    def _vat_normalize(self, vat_value):
-        """VKN/TCKN'dan sadece rakamları al (TR, boşluk, tire temizlenir)."""
-        if not vat_value:
-            return ''
-        return ''.join(c for c in str(vat_value).strip() if c.isdigit())
-
     def match_or_create_from_external(self, source, external_data):
         """
-        Harici sistemden gelen veriye göre partner eşleştir veya oluştur
+        Harici sistemden gelen veriye göre partner eşleştir (oluşturmaz).
+
+        Odoo standart _retrieve_partner kullanılır: vat, phone, email, name sırasıyla denenir.
 
         Args:
             source: 'qnb', 'bizimhesap', 'xml'
@@ -49,88 +45,49 @@ class ResPartner(models.Model):
                 - name: Partner adı
                 - email: E-posta (opsiyonel)
                 - phone: Telefon (opsiyonel)
-                - street: Adres (opsiyonel)
-                - city: Şehir (opsiyonel)
+                - ref: Cari kodu (BizimHesap - domain ile aranır)
 
         Returns:
             (partner, matched, match_type) tuple
-            - partner: res.partner kaydı
-            - matched: True/False (eşleşti mi yoksa yeni mi oluşturuldu)
-            - match_type: 'external_code', 'vat', 'name', 'email', 'created'
+            - partner: res.partner kaydı veya None
+            - matched: True/False
+            - match_type: 'vat', 'email', 'phone', 'name', 'ref', 'not_matched'
         """
         self.ensure_one() if len(self) > 0 else None
         Partner = self.env['res.partner']
 
-        vat = external_data.get('vat', '').strip()
-        name = external_data.get('name', '').strip()
-        email = external_data.get('email', '').strip()
-        phone = external_data.get('phone', '').strip()
+        vat = (external_data.get('vat') or '').strip()
+        name = (external_data.get('name') or '').strip()
+        email = (external_data.get('email') or '').strip()
+        phone = (external_data.get('phone') or external_data.get('mobile') or '').strip()
 
-        # VKN/TCKN temizle (TR prefix, boşluklar)
-        if vat:
-            vat = vat.replace('TR', '').replace(' ', '').replace('-', '')
+        # VKN/TCKN: TR prefix olmadan gönderilirse ekle (Odoo _retrieve_partner_with_vat için)
+        vat_for_search = vat
+        if vat and not str(vat).upper().startswith('TR'):
+            vat_for_search = f'TR{vat.replace(" ", "").replace("-", "")}'
 
-        # 1. ÖNCE HARICI KOD KONTROLÜ (VKN/TCKN) — standart vat ile
-        if vat:
-            digits = self._vat_normalize(vat)
-            if digits:
-                # vat alanında rakam veya TR+rakam olarak ara
-                partner = Partner.search([
-                    '|', ('vat', '=', digits), ('vat', '=', f'TR{digits}')
-                ], limit=1)
+        # 1. BizimHesap ref (cari kodu) - _retrieve_partner domain ile
+        if source == 'bizimhesap':
+            ref_code = (external_data.get('ref') or external_data.get('code') or '').strip()
+            if ref_code:
+                partner = Partner._retrieve_partner(domain=[('ref', '=', ref_code)])
                 if partner:
-                    _logger.debug(f"✅ VAT ile eşleşti ({source}): {vat} → {partner.name}")
-                    return partner, True, 'external_code'
-            if source == 'bizimhesap':
-                ref_code = (external_data.get('ref') or external_data.get('code') or '').strip()
-                if ref_code:
-                    partner = Partner.search([('ref', '=', ref_code)], limit=1)
-                    if partner:
-                        _logger.debug(f"✅ BizimHesap ref ile eşleşti: {ref_code} → {partner.name}")
-                        return partner, True, 'external_code'
+                    self._save_external_code(partner, source, vat or ref_code)
+                    _logger.debug(f"✅ BizimHesap ref ile eşleşti: {ref_code} → {partner.name}")
+                    return partner, True, 'ref'
 
-        # 2. VAT (VKN/TCKN) İLE KONTROL
-        if vat:
-            # Standart vat alanında ara
-            partner = Partner.search([('vat', '=', vat)], limit=1)
-            if partner:
-                # Harici kodu kaydet
-                self._save_external_code(partner, source, vat)
-                _logger.info(f"✅ VAT ile eşleşti: {vat} → {partner.name}")
-                return partner, True, 'vat'
+        # 2. Odoo standart _retrieve_partner (vat → phone/email → name)
+        partner = Partner._retrieve_partner(
+            name=name or None,
+            phone=phone or None,
+            email=email or None,
+            vat=vat_for_search or None,
+        )
+        if partner:
+            self._save_external_code(partner, source, vat)
+            _logger.debug(f"✅ Odoo _retrieve_partner ile eşleşti ({source}): {partner.name}")
+            return partner, True, 'vat' if vat else ('email' if email else ('phone' if phone else 'name'))
 
-            # TR prefix ile ara
-            partner = Partner.search([('vat', '=', f'TR{vat}')], limit=1)
-            if partner:
-                self._save_external_code(partner, source, vat)
-                _logger.info(f"✅ VAT (TR prefix) ile eşleşti: {vat} → {partner.name}")
-                return partner, True, 'vat'
-
-        # 3. E-POSTA İLE KONTROL
-        if email:
-            partner = Partner.search([('email', '=', email)], limit=1)
-            if partner:
-                self._save_external_code(partner, source, vat)
-                _logger.info(f"✅ Email ile eşleşti: {email} → {partner.name}")
-                return partner, True, 'email'
-
-        # 4. TAM İSİM İLE KONTROL
-        if name:
-            partner = Partner.search([('name', '=', name)], limit=1)
-            if partner:
-                self._save_external_code(partner, source, vat)
-                _logger.info(f"✅ Tam isim ile eşleşti: {name} → {partner.name}")
-                return partner, True, 'name'
-
-        # 5. BENZER İSİM (ILIKE)
-        if name:
-            partner = Partner.search([('name', 'ilike', name)], limit=1)
-            if partner:
-                self._save_external_code(partner, source, vat)
-                _logger.info(f"✅ Benzer isim ile eşleşti: {name} → {partner.name}")
-                return partner, True, 'name'
-
-        # 6. HİÇBİR EŞLEŞME YOK
         _logger.warning(f"❌ Partner eşleşmesi bulunamadı: {name} (VKN: {vat})")
         return None, False, 'not_matched'
 

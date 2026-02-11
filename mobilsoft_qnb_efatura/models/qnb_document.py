@@ -6,6 +6,7 @@ Gelen ve giden belgelerin takibi
 
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+from odoo.addons.base.models.res_bank import sanitize_account_number
 import base64
 import logging
 
@@ -2072,15 +2073,19 @@ class QnbDocument(models.Model):
                             contact_vals['email'] = contact_email
                         self.env['res.partner'].create(contact_vals)
 
-                # IBAN varsa partner banka hesabı oluştur/eşleştir
-                iban = (partner_data.get('iban') or '').replace(' ', '')
-                if iban:
+                # IBAN varsa partner banka hesabı oluştur/eşleştir (Odoo sanitize standard)
+                iban_raw = (partner_data.get('iban') or '').replace(' ', '')
+                if iban_raw:
                     Bank = self.env['res.partner.bank']
-                    existing_bank = Bank.search([('partner_id', '=', partner.id), ('acc_number', '=', iban)], limit=1)
+                    iban_sanitized = sanitize_account_number(iban_raw)
+                    existing_bank = Bank.search([
+                        ('partner_id', '=', partner.id),
+                        ('sanitized_acc_number', '=', iban_sanitized)
+                    ], limit=1)
                     if not existing_bank:
                         bank_vals = {
                             'partner_id': partner.id,
-                            'acc_number': iban,
+                            'acc_number': iban_raw,
                         }
                         if 'company_id' in Bank._fields and partner.company_id:
                             bank_vals['company_id'] = partner.company_id.id

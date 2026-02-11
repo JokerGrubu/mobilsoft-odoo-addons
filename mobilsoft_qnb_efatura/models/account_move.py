@@ -456,23 +456,21 @@ class AccountMove(models.Model):
         email = (partner_data.get('email') or '').strip()
         phone = (partner_data.get('phone') or '').strip()
 
+        # Odoo standart _retrieve_partner (vat → phone/email → name)
+        # match_by: sadece belirtilen kriterleri kullan
         partner = None
-        if vat and match_by in ('vat', 'both'):
-            vat_number = vat if str(vat).upper().startswith('TR') else f"TR{vat}"
-            partner = Partner.search([
-                ('vat', 'ilike', vat_number),
-                '|',
-                ('company_id', '=', company.id),
-                ('company_id', '=', False)
-            ], limit=1)
-
-        if not partner and name and match_by in ('name', 'both'):
-            partner = Partner.search([
-                ('name', 'ilike', name),
-                '|',
-                ('company_id', '=', company.id),
-                ('company_id', '=', False)
-            ], limit=1)
+        kwargs = {'company': company}
+        if match_by == 'vat' and vat:
+            kwargs['vat'] = vat if str(vat).upper().startswith('TR') else f"TR{vat}"
+        elif match_by == 'name' and name:
+            kwargs['name'] = name
+        elif match_by == 'both':
+            kwargs['vat'] = vat if (vat and str(vat).upper().startswith('TR')) else (f"TR{vat}" if vat else None)
+            kwargs['name'] = name or None
+            kwargs['phone'] = phone or None
+            kwargs['email'] = email or None
+        if any(kwargs.get(k) for k in ('vat', 'name', 'phone', 'email')):
+            partner = Partner.with_company(company)._retrieve_partner(**kwargs)
 
         if partner:
             return partner

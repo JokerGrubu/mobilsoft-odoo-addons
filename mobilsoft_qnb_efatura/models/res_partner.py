@@ -2,6 +2,7 @@
 
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+from odoo.addons.base.models.res_bank import sanitize_account_number
 import base64
 import logging
 
@@ -561,12 +562,16 @@ class ResPartner(models.Model):
                 'bank_name': (partner_data.get('bank_name') or '').strip(),
             }]
         for acc in bank_accounts:
-            iban = (acc.get('iban') or '').replace(' ', '')
-            if not iban:
+            iban_raw = (acc.get('iban') or '').replace(' ', '')
+            if not iban_raw:
                 continue
-            existing_bank = Bank.search([('partner_id', '=', self.id), ('acc_number', '=', iban)], limit=1)
+            iban_sanitized = sanitize_account_number(iban_raw)
+            existing_bank = Bank.search([
+                ('partner_id', '=', self.id),
+                ('sanitized_acc_number', '=', iban_sanitized)
+            ], limit=1)
             if not existing_bank:
-                bank_vals = {'partner_id': self.id, 'acc_number': iban}
+                bank_vals = {'partner_id': self.id, 'acc_number': iban_raw}
                 if 'company_id' in Bank._fields and self.company_id:
                     bank_vals['company_id'] = self.company_id.id
                 bank_name = (acc.get('bank_name') or '').strip()

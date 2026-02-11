@@ -1037,27 +1037,64 @@ class BizimHesapBackend(models.Model):
             })
             return 'updated'
         
-        # Protokollerle eşleştirme
-        source_partner = {
-            'name': data.get('title', ''),
-            'vat': data.get('taxno') or data.get('taxNumber'),
-            'phone': data.get('phone'),
-            'email': data.get('email'),
-            'street': data.get('address'),
-            'city': '',  # BizimHesap'da ayrı alan yok
-        }
-        
-        # Tüm mevcut partnerları al (Odoo 19'da mobile alanı yok)
-        all_partners = self.env['res.partner'].search_read(
-            [('active', '=', True)],
-            ['id', 'name', 'vat', 'phone', 'email', 'street', 'city', 'parent_id']
+        # 1. Odoo standart _retrieve_partner ile eşleştir (vat → phone/email → name)
+        bh_vat = data.get('taxno') or data.get('taxNumber')
+        bh_name = data.get('title', '')
+        bh_phone = data.get('phone')
+        bh_email = data.get('email')
+        bh_ref = (data.get('ref') or data.get('code') or '').strip()
+
+        Partner = self.env['res.partner']
+        partner = Partner.with_company(self.company_id)._retrieve_partner(
+            name=bh_name or None,
+            phone=bh_phone or None,
+            email=bh_email or None,
+            vat=bh_vat or None,
         )
-        
-        # Protokol ile eşleştir
+        if not partner and bh_ref:
+            partner = Partner._retrieve_partner(domain=[('ref', '=', bh_ref)])
+
+        if partner:
+            # Kesin eşleşme (Odoo standart)
+            company_partners = self.env['res.company'].search([]).mapped('partner_id')
+            if partner.id in company_partners.ids:
+                _logger.warning(f"Şirket partneri için binding OLUŞTURULMUYOR: {partner.name}")
+                return 'skipped'
+            if self._vat_match_or_empty(partner, partner_vals.get('vat')):
+                update_vals = self._get_missing_partner_vals(partner, partner_vals)
+                if update_vals:
+                    partner.with_context(sync_source='bizimhesap').write(update_vals)
+                self._ensure_authorized_contact(partner, data)
+            else:
+                _logger.warning(f"VKN uyuşmadı, partner güncellenmedi: {partner.name}")
+            self.env['bizimhesap.partner.binding'].create({
+                'backend_id': self.id,
+                'external_id': external_id,
+                'odoo_id': partner.id,
+                'sync_date': fields.Datetime.now(),
+                'external_data': json.dumps(data),
+            })
+            _logger.info(f"Partner eşleşti (Odoo _retrieve_partner): {data.get('title')}")
+            return 'updated'
+
+        # 2. Protokollerle eşleştirme (branch/similar - BizimHesap özel)
+        source_partner = {
+            'name': bh_name,
+            'vat': bh_vat,
+            'phone': bh_phone,
+            'email': bh_email,
+            'street': data.get('address'),
+            'city': '',
+            'ref': bh_ref,
+        }
+        all_partners = Partner.search_read(
+            [('active', '=', True)],
+            ['id', 'name', 'vat', 'phone', 'email', 'street', 'city', 'parent_id', 'ref']
+        )
         match = {'match_type': 'new'}
         if SYNC_PROTOCOLS:
             match = SYNC_PROTOCOLS.match_partner(source_partner, all_partners)
-        
+
         if match['match_type'] == 'exact':
             # Kesin eşleşme - VKN/Telefon/E-posta ile bulundu
             partner_id = match['matched_partner']['id']
