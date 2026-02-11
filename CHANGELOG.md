@@ -6,6 +6,14 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.12.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Degistirilenler
+- Gelen belgeler "Simdi Cek" butonu (Ayarlar > QNB): Son 7 gunu tarayarak gelen e-faturalari manuel ceker.
+- qnb_diagnostic.py, qnb_manual_fetch.py (custom-addons/): Tani scriptleri.
+
+---
+
 ## [19.0.1.11.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Duzeltmeler
