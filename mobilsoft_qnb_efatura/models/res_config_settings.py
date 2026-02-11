@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api
+from odoo import _, models, fields, api
 
 
 class ResConfigSettings(models.TransientModel):
@@ -238,6 +238,37 @@ class ResConfigSettings(models.TransientModel):
                 },
             }
         return partners.action_update_from_qnb_mukellef()
+
+    def action_qnb_update_partners_nilvera_only(self):
+        """VKN'lı tüm carileri sadece Nilvera + QNB XML ile güncelle (GİB yok, hızlı)"""
+        self.ensure_one()
+        partners = self.env['res.partner'].search([
+            ('vat', '!=', False),
+            ('vat', '!=', ''),
+        ])
+        if not partners:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Nilvera Güncelle',
+                    'message': 'VKN/TCKN bilgisi olan cari bulunamadı.',
+                    'type': 'warning',
+                    'sticky': False,
+                },
+            }
+        stats = partners._do_batch_update_nilvera_only()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Nilvera ile Güncelle'),
+                'message': _('İşlenen: %s | Güncellenen: %s | Hata: %s') % (
+                    stats['processed'], stats['updated'], stats['errors']),
+                'type': 'success' if stats['updated'] else 'info',
+                'sticky': False,
+            },
+        }
 
     def action_qnb_bulk_match_documents(self):
         """QNB belgelerini yevmiye/fatura kayıtlarıyla eşleştir"""

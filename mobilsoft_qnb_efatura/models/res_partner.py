@@ -651,6 +651,41 @@ class ResPartner(models.Model):
             'errors': errors,
         }
 
+    def _do_batch_update_nilvera_only(self, partners=None):
+        """
+        GİB atlanır; sadece QNB XML + Nilvera ile güncelle (hızlı toplu işlem).
+        Ünvan/alias GİB'den gelmez; sadece adres, iletişim, vergi dairesi.
+        """
+        partners = partners or self
+        updated = 0
+        errors = 0
+        for partner in partners:
+            try:
+                if not partner.vat:
+                    continue
+                digits = ''.join(filter(str.isdigit, str(partner.vat)))
+                if len(digits) not in (10, 11):
+                    continue
+                partner_data = partner._get_latest_qnb_partner_data()
+                if not partner_data and len(partners) <= 1:
+                    partner_data = partner._fetch_partner_data_from_qnb_api()
+                nilvera_data = partner._fetch_partner_data_from_nilvera_api()
+                if nilvera_data:
+                    if partner_data:
+                        for k, v in nilvera_data.items():
+                            if v and not (partner_data.get(k) or '').strip():
+                                partner_data[k] = v
+                    else:
+                        partner_data = nilvera_data
+                if partner_data:
+                    partner._normalize_city_state_partner_data(partner_data)
+                    partner._apply_qnb_partner_data(partner_data, skip_name=False, fill_empty_only=False)
+                    updated += 1
+            except Exception as e:
+                errors += 1
+                _logger.warning("Nilvera güncelleme hatası partner %s: %s", partner.id, e)
+        return {'processed': len(partners), 'updated': updated, 'errors': errors}
+
     def action_update_from_qnb_mukellef(self):
         """
         QNB mükellef sorgusu (kayıtlı kullanıcı) ile partner bilgilerini güncelle.
