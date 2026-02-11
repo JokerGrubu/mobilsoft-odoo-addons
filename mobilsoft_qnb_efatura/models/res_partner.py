@@ -442,33 +442,33 @@ class ResPartner(models.Model):
         match_type = None
 
         for t in incoming_types:
-                res = api_client.get_incoming_documents(start, end, document_type=t, company=self.company_id)
+            res = api_client.get_incoming_documents(start, end, document_type=t, company=self.company_id)
+            if res.get('success'):
+                docs_list = [d for d in res.get('documents', []) if ''.join(filter(str.isdigit, str(d.get('sender_vkn', '')))) == digits]
+                cand = pick_best(docs_list)
+                if cand:
+                    match = cand
+                    match_direction = 'incoming'
+                    match_type = t
+                    break
+
+        if not match:
+            for t in outgoing_types:
+                res = api_client.get_outgoing_documents(start, end, document_type=t, company=self.company_id)
                 if res.get('success'):
-                    docs_list = [d for d in res.get('documents', []) if ''.join(filter(str.isdigit, str(d.get('sender_vkn', '')))) == digits]
+                    docs_list = [d for d in res.get('documents', []) if ''.join(filter(str.isdigit, str(d.get('recipient_vkn', '')))) == digits]
                     cand = pick_best(docs_list)
                     if cand:
                         match = cand
-                        match_direction = 'incoming'
+                        match_direction = 'outgoing'
                         match_type = t
                         break
 
-            if not match:
-                for t in outgoing_types:
-                    res = api_client.get_outgoing_documents(start, end, document_type=t, company=self.company_id)
-                    if res.get('success'):
-                        docs_list = [d for d in res.get('documents', []) if ''.join(filter(str.isdigit, str(d.get('recipient_vkn', '')))) == digits]
-                        cand = pick_best(docs_list)
-                        if cand:
-                            match = cand
-                            match_direction = 'outgoing'
-                            match_type = t
-                            break
+        if not match or not match.get('ettn'):
+            raise UserError(_("Bu partner için QNB listesinde eşleşen belge bulunamadı."))
 
-            if not match or not match.get('ettn'):
-                raise UserError(_("Bu partner için QNB listesinde eşleşen belge bulunamadı."))
-
-            ettn = match.get('ettn')
-            if match_direction == 'incoming':
+        ettn = match.get('ettn')
+        if match_direction == 'incoming':
                 xml_result = api_client.download_incoming_document(ettn, match_type, self.company_id)
                 xml_bytes = xml_result.get('content') if xml_result and xml_result.get('success') else None
             else:
