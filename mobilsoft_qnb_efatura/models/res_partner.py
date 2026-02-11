@@ -393,10 +393,14 @@ class ResPartner(models.Model):
             if fill_empty_only and (getattr(self, 'l10n_tr_tax_office_id', None) or (getattr(self, 'l10n_tr_tax_office_name', None) or '').strip()):
                 pass
             elif 'l10n_tr_tax_office_id' in self._fields:
-                tax_model = self.env['l10n.tr.tax.office']
-                tax_rec = tax_model.search([('name', 'ilike', tax_office)], limit=1)
-                if tax_rec and self.l10n_tr_tax_office_id != tax_rec:
-                    update_vals['l10n_tr_tax_office_id'] = tax_rec.id
+                try:
+                    tax_model = self.env['l10n.tr.tax.office']
+                    tax_rec = tax_model.search([('name', 'ilike', tax_office)], limit=1)
+                    if tax_rec and self.l10n_tr_tax_office_id != tax_rec:
+                        update_vals['l10n_tr_tax_office_id'] = tax_rec.id
+                except KeyError:
+                    if 'l10n_tr_tax_office_name' in self._fields and (self.l10n_tr_tax_office_name or '').strip() != tax_office:
+                        update_vals['l10n_tr_tax_office_name'] = tax_office
             elif 'l10n_tr_tax_office_name' in self._fields:
                 if (self.l10n_tr_tax_office_name or '').strip() != tax_office:
                     update_vals['l10n_tr_tax_office_name'] = tax_office
