@@ -264,6 +264,93 @@ class ResPartner(models.Model):
                     return partner_data
         return None
 
+    def _fetch_partner_data_from_qnb_api(self):
+        """
+        Bu partner için QNB API'den belge listele + indir, XML parse edip partner_data döndür.
+        Yerel belge yoksa mükellef güncellemede kullanılır. Bulunamazsa None.
+        """
+        self.ensure_one()
+        if not self.vat:
+            return None
+        digits = ''.join(filter(str.isdigit, str(self.vat)))
+        if len(digits) not in (10, 11):
+            return None
+        vat_number = f"TR{digits}"
+        company = self.company_id or self.env.company
+        api_client = self.env['qnb.api.client'].with_company(company)
+        QnbDoc = self.env['qnb.document']
+        from datetime import date
+
+        def parse_date(s):
+            if not s:
+                return None
+            s = str(s)
+            if len(s) == 8 and s.isdigit():
+                return date(int(s[:4]), int(s[4:6]), int(s[6:8]))
+            return None
+
+        def pick_best(items):
+            items = [(parse_date(i.get('date')), i) for i in items if i.get('date')]
+            items = [it for it in items if it[0]]
+            items.sort(key=lambda x: x[0], reverse=True)
+            return items[0][1] if items else None
+
+        start = date(date.today().year - 2, 1, 1)
+        end = date.today()
+        incoming_types = ['EFATURA', 'IRSALIYE', 'UYGULAMA_YANITI', 'IRSALIYE_YANITI']
+        outgoing_types = ['FATURA_UBL', 'FATURA', 'IRSALIYE_UBL', 'IRSALIYE',
+                          'UYGULAMA_YANITI_UBL', 'UYGULAMA_YANITI', 'IRSALIYE_YANITI_UBL', 'IRSALIYE_YANITI']
+        match = None
+        match_direction = None
+        match_type = None
+
+        for t in incoming_types:
+            res = api_client.get_incoming_documents(start, end, document_type=t, company=company)
+            if res.get('success'):
+                docs_list = [d for d in res.get('documents', []) if ''.join(filter(str.isdigit, str(d.get('sender_vkn', '')))) == digits]
+                cand = pick_best(docs_list)
+                if cand:
+                    match = cand
+                    match_direction = 'incoming'
+                    match_type = t
+                    break
+
+        if not match:
+            for t in outgoing_types:
+                res = api_client.get_outgoing_documents(start, end, document_type=t, company=company)
+                if res.get('success'):
+                    docs_list = [d for d in res.get('documents', []) if ''.join(filter(str.isdigit, str(d.get('recipient_vkn', '')))) == digits]
+                    cand = pick_best(docs_list)
+                    if cand:
+                        match = cand
+                        match_direction = 'outgoing'
+                        match_type = t
+                        break
+
+        if not match or not match.get('ettn'):
+            return None
+
+        ettn = match.get('ettn')
+        if match_direction == 'incoming':
+            xml_result = api_client.download_incoming_document(ettn, match_type, company)
+            xml_bytes = xml_result.get('content') if xml_result and xml_result.get('success') else None
+        else:
+            download_type = match_type.replace('_UBL', '') if match_type else 'FATURA'
+            xml_result = api_client.download_outgoing_document(ettn, document_type=download_type, company=company)
+            xml_bytes = xml_result.get('content') if xml_result and xml_result.get('success') else None
+
+        if not xml_bytes:
+            return None
+
+        parsed = QnbDoc._parse_invoice_xml_full(xml_bytes, direction=match_direction)
+        partner_data = (parsed or {}).get('partner') or {}
+        vat_raw = partner_data.get('vat') or ''
+        doc_digits = ''.join(filter(str.isdigit, str(vat_raw)))
+        doc_vat = f"TR{doc_digits}" if doc_digits else False
+        if doc_vat != vat_number:
+            return None
+        return partner_data
+
     def _apply_qnb_partner_data(self, partner_data, skip_name=False, fill_empty_only=False):
         """
         XML'den gelen partner_data dict'ini bu partner'a uygula: adres, il, ilçe, posta kodu,
@@ -463,11 +550,13 @@ class ResPartner(models.Model):
                     vals['l10n_tr_nilvera_customer_alias_id'] = False
                 partner.write(vals)
 
-                # GİB'den gelenler yazıldı; eksik alanları fatura XML'inden tamamla (sadece boş alanlar)
+                # GİB'den gelenler yazıldı; adres/iletişim bilgilerini fatura XML'inden al (yerel veya QNB API)
                 partner_data = partner._get_latest_qnb_partner_data()
+                if not partner_data and len(partners) == 1:
+                    partner_data = partner._fetch_partner_data_from_qnb_api()
                 if partner_data:
                     partner._normalize_city_state_partner_data(partner_data)
-                    partner._apply_qnb_partner_data(partner_data, skip_name=True, fill_empty_only=True)
+                    partner._apply_qnb_partner_data(partner_data, skip_name=True, fill_empty_only=False)
                     updated_xml += 1
             except Exception as e:
                 errors += 1
