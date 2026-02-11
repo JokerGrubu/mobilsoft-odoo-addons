@@ -21,23 +21,6 @@
                             <field name="balance_2025_payable" readonly="1"/>
                             <field name="balance_2025_net" readonly="1"/>
                         </group>
-                        <group string="İşlemler">
-                            <button name="action_fetch_from_nilvera" 
-                                    string="Nilvera'dan Sorgula ve Doldur" 
-                                    type="object" 
-                                    class="btn-primary"
-                                    icon="fa-search"
-                                    invisible="not vat"/>
-                            <button name="action_check_efatura_status" 
-                                    string="e-Fatura Durumunu Kontrol Et" 
-                                    type="object" 
-                                    class="btn-secondary"
-                                    icon="fa-check"
-                                    invisible="not vat"/>
-                            <div class="text-muted" invisible="vat">
-                                <i class="fa fa-info-circle"/> Tüm bilgiler Nilvera'dan gelir. VKN/TCKN girin ve "Nilvera'dan Sorgula ve Doldur"a tıklayın.
-                            </div>
-                        </group>
                     </group>
                     <group string="Bilgi" invisible="not qnb_last_check_date">
                         <div class="alert alert-info" role="alert">

@@ -73,20 +73,6 @@
               action="action_qnb_document_outgoing"
               sequence="30"/>
 
-    <!-- VKN/TCKN ile Cari Sorgula (Nilvera) -->
-    <record id="action_qnb_check_partner_nilvera" model="ir.actions.act_window">
-        <field name="name">VKN/TCKN ile Cari Sorgula</field>
-        <field name="res_model">qnb.check.partner.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
-    <menuitem id="menu_qnb_check_partner"
-              name="VKN/TCKN ile Cari Sorgula"
-              parent="menu_qnb_root"
-              action="action_qnb_check_partner_nilvera"
-              sequence="40"/>
-
     <menuitem id="menu_qnb_config"
               name="Ayarlar"
               parent="menu_qnb_root"
