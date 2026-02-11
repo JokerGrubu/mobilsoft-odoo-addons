@@ -115,7 +115,7 @@ class ResCompany(models.Model):
     qnb_create_new_partner = fields.Boolean(
         string='Yeni Partner Oluştur',
         default=True,
-        help='Gelen belgelerde eşleşmeyen partnerler için yeni cari oluştur. Açık olmalı.'
+        help='Giden belgelerde eşleşmeyen partnerler için yeni cari oluştur. Açık olmalı.'
     )
     qnb_match_partner_by = fields.Selection([
         ('vat', 'VKN/TCKN (Vergi Kimlik No)'),
@@ -124,18 +124,12 @@ class ResCompany(models.Model):
     ], string='Partner Eşleştirme Kriteri', default='vat',
         help='QNB belgelerindeki partnerlerin Odoo\'daki kayıtlarla nasıl eşleştirileceği')
 
-    # Ürün Eşleştirme
+    # Ürün Eşleştirme (Odoo standart: barkod → ürün kodu → isim)
     qnb_create_new_product = fields.Boolean(
         string='Yeni Ürün/Hizmet Oluştur',
         default=True,
-        help='Gelen belgelerde eşleşmeyen ürün/hizmet satırları için yeni kayıt oluştur. Açık olmalı.'
+        help='Giden belgelerde eşleşmeyen ürün/hizmet satırları için yeni kayıt oluştur. Açık olmalı.'
     )
-    qnb_match_product_by = fields.Selection([
-        ('barcode', 'Barkod'),
-        ('default_code', 'Ürün Kodu'),
-        ('name', 'Ürün Adı'),
-    ], string='Ürün Eşleştirme Kriteri', default='barcode',
-        help='QNB fatura satırlarındaki ürünlerin Odoo\'daki kayıtlarla nasıl eşleştirileceği')
 
     # Fatura Eşleştirme
     qnb_match_invoice_by = fields.Selection([

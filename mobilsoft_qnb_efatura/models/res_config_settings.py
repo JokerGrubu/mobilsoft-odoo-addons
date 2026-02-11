@@ -111,11 +111,6 @@ class ResConfigSettings(models.TransientModel):
         readonly=False,
         string='Yeni Ürün Oluştur'
     )
-    qnb_match_product_by = fields.Selection(
-        related='company_id.qnb_match_product_by',
-        readonly=False,
-        string='Ürün Eşleştirme Kriteri'
-    )
     qnb_match_invoice_by = fields.Selection(
         related='company_id.qnb_match_invoice_by',
         readonly=False,

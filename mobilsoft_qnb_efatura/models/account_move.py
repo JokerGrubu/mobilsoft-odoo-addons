@@ -541,6 +541,7 @@ class AccountMove(models.Model):
         product_name = (line_data.get('product_name') or line_data.get('product_description') or '').strip()
         barcode = (line_data.get('barcode') or '').strip()
 
+        # 1. Tedarikçi + ürün kodu (B2B standart supplierinfo)
         if product_code and partner:
             si = self.env['product.supplierinfo'].search([
                 ('partner_id', '=', partner.id),
@@ -551,21 +552,16 @@ class AccountMove(models.Model):
                 if product:
                     return product
 
-        if product_code:
-            product = Product.search([('default_code', '=', product_code)], limit=1)
-            if product:
-                return product
-
+        # 2. Odoo standart _retrieve_product (barkod → default_code → name)
+        product_vals = {}
         if barcode:
-            product = Product.search([('barcode', '=', barcode)], limit=1)
-            if product:
-                return product
-
+            product_vals['barcode'] = barcode
+        if product_code:
+            product_vals['default_code'] = product_code
         if product_name:
-            product = Product.search([('name', '=', product_name)], limit=1)
-            if product:
-                return product
-            product = Product.search([('name', 'ilike', product_name)], limit=1)
+            product_vals['name'] = product_name
+        if product_vals:
+            product = Product._retrieve_product(company=company, **product_vals)
             if product:
                 return product
 

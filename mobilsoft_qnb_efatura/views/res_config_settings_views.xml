@@ -76,8 +76,7 @@
                             <field name="qnb_create_new_partner"/>
                         </setting>
                         <setting id="qnb_match_product" string="Ürün/Hizmet Eşleştirme"
-                                 help="Fatura satırlarındaki ürün/hizmet nasıl eşleştirilsin? Eşleşmezse yeni ürün oluşturulsun mu?">
-                            <field name="qnb_match_product_by" widget="radio"/>
+                                 help="Odoo standart sıra: Tedarikçi kodu → Barkod → Ürün kodu → İsim. Eşleşmezse yeni ürün oluşturulsun mu?">
                             <field name="qnb_create_new_product"/>
                         </setting>
                     </block>

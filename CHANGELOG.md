@@ -6,6 +6,17 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.10.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Degistirilenler
+
+#### UI ve modul duzenlemesi
+- qnb_match_product_by kaldirildi (kullanilmiyordu).
+- Config view: Urun eslestirme sadece "Yeni urun olustur" checkbox (Odoo standart sira aciklamasi).
+- account_move._qnb_find_or_create_product_from_line: _retrieve_product kullanir (tedarikci kodu oncelikli).
+
+---
+
 ## [19.0.1.9.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Degistirilenler
