@@ -1121,14 +1121,29 @@ class XmlProductSource(models.Model):
     # ══════════════════════════════════════════════════════════════════════════
 
     def _find_existing_product(self, data):
-        """Mevcut ürünü bul - Geliştirilmiş eşleştirme mantığı"""
+        """Mevcut ürünü bul - Önce Odoo standart _retrieve_product, sonra kaynak özel kurallar"""
         self.ensure_one()
-        # Arşivlenmiş ürünleri de eşleştirebilmek için active_test=False kullanıyoruz.
         ProductT = self.env['product.template'].with_context(active_test=False)
         ProductP = self.env['product.product'].with_context(active_test=False)
 
         sku = str(data.get('sku', '')).strip() if data.get('sku') else ''
-        sku_prefix = sku.split()[0] if sku else ''  # İlk kelime
+        sku_prefix = sku.split()[0] if sku else ''
+
+        # 0. Odoo standart _retrieve_product (Nilvera/UBL ile aynı mantık) — öncelikli
+        product_vals = {}
+        if data.get('barcode'):
+            product_vals['barcode'] = str(data['barcode']).strip()
+        if sku:
+            product_vals['default_code'] = sku
+        if data.get('name'):
+            product_vals['name'] = str(data['name']).strip().split('\n', 1)[0]
+        if product_vals:
+            product = ProductP._retrieve_product(
+                company=self.env.company,
+                **product_vals
+            )
+            if product and product.product_tmpl_id:
+                return product.product_tmpl_id, 'odoo_standard'
 
         # 1. SKU Prefix (ilk kelime) ile eşleştir
         if self.match_by_sku_prefix and sku_prefix:

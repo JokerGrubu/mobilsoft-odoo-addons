@@ -284,20 +284,19 @@ class ProductEnrichmentImportWizard(models.TransientModel):
 
         for product_data in results[:self.max_products]:
             try:
-                # Mevcut ürünü ara
-                existing = None
+                # Odoo standart _retrieve_product ile eşleştir (Nilvera/UBL ile aynı mantık)
+                product_vals = {}
                 if self.match_by == 'barcode' and product_data.get('barcode'):
-                    existing = self.env['product.template'].search([
-                        ('barcode', '=', product_data['barcode'])
-                    ], limit=1)
+                    product_vals['barcode'] = product_data['barcode']
                 elif self.match_by == 'sku' and product_data.get('sku'):
-                    existing = self.env['product.template'].search([
-                        ('default_code', '=', product_data['sku'])
-                    ], limit=1)
+                    product_vals['default_code'] = product_data['sku']
                 elif self.match_by == 'name' and product_data.get('name'):
-                    existing = self.env['product.template'].search([
-                        ('name', 'ilike', product_data['name'])
-                    ], limit=1)
+                    product_vals['name'] = product_data['name']
+                existing = None
+                if product_vals:
+                    product = self.env['product.product']._retrieve_product(**product_vals)
+                    if product:
+                        existing = product.product_tmpl_id
 
                 vals = {
                     'name': product_data.get('name', 'İsimsiz'),

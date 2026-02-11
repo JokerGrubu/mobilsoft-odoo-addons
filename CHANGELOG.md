@@ -6,6 +6,23 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.2.6.0] - 2026-02-11 (mobilsoft_xml_import)
+
+### Degistirilenler
+- _find_existing_product: Oncelikle Odoo standart _retrieve_product kullanir.
+- Product Enrichment Import Wizard: _retrieve_product ile eslestirir.
+- account dependency eklendi (_retrieve_product icin).
+
+---
+
+## [19.0.1.0.3] - 2026-02-11 (mobilsoft_bizimhesap)
+
+### Degistirilenler
+- _import_invoice_line_from_data: _retrieve_product ile urun eslestirir.
+- _import_product: Oncelikle _retrieve_product; bulunamazsa SyncProtocols fallback.
+
+---
+
 ## [19.0.1.8.0] - 2026-02-11
 
 ### Degistirilenler
