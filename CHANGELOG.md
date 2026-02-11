@@ -6,6 +6,17 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.8.0] - 2026-02-11
+
+### Degistirilenler
+
+#### QNB urun eslestirme = Nilvera/UBL standart
+- product_product.match_or_create_from_external kaldirildi.
+- qnb_document_line: Odoo standart _retrieve_product kullanir (barkod, default_code, name).
+- Yeni urun olusturmaz; eslesmezse uyari verir.
+
+---
+
 ## [19.0.1.7.0] - 2026-02-11
 
 ### Degistirilenler

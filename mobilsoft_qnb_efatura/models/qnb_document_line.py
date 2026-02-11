@@ -119,25 +119,29 @@ class QnbDocumentLine(models.Model):
                 line.display_name = line.product_name or 'Satır'
 
     def action_match_product(self):
-        """Ürün eşleştirmesi yap veya yeni ürün oluştur"""
+        """Ürün eşleştirmesi yap (Nilvera/UBL ile aynı mantık - yeni ürün oluşturmaz)"""
         self.ensure_one()
 
-        # Eşleştirme yap
         product, match_status, match_score = self._find_matching_product()
 
-        # Bulunamazsa yeni ürün oluştur
         if not product:
-            product = self._create_product_from_line()
-            match_status = 'created'
-            match_score = 100.0
+            self.write({'match_status': 'not_matched', 'match_score': 0.0})
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Eşleşme Bulunamadı'),
+                    'message': _('"%s" için Odoo\'da ürün bulunamadı. Barkod veya ürün kodu ile stok kartı oluşturun.', self.product_name or ''),
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
 
-        # Güncelle
         self.write({
             'product_id': product.id,
             'match_status': match_status,
             'match_score': match_score
         })
-
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -150,47 +154,33 @@ class QnbDocumentLine(models.Model):
 
     def _find_matching_product(self):
         """
-        Geliştirilmiş Ürün Eşleştirme:
-        1. Harici Kod (QNB product code) - EN HIZLI
-        2. Barkod
-        3. Odoo Ürün Kodu (default_code)
-        4. Ürün isminden kod çıkar (POWERWAY CC34 → CC34)
-        5. Açıklamadan kod çıkar
-        6. Tam İsim
-        7. Benzer İsim (fuzzy matching)
-
-        Eşleşme bulunursa: QNB kod kaydedilir ve bir daha arama yapmaz
-        Eşleşme yoksa: None döner (manuel onay gerekir)
+        Nilvera/UBL ile aynı: Odoo standart _retrieve_product kullanır.
+        Eşleştirme sırası: barkod → default_code → name (tam) → name (ilike)
+        Yeni ürün oluşturmaz (Nilvera gibi).
         """
         Product = self.env['product.product']
+        company = self.document_id.company_id or self.env.company
 
-        # Harici veri hazırla
-        external_data = {
-            'product_code': self.product_code,
-            'product_name': self.product_name,
-            'barcode': self.barcode,
-            'description': self.product_description
+        product_vals = {
+            'default_code': self.product_code or '',
+            'barcode': self.barcode or '',
+            'name': (self.product_name or self.product_description or '').split('\n', 1)[0] or '',
         }
+        product_vals = {k: v for k, v in product_vals.items() if v}
 
-        # YENİ: match_or_create_from_external kullan
-        product, matched, match_type = Product.match_or_create_from_external('qnb', external_data)
+        if not product_vals:
+            return None, 'not_matched', 0.0
 
-        if matched:
-            # Skor hesapla
-            if match_type in ('external_code', 'barcode', 'default_code'):
-                score = 100.0
-                status = 'matched_code' if match_type in ('external_code', 'default_code') else 'matched_barcode'
-            elif match_type == 'name':
-                score = 100.0
-                status = 'matched_name'
-            elif match_type == 'fuzzy':
-                score = self._calculate_similarity(self.product_name, product.name)
-                status = 'matched_fuzzy'
-            else:
-                score = 90.0
+        product = Product._retrieve_product(company=company, **product_vals)
+
+        if product:
+            if product_vals.get('barcode') and product.barcode == product_vals['barcode']:
+                status = 'matched_barcode'
+            elif product_vals.get('default_code') and product.default_code == product_vals['default_code']:
                 status = 'matched_code'
-
-            return product, status, score
+            else:
+                status = 'matched_name'
+            return product, status, 100.0
 
         return None, 'not_matched', 0.0
 
