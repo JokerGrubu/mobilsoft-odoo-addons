@@ -13,6 +13,13 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.15.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Eklenenler
+- **Nilvera partner güncelleme cron** geri eklendi (`ir_cron_nilvera_update_partners`): VKN'ı olan carilerin adres/iletişim bilgilerini Nilvera GetGlobalCustomerInfo ile günceller (6 saatte bir). Önceki değişiklikte kaldırılmıştı.
+
+---
+
 ## [19.0.1.14.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Degistirilenler
