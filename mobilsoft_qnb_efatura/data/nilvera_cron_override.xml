@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Nilvera e-belge cron'larını 15 dakikada bir çalışacak şekilde günceller.
+    Böylece yeni gelen/giden belgeler otomatik olarak Odoo'ya alınır.
+-->
+<odoo>
+    <data noupdate="0">
+        <record id="l10n_tr_nilvera_einvoice.ir_cron_nilvera_get_new_purchase_documents" model="ir.cron">
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+        </record>
+        <record id="l10n_tr_nilvera_einvoice.ir_cron_nilvera_get_new_einvoice_sale_documents" model="ir.cron">
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+        </record>
+        <record id="l10n_tr_nilvera_einvoice.ir_cron_nilvera_get_new_earchive_sale_documents" model="ir.cron">
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+        </record>
+        <record id="l10n_tr_nilvera_einvoice.ir_cron_nilvera_get_invoice_status" model="ir.cron">
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+        </record>
+        <record id="l10n_tr_nilvera_einvoice.ir_cron_nilvera_get_sale_pdf" model="ir.cron">
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+        </record>
+    </data>
+</odoo>

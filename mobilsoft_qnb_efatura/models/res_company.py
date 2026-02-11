@@ -91,7 +91,7 @@ class ResCompany(models.Model):
     )
     qnb_auto_fetch_outgoing = fields.Boolean(
         string='Giden Belgeleri Otomatik Al',
-        default=False,
+        default=True,
         help='Giden belgeleri otomatik olarak indir'
     )
     qnb_auto_check_status = fields.Boolean(

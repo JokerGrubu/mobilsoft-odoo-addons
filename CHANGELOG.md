@@ -6,6 +6,19 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.5.0] - 2026-02-11
+
+### Degistirilenler
+
+#### Otomatik e-belge cekimi (15 dakikada bir)
+- **QNB:** Gelen belgeler, giden PDF'ler ve belge durumu cron'lari 12 saatten 15 dakikaya indirildi.
+- **Nilvera:** Gelen/giden belge ve durum cron'lari 15 dakikada bir calisacak sekilde guncellendi (mobilsoft_qnb_efatura uzerinden override).
+- **qnb_auto_fetch_outgoing:** Varsayilan True yapildi; giden belgeler de otomatik cekilir.
+
+Yeni belge geldiginde veya gittiginde en gec 15 dakika icinde Odoo'ya alinir.
+
+---
+
 ## [19.0.1.4.0] - 2026-02-11
 
 ### Degistirilenler
