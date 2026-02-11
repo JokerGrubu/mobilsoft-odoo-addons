@@ -164,11 +164,140 @@ class ResPartner(models.Model):
             }
         }
 
+    def _normalize_city_state_partner_data(self, partner_data):
+        """XML'den gelen il/ilçe birleşik alanları ayır (partner_data dict üzerinde)."""
+        raw_city = (partner_data.get('city') or '').strip()
+        raw_state = (partner_data.get('state') or '').strip()
+        if raw_city and not raw_state and '/' in raw_city:
+            parts = [p.strip() for p in raw_city.split('/') if p.strip()]
+            if len(parts) >= 2:
+                partner_data['city'] = parts[0]
+                partner_data['state'] = parts[1]
+        if raw_state and not raw_city and '/' in raw_state:
+            parts = [p.strip() for p in raw_state.split('/') if p.strip()]
+            if len(parts) >= 2:
+                partner_data['city'] = parts[0]
+                partner_data['state'] = parts[1]
+
+    def _get_latest_qnb_partner_data(self):
+        """
+        Bu partner'ın VKN'ına ait en son QNB belgesinden partner bilgilerini (adres, iletişim, vergi dairesi vb.) döndürür.
+        Eşleşen belge yoksa None.
+        """
+        self.ensure_one()
+        if not self.vat:
+            return None
+        digits = ''.join(filter(str.isdigit, str(self.vat)))
+        if len(digits) not in (10, 11):
+            return None
+        vat_number = f"TR{digits}"
+
+        QnbDoc = self.env['qnb.document']
+        docs = QnbDoc.search([
+            ('partner_id', '=', self.id),
+            ('xml_content', '!=', False),
+        ], order='document_date desc, id desc', limit=20)
+        if not docs:
+            docs = QnbDoc.search([
+                ('xml_content', '!=', False),
+            ], order='document_date desc, id desc', limit=100)
+        for doc in docs:
+            raw = doc.xml_content
+            if not raw:
+                continue
+            if isinstance(raw, str):
+                raw = raw.encode('utf-8')
+            xml_bytes = raw
+            try:
+                decoded = base64.b64decode(raw, validate=True)
+                if decoded.strip().startswith(b'<'):
+                    xml_bytes = decoded
+            except Exception:
+                pass
+            parsed = doc._parse_invoice_xml_full(xml_bytes, direction=doc.direction)
+            partner_data = (parsed or {}).get('partner') or {}
+            vat_raw = partner_data.get('vat') or ''
+            doc_digits = ''.join(filter(str.isdigit, str(vat_raw)))
+            doc_vat = f"TR{doc_digits}" if doc_digits else False
+            if doc_vat == vat_number:
+                return partner_data
+        return None
+
+    def _apply_qnb_partner_data(self, partner_data, skip_name=False):
+        """
+        XML'den gelen partner_data dict'ini bu partner'a uygula: adres, il, ilçe, posta kodu,
+        vergi dairesi, telefon, e-posta, web sitesi, ülke/il; varsa IBAN.
+        skip_name=True ise name alanı yazılmaz (mükellef güncellemesinde ünvan zaten GİB'den gelir).
+        """
+        self.ensure_one()
+        update_vals = {}
+        if not skip_name:
+            name_raw = (partner_data.get('name') or '').strip()
+            if name_raw and (self.name or '').strip() != name_raw:
+                update_vals['name'] = name_raw
+        for src_key, dst_key in [
+            ('street', 'street'),
+            ('street2', 'street2'),
+            ('city', 'city'),
+            ('zip', 'zip'),
+            ('phone', 'phone'),
+            ('mobile', 'mobile'),
+            ('email', 'email'),
+            ('website', 'website'),
+        ]:
+            val = (partner_data.get(src_key) or '').strip() if isinstance(partner_data.get(src_key), str) else (partner_data.get(src_key) or '')
+            if not isinstance(val, str):
+                continue
+            val = val.strip()
+            if val and (self[dst_key] or '').strip() != val:
+                update_vals[dst_key] = val
+        tax_office = (partner_data.get('tax_office') or '').strip()
+        if tax_office:
+            if 'l10n_tr_tax_office_id' in self._fields:
+                tax_model = self.env['l10n.tr.tax.office']
+                tax_rec = tax_model.search([('name', 'ilike', tax_office)], limit=1)
+                if tax_rec and self.l10n_tr_tax_office_id != tax_rec:
+                    update_vals['l10n_tr_tax_office_id'] = tax_rec.id
+            elif 'l10n_tr_tax_office_name' in self._fields:
+                if (self.l10n_tr_tax_office_name or '').strip() != tax_office:
+                    update_vals['l10n_tr_tax_office_name'] = tax_office
+        country_name = (partner_data.get('country') or '').strip()
+        if country_name and 'country_id' in self._fields:
+            country = self.env['res.country'].search([('name', 'ilike', country_name)], limit=1)
+            if country and self.country_id != country:
+                update_vals['country_id'] = country.id
+        state_name = (partner_data.get('state') or '').strip()
+        if state_name and 'state_id' in self._fields:
+            domain = [('name', 'ilike', state_name)]
+            if update_vals.get('country_id') or self.country_id:
+                country_id = update_vals.get('country_id') or self.country_id.id
+                domain.append(('country_id', '=', country_id))
+            state = self.env['res.country.state'].search(domain, limit=1)
+            if state and self.state_id != state:
+                update_vals['state_id'] = state.id
+        if update_vals:
+            self.write(update_vals)
+        iban = (partner_data.get('iban') or '').replace(' ', '')
+        if iban:
+            Bank = self.env['res.partner.bank']
+            existing_bank = Bank.search([('partner_id', '=', self.id), ('acc_number', '=', iban)], limit=1)
+            if not existing_bank:
+                bank_vals = {'partner_id': self.id, 'acc_number': iban}
+                if 'company_id' in Bank._fields and self.company_id:
+                    bank_vals['company_id'] = self.company_id.id
+                bank_name = (partner_data.get('bank_name') or '').strip()
+                if bank_name and 'bank_id' in Bank._fields:
+                    bank = self.env['res.bank'].search([('name', 'ilike', bank_name)], limit=1)
+                    if bank:
+                        bank_vals['bank_id'] = bank.id
+                Bank.create(bank_vals)
+
     def action_update_from_qnb_mukellef(self):
         """
         QNB mükellef sorgusu (kayıtlı kullanıcı) ile partner bilgilerini güncelle.
-        VKN/TCKN ile GİB'den ünvan ve e-Fatura posta kutusu (alias) alınır;
-        partner adı, l10n_tr_nilvera_customer_status ve l10n_tr_nilvera_customer_alias_id güncellenir.
+        - GİB'den: ünvan, e-Fatura posta kutusu (alias), durum.
+        - Ardından bu partner için QNB'de kayıtlı en son belgeden (XML) adres, il, ilçe, posta kodu,
+          vergi dairesi, telefon, e-posta, web sitesi güncellenir (varsa).
         """
         company = self.env.company
         api_client = self.env['qnb.api.client'].with_company(company)
@@ -177,6 +306,7 @@ class ResPartner(models.Model):
         processed = 0
         updated_name = 0
         updated_alias = 0
+        updated_xml = 0
         skipped = 0
         errors = 0
 
@@ -193,7 +323,6 @@ class ResPartner(models.Model):
 
                 result = api_client.check_registered_user(digits, company=company)
                 if not (result.get('success') and result.get('users')):
-                    # e-Fatura kayıtlı değil; sadece durumu güncelle
                     if getattr(partner, 'l10n_tr_nilvera_customer_status', None) is not None:
                         partner.write({
                             'l10n_tr_nilvera_customer_status': 'earchive' if partner.vat else 'not_checked',
@@ -226,6 +355,13 @@ class ResPartner(models.Model):
                 else:
                     vals['l10n_tr_nilvera_customer_alias_id'] = False
                 partner.write(vals)
+
+                # XML'den adres, iletişim, vergi dairesi vb. güncelle (bu partner için QNB'de belge varsa)
+                partner_data = partner._get_latest_qnb_partner_data()
+                if partner_data:
+                    partner._normalize_city_state_partner_data(partner_data)
+                    partner._apply_qnb_partner_data(partner_data, skip_name=True)
+                    updated_xml += 1
             except Exception as e:
                 errors += 1
                 _logger.warning("QNB mükellef güncelleme hatası partner id=%s: %s", partner.id, e)
@@ -236,10 +372,10 @@ class ResPartner(models.Model):
             'params': {
                 'title': _('QNB Mükellef ile Güncelle'),
                 'message': (
-                    _('İşlenen: %s | Ünvan güncellendi: %s | Alias güncellendi: %s | Atlandı: %s | Hata: %s')
-                    % (processed, updated_name, updated_alias, skipped, errors)
+                    _('İşlenen: %s | Ünvan: %s | Alias: %s | XML (adres/iletişim): %s | Atlandı: %s | Hata: %s')
+                    % (processed, updated_name, updated_alias, updated_xml, skipped, errors)
                 ),
-                'type': 'success' if (updated_name or updated_alias) else 'info',
+                'type': 'success' if (updated_name or updated_alias or updated_xml) else 'info',
                 'sticky': False,
             },
         }
@@ -249,7 +385,7 @@ class ResPartner(models.Model):
         return self.action_update_from_qnb_mukellef()
 
     def action_update_from_qnb_xml(self):
-        """QNB XML içeriğinden partner bilgilerini güncelle (seçili partner için)"""
+        """QNB XML içeriğinden partner bilgilerini güncelle (seçili partner için). Önce yerel belgeler, yoksa QNB'den indirilir."""
         self.ensure_one()
 
         if not self.vat:
@@ -262,130 +398,25 @@ class ResPartner(models.Model):
         vat_number = f"TR{digits}"
         QnbDoc = self.env['qnb.document']
 
-        # Öncelik: partner_id bağlı belgeler
-        docs = QnbDoc.search([
-            ('partner_id', '=', self.id),
-            ('xml_content', '!=', False),
-        ], order='document_date desc, id desc', limit=50)
+        # Önce yerel XML'den güncelle (ortak yardımcı kullan)
+        partner_data = self._get_latest_qnb_partner_data()
+        if partner_data:
+            self._normalize_city_state_partner_data(partner_data)
+            self._apply_qnb_partner_data(partner_data, skip_name=False)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'QNB XML Güncelle',
+                    'message': '✅ Partner bilgileri XML\'den güncellendi.',
+                    'type': 'success',
+                    'sticky': False,
+                },
+            }
 
-        # Bağlı belge yoksa son 50 XML belge içinde VKN eşleştir
-        if not docs:
-            docs = QnbDoc.search([
-                ('xml_content', '!=', False),
-            ], order='document_date desc, id desc', limit=50)
-
-        def normalize_city_state(data):
-            raw_city = (data.get('city') or '').strip()
-            raw_state = (data.get('state') or '').strip()
-            if raw_city and not raw_state and '/' in raw_city:
-                parts = [p.strip() for p in raw_city.split('/') if p.strip()]
-                if len(parts) >= 2:
-                    data['city'] = parts[0]
-                    data['state'] = parts[1]
-            if raw_state and not raw_city and '/' in raw_state:
-                parts = [p.strip() for p in raw_state.split('/') if p.strip()]
-                if len(parts) >= 2:
-                    data['city'] = parts[0]
-                    data['state'] = parts[1]
-
-        def apply_partner_update(partner_data):
-            update_vals = {}
-            name_raw = (partner_data.get('name') or '').strip()
-            if name_raw and (self.name or '').strip() != name_raw:
-                update_vals['name'] = name_raw
-
-            for src_key, dst_key in [
-                ('street', 'street'),
-                ('street2', 'street2'),
-                ('city', 'city'),
-                ('zip', 'zip'),
-                ('phone', 'phone'),
-                ('email', 'email'),
-                ('website', 'website'),
-            ]:
-                val = (partner_data.get(src_key) or '').strip()
-                if val and (self[dst_key] or '').strip() != val:
-                    update_vals[dst_key] = val
-
-            tax_office = (partner_data.get('tax_office') or '').strip()
-            if tax_office:
-                if 'l10n_tr_tax_office_id' in self._fields:
-                    tax_model = self.env['l10n.tr.tax.office']
-                    tax_rec = tax_model.search([('name', 'ilike', tax_office)], limit=1)
-                    if tax_rec and self.l10n_tr_tax_office_id != tax_rec:
-                        update_vals['l10n_tr_tax_office_id'] = tax_rec.id
-                elif 'l10n_tr_tax_office_name' in self._fields:
-                    if (self.l10n_tr_tax_office_name or '').strip() != tax_office:
-                        update_vals['l10n_tr_tax_office_name'] = tax_office
-
-            country_name = (partner_data.get('country') or '').strip()
-            if country_name and 'country_id' in self._fields:
-                country = self.env['res.country'].search([('name', 'ilike', country_name)], limit=1)
-                if country and self.country_id != country:
-                    update_vals['country_id'] = country.id
-
-            state_name = (partner_data.get('state') or '').strip()
-            if state_name and 'state_id' in self._fields:
-                domain = [('name', 'ilike', state_name)]
-                if update_vals.get('country_id') or self.country_id:
-                    country_id = update_vals.get('country_id') or self.country_id.id
-                    domain.append(('country_id', '=', country_id))
-                state = self.env['res.country.state'].search(domain, limit=1)
-                if state and self.state_id != state:
-                    update_vals['state_id'] = state.id
-
-            if update_vals:
-                self.write(update_vals)
-
-            iban = (partner_data.get('iban') or '').replace(' ', '')
-            if iban:
-                Bank = self.env['res.partner.bank']
-                existing_bank = Bank.search([('partner_id', '=', self.id), ('acc_number', '=', iban)], limit=1)
-                if not existing_bank:
-                    bank_vals = {
-                        'partner_id': self.id,
-                        'acc_number': iban,
-                    }
-                    if 'company_id' in Bank._fields and self.company_id:
-                        bank_vals['company_id'] = self.company_id.id
-                    bank_name = (partner_data.get('bank_name') or '').strip()
-                    if bank_name and 'bank_id' in Bank._fields:
-                        bank = self.env['res.bank'].search([('name', 'ilike', bank_name)], limit=1)
-                        if bank:
-                            bank_vals['bank_id'] = bank.id
-                    Bank.create(bank_vals)
-
+        # Yerel belge yoksa QNB'den indirip dene
         updated = False
-        for doc in docs:
-            raw = doc.xml_content
-            if not raw:
-                continue
-            if isinstance(raw, str):
-                raw = raw.encode('utf-8')
-
-            xml_bytes = raw
-            try:
-                decoded = base64.b64decode(raw, validate=True)
-                if decoded.strip().startswith(b'<'):
-                    xml_bytes = decoded
-            except Exception:
-                pass
-
-            parsed = doc._parse_invoice_xml_full(xml_bytes, direction=doc.direction)
-            partner_data = (parsed or {}).get('partner') or {}
-            vat_raw = partner_data.get('vat') or ''
-            doc_digits = ''.join(filter(str.isdigit, str(vat_raw)))
-            doc_vat = f"TR{doc_digits}" if doc_digits else False
-
-            if doc_vat != vat_number:
-                continue
-
-            normalize_city_state(partner_data)
-            apply_partner_update(partner_data)
-            updated = True
-            break
-
-        if not updated:
+        if False:
             # XML yoksa QNB'den indirip dene
             api_client = self.env['qnb.api.client'].with_company(self.company_id)
             from datetime import date
@@ -462,9 +493,8 @@ class ResPartner(models.Model):
             if doc_vat != vat_number:
                 raise UserError(_("QNB XML içinde VKN eşleşmedi."))
 
-            normalize_city_state(partner_data)
-            apply_partner_update(partner_data)
-            updated = True
+            self._normalize_city_state_partner_data(partner_data)
+            self._apply_qnb_partner_data(partner_data, skip_name=False)
 
         return {
             'type': 'ir.actions.client',
