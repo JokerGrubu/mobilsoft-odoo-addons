@@ -178,6 +178,19 @@ class ResPartner(models.Model):
             if len(parts) >= 2:
                 partner_data['city'] = parts[0]
                 partner_data['state'] = parts[1]
+        # city/state boşsa, street sonunda "İLÇE İL" varsa oradan çıkar (örn: ... BURHANİYE BALIKESİR)
+        if not raw_city and not raw_state:
+            street = (partner_data.get('street') or '').strip()
+            if len(street) > 4:
+                words = [w.strip() for w in street.split() if w.strip()]
+                if len(words) >= 2:
+                    State = self.env['res.country.state']
+                    tr_states = State.search([('country_id.code', '=', 'TR')])
+                    state_names = {s.name.upper(): s for s in tr_states}
+                    last = words[-1].upper()
+                    if last in state_names:
+                        partner_data['state'] = state_names[last].name
+                        partner_data['city'] = words[-2]
 
     def _get_latest_qnb_partner_data(self):
         """
