@@ -7,7 +7,7 @@
         
         Kaynak: Kıta Yazılım / 2KB konsepti temel alınmıştır.
     """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     'license': 'LGPL-3',
     'author': 'MobilSoft',
     'website': 'https://www.mobilsoft.net',

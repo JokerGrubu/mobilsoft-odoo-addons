@@ -69,6 +69,16 @@ class ResPartner(models.Model):
                 self.state_id = state
         if resp.get('District'):
             self.city = (resp.get('District') or '').strip()
+        # City/District boşsa adres sonundan il/ilçe parse et (örn: ... Gömeç balıkesir)
+        if not self.city and not self.state_id and self.street:
+            words = [w.strip().rstrip(',;.-') for w in self.street.split() if w.strip()]
+            if len(words) >= 2:
+                last_word = (words[-1] or '').rstrip(',;.-').strip()
+                for st in self.env['res.country.state'].search([('country_id.code', '=', 'TR')]):
+                    if st.name and last_word and st.name.upper().replace('İ', 'I') == last_word.upper().replace('İ', 'I'):
+                        self.state_id = st
+                        self.city = (words[-2] or '').rstrip(',;.-').strip()
+                        break
         if resp.get('PostalCode'):
             self.zip = (resp.get('PostalCode') or '').strip()
         if resp.get('Country'):
@@ -77,6 +87,10 @@ class ResPartner(models.Model):
             ], limit=1)
             if country:
                 self.country_id = country
+        if self.state_id and not self.country_id:
+            tr = self.env['res.country'].search([('code', '=', 'TR')], limit=1)
+            if tr:
+                self.country_id = tr
         if resp.get('TaxDepartment'):
             tax_office = (resp.get('TaxDepartment') or '').strip()
             if tax_office and 'l10n_tr_tax_office_id' in self._fields:

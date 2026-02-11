@@ -224,20 +224,20 @@ class ResPartner(models.Model):
             if len(parts) >= 2:
                 partner_data['city'] = parts[0]
                 partner_data['state'] = parts[1]
-        # city/state boşsa, street sonunda "İLÇE İL" varsa oradan çıkar (örn: ... BURHANİYE BALIKESİR)
+        # city/state boşsa, street sonunda "İLÇE İL" varsa oradan çıkar (örn: ... BURHANİYE BALIKESİR, ... Gömeç balıkesir)
         if not raw_city and not raw_state:
             street = (partner_data.get('street') or '').strip()
             if len(street) > 4:
-                words = [w.strip() for w in street.split() if w.strip()]
+                words = [w.strip().rstrip(',;.-') for w in street.split() if w.strip()]
                 if len(words) >= 2:
-                    last_word = words[-1]
+                    last_word = (words[-1] or '').rstrip(',;.-').strip()
                     State = self.env['res.country.state']
                     tr_states = State.search([('country_id.code', '=', 'TR')])
                     for st in tr_states:
                         if (st.name and last_word and
                                 st.name.upper().replace('İ', 'I') == last_word.upper().replace('İ', 'I')):
                             partner_data['state'] = st.name
-                            partner_data['city'] = words[-2]
+                            partner_data['city'] = (words[-2] or '').rstrip(',;.-').strip()
                             break
 
     def _get_latest_qnb_partner_data(self):
@@ -729,6 +729,9 @@ class ResPartner(models.Model):
                     continue
                 partner_data = partner._fetch_partner_data_from_nilvera_api()
                 if partner_data:
+                    # Nilvera sadece ünvan döndürse bile, partner'da adres varsa il/ilçe parse et
+                    if not partner_data.get('street') and not partner_data.get('city') and not partner_data.get('state') and partner.street:
+                        partner_data['street'] = partner.street
                     partner._normalize_city_state_partner_data(partner_data)
                     partner._apply_qnb_partner_data(partner_data, skip_name=False, fill_empty_only=False)
                     if hasattr(partner, '_check_nilvera_customer'):

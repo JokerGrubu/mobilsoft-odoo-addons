@@ -13,6 +13,14 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.16.0] - 2026-02-11 (mobilsoft_qnb_efatura, l10n_tr_tax_office_mobilsoft)
+
+### Degistirilenler
+- **mobilsoft_qnb_efatura:** Nilvera partner guncelleme: Nilvera sadece unvan dondurse bile, partner'da adres varsa street'ten il/ilce parse edilip city ve state_id doldurulur.
+- **l10n_tr_tax_office_mobilsoft:** VKN onchange: Adres dolu ama City/District bos ise adres sonundan il/ilce parse edilir (ornek: ... Gomec balikesir). Il secildiginde ulke TR atanir.
+
+---
+
 ## [19.0.1.15.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Eklenenler
