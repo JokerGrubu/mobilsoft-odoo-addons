@@ -415,38 +415,33 @@ class ResPartner(models.Model):
             }
 
         # Yerel belge yoksa QNB'den indirip dene
-        updated = False
-        if False:
-            # XML yoksa QNB'den indirip dene
-            api_client = self.env['qnb.api.client'].with_company(self.company_id)
-            from datetime import date
+        api_client = self.env['qnb.api.client'].with_company(self.company_id)
+        from datetime import date
 
-            def parse_date(s):
-                if not s:
-                    return None
-                s = str(s)
-                if len(s) == 8 and s.isdigit():
-                    return date(int(s[:4]), int(s[4:6]), int(s[6:8]))
+        def parse_date(s):
+            if not s:
                 return None
+            s = str(s)
+            if len(s) == 8 and s.isdigit():
+                return date(int(s[:4]), int(s[4:6]), int(s[6:8]))
+            return None
 
-            def pick_best(items):
-                items = [(parse_date(i.get('date')), i) for i in items if i.get('date')]
-                items = [it for it in items if it[0]]
-                items.sort(key=lambda x: x[0], reverse=True)
-                return items[0][1] if items else None
+        def pick_best(items):
+            items = [(parse_date(i.get('date')), i) for i in items if i.get('date')]
+            items = [it for it in items if it[0]]
+            items.sort(key=lambda x: x[0], reverse=True)
+            return items[0][1] if items else None
 
-            start = date(date.today().year - 2, 1, 1)
-            end = date.today()
+        start = date(date.today().year - 2, 1, 1)
+        end = date.today()
+        incoming_types = ['EFATURA', 'IRSALIYE', 'UYGULAMA_YANITI', 'IRSALIYE_YANITI']
+        outgoing_types = ['FATURA_UBL', 'FATURA', 'IRSALIYE_UBL', 'IRSALIYE',
+                          'UYGULAMA_YANITI_UBL', 'UYGULAMA_YANITI', 'IRSALIYE_YANITI_UBL', 'IRSALIYE_YANITI']
+        match = None
+        match_direction = None
+        match_type = None
 
-            incoming_types = ['EFATURA', 'IRSALIYE', 'UYGULAMA_YANITI', 'IRSALIYE_YANITI']
-            outgoing_types = ['FATURA_UBL', 'FATURA', 'IRSALIYE_UBL', 'IRSALIYE',
-                              'UYGULAMA_YANITI_UBL', 'UYGULAMA_YANITI', 'IRSALIYE_YANITI_UBL', 'IRSALIYE_YANITI']
-
-            match = None
-            match_direction = None
-            match_type = None
-
-            for t in incoming_types:
+        for t in incoming_types:
                 res = api_client.get_incoming_documents(start, end, document_type=t, company=self.company_id)
                 if res.get('success'):
                     docs_list = [d for d in res.get('documents', []) if ''.join(filter(str.isdigit, str(d.get('sender_vkn', '')))) == digits]
