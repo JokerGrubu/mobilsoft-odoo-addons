@@ -366,27 +366,26 @@ class ResPartner(models.Model):
             return None
         return partner_data
 
-    def _fetch_partner_data_from_nilvera_api(self):
+    @api.model
+    def _fetch_partner_data_from_nilvera_by_vkn(self, vat_digits, company=None):
         """
-        Nilvera GetGlobalCustomerInfo API ile partner bilgilerini al.
-        Şirkette l10n_tr_nilvera_api_key tanımlı olmalı.
-        :return: partner_data dict (street, city, state, zip, phone, email, website, tax_office) veya None
+        VKN/TCKN (sadece rakam) ile Nilvera GetGlobalCustomerInfo API'den partner verisi al.
+        Partner olmadan çağrılabilir (wizard / yeni kayıt için).
+        :param vat_digits: 10 veya 11 haneli VKN/TCKN (string)
+        :param company: res.company veya None (env.company kullanılır)
+        :return: partner_data dict veya None
         """
-        self.ensure_one()
-        if not self.vat:
+        if not vat_digits or len(vat_digits) not in (10, 11):
             return None
-        digits = ''.join(filter(str.isdigit, str(self.vat)))
-        if len(digits) not in (10, 11):
-            return None
-        company = self.company_id or self.env.company
+        company = company or self.env.company
         if not getattr(company, 'l10n_tr_nilvera_api_key', None) or not company.l10n_tr_nilvera_api_key:
             return None
         try:
             from odoo.addons.l10n_tr_nilvera.lib.nilvera_client import _get_nilvera_client
             with _get_nilvera_client(company, timeout_limit=15) as client:
-                resp = client.request('GET', f'/general/GlobalCompany/GetGlobalCustomerInfo/{digits}', params={'globalUserType': 'Invoice'})
+                resp = client.request('GET', f'/general/GlobalCompany/GetGlobalCustomerInfo/{vat_digits}', params={'globalUserType': 'Invoice'})
         except Exception as e:
-            _logger.debug("Nilvera GetGlobalCustomerInfo hatası partner %s: %s", self.id, e)
+            _logger.debug("Nilvera GetGlobalCustomerInfo hatası VKN %s: %s", vat_digits, e)
             return None
         if not resp:
             return None
@@ -418,6 +417,19 @@ class ResPartner(models.Model):
         if resp.get('WebSite'):
             out['website'] = (resp.get('WebSite') or '').strip()
         return out if out else None
+
+    def _fetch_partner_data_from_nilvera_api(self):
+        """
+        Nilvera GetGlobalCustomerInfo API ile bu partner'ın bilgilerini al.
+        """
+        self.ensure_one()
+        if not self.vat:
+            return None
+        digits = ''.join(filter(str.isdigit, str(self.vat)))
+        if len(digits) not in (10, 11):
+            return None
+        company = self.company_id or self.env.company
+        return self._fetch_partner_data_from_nilvera_by_vkn(digits, company)
 
     def _apply_qnb_partner_data(self, partner_data, skip_name=False, fill_empty_only=False):
         """
