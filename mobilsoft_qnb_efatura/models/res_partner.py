@@ -5,6 +5,7 @@ from odoo.exceptions import UserError
 from odoo.addons.base.models.res_bank import sanitize_account_number
 import base64
 import logging
+import urllib.parse
 
 _logger = logging.getLogger(__name__)
 
@@ -150,6 +151,49 @@ class ResPartner(models.Model):
             'qnb_last_check_date': fields.Datetime.now(),
         })
         return False
+
+    def _check_nilvera_customer(self):
+        """
+        Nilvera Check API'ye sadece rakam (VKN/TCKN) gönder.
+        Odoo'da vat "TR1234567890" formatında olabilir; Nilvera API sadece "1234567890" kabul eder.
+        """
+        self.ensure_one()
+        if not self.vat:
+            return False
+
+        digits = ''.join(filter(str.isdigit, str(self.vat)))
+        if len(digits) not in (10, 11):
+            return False
+
+        from odoo.addons.l10n_tr_nilvera.lib.nilvera_client import _get_nilvera_client
+        with _get_nilvera_client(self.env.company) as client:
+            response = client.request(
+                "GET",
+                "/general/GlobalCompany/Check/TaxNumber/" + urllib.parse.quote(digits),
+                handle_response=False
+            )
+            if response.status_code == 200:
+                query_result = response.json()
+                if not query_result:
+                    self.l10n_tr_nilvera_customer_status = 'earchive'
+                    self.l10n_tr_nilvera_customer_alias_id = False
+                else:
+                    self.l10n_tr_nilvera_customer_status = 'einvoice'
+                    aliases = {result.get('Name') for result in query_result}
+                    persisted_aliases = self.l10n_tr_nilvera_customer_alias_ids
+                    aliases_to_add = aliases - set(persisted_aliases.mapped('name'))
+                    aliases_to_remove = set(persisted_aliases.mapped('name')) - aliases
+                    newly_persisted_aliases = self.env['l10n_tr.nilvera.alias'].create([{
+                        'name': alias_name,
+                        'partner_id': self.id,
+                    } for alias_name in aliases_to_add])
+                    to_keep = persisted_aliases.filtered(lambda a: a.name not in aliases_to_remove)
+                    (persisted_aliases - to_keep).unlink()
+                    remaining_aliases = newly_persisted_aliases | to_keep
+                    if not self.l10n_tr_nilvera_customer_alias_id and remaining_aliases:
+                        self.l10n_tr_nilvera_customer_alias_id = remaining_aliases[0]
+                return True
+            return False
 
     def action_check_efatura_status(self):
         """e-Fatura kayıt durumunu kontrol et (Nilvera öncelikli)"""

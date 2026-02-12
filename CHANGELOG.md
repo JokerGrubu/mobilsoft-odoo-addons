@@ -6,6 +6,13 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.23.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Düzeltmeler
+- **Nilvera Check API TR öneki:** VKN "TR1234567890" formatında olduğunda Nilvera API 400/404 dönüyordu. API sadece rakam (1234567890) kabul ediyor. `_check_nilvera_customer` override edildi; API'ye sadece VKN rakamları gönderiliyor. Böylece "Nilvera Durumu Doğrulanmadı" ve "Peppol status Unchecked" uyarıları düzelir.
+
+---
+
 ## [19.0.2.7.0] - 2026-02-11 (mobilsoft_xml_import)
 
 ### Eklenenler

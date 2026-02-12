@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'MobilSoft QNB e-Fatura Entegrasyonu',
-    'version': '19.0.1.22.0',
+    'version': '19.0.1.23.0',
     'category': 'Accounting/Localizations',
     'summary': 'QNB e-Solutions e-Fatura, e-Arşiv, e-İrsaliye Entegrasyonu',
     'description': """
