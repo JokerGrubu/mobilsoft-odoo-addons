@@ -21,6 +21,13 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.21.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Eklenenler
+- **İlçe → res.city (city_id):** l10n_tr_city_mobilsoft ile 973 semt/ilçe kaydı varsa, ilçe adı res.city'de aranıp partner.city_id atanıyor. Böylece Semt/İlçe alanı doğru kayda bağlanıyor.
+
+---
+
 ## [19.0.1.20.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Düzeltmeler

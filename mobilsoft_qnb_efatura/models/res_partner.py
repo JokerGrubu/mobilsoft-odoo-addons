@@ -545,9 +545,10 @@ class ResPartner(models.Model):
                 if country and self.country_id != country:
                     update_vals['country_id'] = country.id
         state_name = (partner_data.get('state') or '').strip()
+        state = None
         if state_name and 'state_id' in self._fields:
             if fill_empty_only and self.state_id:
-                pass
+                state = self.state_id
             else:
                 domain = [('name', 'ilike', state_name)]
                 if update_vals.get('country_id') or self.country_id:
@@ -556,6 +557,21 @@ class ResPartner(models.Model):
                 state = self.env['res.country.state'].search(domain, limit=1)
                 if state and self.state_id != state:
                     update_vals['state_id'] = state.id
+        # İlçe → res.city (city_id): 973 semt/ilçe kaydı l10n_tr_city_mobilsoft
+        city_name = (partner_data.get('city') or '').strip()
+        if city_name and 'city_id' in self._fields:
+            state_obj = state or update_vals.get('state_id') and self.env['res.country.state'].browse(update_vals['state_id']) or self.state_id
+            country_id = update_vals.get('country_id') or self.country_id.id or self.env['res.country'].search([('code', '=', 'TR')], limit=1).id
+            if state_obj and country_id:
+                city_rec = self.env['res.city'].search([
+                    ('name', 'ilike', city_name),
+                    ('state_id', '=', state_obj.id),
+                    ('country_id', '=', country_id),
+                ], limit=1)
+                if city_rec:
+                    if not fill_empty_only or not self.city_id:
+                        update_vals['city_id'] = city_rec.id
+                    update_vals['city'] = city_rec.name
         if update_vals:
             self.write(update_vals)
 

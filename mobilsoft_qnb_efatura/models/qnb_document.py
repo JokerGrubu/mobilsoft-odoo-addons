@@ -2060,6 +2060,7 @@ class QnbDocument(models.Model):
                         update_vals['country_id'] = country.id
 
                 state_name = (partner_data.get('state') or '').strip()
+                state = None
                 if state_name and 'state_id' in Partner._fields and not partner.state_id:
                     domain = [('name', 'ilike', state_name)]
                     country_id = update_vals.get('country_id') or (partner.country_id and partner.country_id.id)
@@ -2070,6 +2071,21 @@ class QnbDocument(models.Model):
                         update_vals['state_id'] = state.id
                         if not country_id and not partner.country_id and state.country_id.code == 'TR':
                             update_vals['country_id'] = state.country_id.id
+
+                # İlçe → res.city (city_id): 973 semt/ilçe l10n_tr_city_mobilsoft
+                city_name = (partner_data.get('city') or '').strip()
+                if city_name and 'city_id' in Partner._fields:
+                    state_obj = state or (update_vals.get('state_id') and self.env['res.country.state'].browse(update_vals['state_id'])) or partner.state_id
+                    country_id = update_vals.get('country_id') or (partner.country_id and partner.country_id.id) or self.env['res.country'].search([('code', '=', 'TR')], limit=1).id
+                    if state_obj and country_id:
+                        city_rec = self.env['res.city'].search([
+                            ('name', 'ilike', city_name),
+                            ('state_id', '=', state_obj.id),
+                            ('country_id', '=', country_id),
+                        ], limit=1)
+                        if city_rec and not partner.city_id:
+                            update_vals['city_id'] = city_rec.id
+                            update_vals['city'] = city_rec.name
 
                 if doc.direction == 'incoming' and partner.supplier_rank < 1:
                     update_vals['supplier_rank'] = 1
