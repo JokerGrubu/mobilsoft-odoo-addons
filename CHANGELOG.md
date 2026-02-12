@@ -6,6 +6,13 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.25.0] - 2026-02-11 (petrol_bayilik_import)
+
+### Düzeltmeler
+- **İl/ilçe eşleştirme:** Excel'deki İl → state_id, İlçe → city/city_id doğru aktarılıyor. Türkçe karakter (İ/ı) farkları tolere edilir; ilike eşleşmezse normalized karşılaştırma yapılır.
+
+---
+
 ## [19.0.1.24.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Düzeltmeler
