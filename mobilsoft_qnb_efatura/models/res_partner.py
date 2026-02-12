@@ -721,11 +721,17 @@ class ResPartner(models.Model):
 
     def _do_batch_update_nilvera_only(self, partners=None):
         """
-        Sadece Nilvera ile güncelle (QNB/GİB yok). Tüm veri Nilvera GetGlobalCustomerInfo'dan gelir.
+        Nilvera ile güncelle; Nilvera veri dönmezse QNB/GİB (kayıtlı kullanıcı) fallback.
+        Böylece 7/24 tekel shop vb. Nilvera'da olmayan ama GİB'de kayıtlı mükellefler de güncellenir.
         """
         partners = partners or self
         updated = 0
         errors = 0
+        # QNB fallback için şirket (Nilvera yoksa kullanılır)
+        qnb_company = self.env['res.company'].search([('qnb_enabled', '=', True)], limit=1)
+        api_client = self.env['qnb.api.client'] if qnb_company else None
+        Alias = self.env['l10n_tr.nilvera.alias']
+
         for partner in partners:
             try:
                 if not partner.vat:
@@ -734,6 +740,35 @@ class ResPartner(models.Model):
                 if len(digits) not in (10, 11):
                     continue
                 partner_data = partner._fetch_partner_data_from_nilvera_api()
+                if not partner_data and api_client and qnb_company:
+                    # Nilvera yoksa QNB/GİB fallback (ünvan + alias) — 7/24 tekel shop vb.
+                    try:
+                        result = api_client.with_company(qnb_company).check_registered_user(
+                            digits, company=qnb_company
+                        )
+                        if result.get('success') and result.get('users'):
+                            user = result['users'][0]
+                            title = (user.get('title') or '').strip()
+                            alias_name = (user.get('alias') or '').strip()
+                            if title:
+                                partner_data = {'name': title}
+                            if alias_name:
+                                alias_rec = Alias.search([
+                                    ('partner_id', '=', partner.id),
+                                    ('name', '=', alias_name),
+                                ], limit=1)
+                                if not alias_rec:
+                                    alias_rec = Alias.create({'name': alias_name, 'partner_id': partner.id})
+                                partner.write({
+                                    'l10n_tr_nilvera_customer_status': 'einvoice',
+                                    'l10n_tr_nilvera_customer_alias_id': alias_rec.id,
+                                    'qnb_last_check_date': fields.Datetime.now(),
+                                })
+                            if (title or alias_name) and not partner_data:
+                                updated += 1
+                                continue
+                    except Exception:
+                        pass
                 if partner_data:
                     # Nilvera sadece ünvan döndürse bile, partner'da adres varsa il/ilçe parse et
                     if not partner_data.get('street') and not partner_data.get('city') and not partner_data.get('state') and partner.street:
