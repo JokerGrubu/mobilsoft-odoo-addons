@@ -35,6 +35,12 @@ class ResPartner(models.Model):
         try:
             company = self.company_id or self.env.company
             if not getattr(company, 'l10n_tr_nilvera_api_key', None) or not company.l10n_tr_nilvera_api_key:
+                # Partner şirketinde API anahtarı yoksa, anahtarı olan şirket kullan (kontaklar ortak)
+                company = self.env['res.company'].search([
+                    ('l10n_tr_nilvera_api_key', '!=', False),
+                    ('l10n_tr_nilvera_api_key', '!=', ''),
+                ], limit=1)
+            if not company:
                 return
 
             from odoo.addons.l10n_tr_nilvera.lib.nilvera_client import _get_nilvera_client
@@ -69,6 +75,15 @@ class ResPartner(models.Model):
                 self.state_id = state
         if resp.get('District'):
             self.city = (resp.get('District') or '').strip()
+        # city_id (res.city) varsa ilçe kaydına bağla
+        if self.city and self.state_id and 'city_id' in self._fields:
+            city_rec = self.env['res.city'].search([
+                ('name', 'ilike', self.city),
+                ('state_id', '=', self.state_id.id),
+                ('country_id.code', '=', 'TR'),
+            ], limit=1)
+            if city_rec:
+                self.city_id = city_rec
         # City/District boşsa adres sonundan il/ilçe parse et (örn: ... Gömeç balıkesir)
         if not self.city and not self.state_id and self.street:
             words = [w.strip().rstrip(',;.-') for w in self.street.split() if w.strip()]

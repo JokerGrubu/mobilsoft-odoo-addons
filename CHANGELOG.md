@@ -21,6 +21,15 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.2.0] - 2026-02-11 (l10n_tr_tax_office_mobilsoft)
+
+### Düzeltmeler
+- **VKN/TCKN onchange:** Partner şirketinde Nilvera API anahtarı yoksa, anahtarı olan şirket kullanılıyor. Böylece kontaklarda vergi kimlik no yazıldığında bilgiler otomatik gelir (Joker Tedarik vb. şirketlerde de).
+- **city_id:** Nilvera'dan gelen ilçe, res.city ile eşleşirse city_id atanıyor.
+- **l10n_tr_nilvera** bağımlılığı eklendi.
+
+---
+
 ## [19.0.1.21.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Eklenenler
