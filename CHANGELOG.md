@@ -13,6 +13,14 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.18.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Degistirilenler
+- **Nilvera cron:** Tüm şirketler ve ortak partnerler dahil (sudo) — partner bilgileri ortak kullanılıyor, firmalar ayrı. VKN (10 hane) ve TCKN (11 hane) desteklenir.
+- **Batch script:** nilvera_unvan_tum_batch.py sudo ile tüm partnerleri kapsar.
+
+---
+
 ## [19.0.1.17.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Düzeltmeler

@@ -949,8 +949,9 @@ class ResPartner(models.Model):
     @api.model
     def _cron_update_partners_from_qnb_mukellef(self):
         """
-        Otomatik cron: VKN'ı olan carilerin bilgilerini Nilvera ile günceller (QNB/GİB yok).
-        Eksik bilgisi olanlara öncelik verir; her çalışmada sınırlı sayıda cari işlenir.
+        Otomatik cron: VKN/TCKN'ı olan tüm carilerin bilgilerini Nilvera ile günceller (QNB/GİB yok).
+        Partner bilgileri ortak kullanılıyor; tüm şirketler ve ortak partnerler dahil (sudo).
+        VKN 10 hane, TCKN 11 hane desteklenir.
         """
         from datetime import datetime, timedelta
 
@@ -965,8 +966,8 @@ class ResPartner(models.Model):
             ('email', 'in', [False, '']),
             ('website', 'in', [False, '']),
         ]
-        incomplete = self.search(domain_incomplete, limit=25, order='id asc')
-        others = self.search(
+        incomplete = self.sudo().search(domain_incomplete, limit=25, order='id asc')
+        others = self.sudo().search(
             domain_vat + [
                 '|',
                 ('qnb_last_check_date', '=', False),
