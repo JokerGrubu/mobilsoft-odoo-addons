@@ -6,6 +6,13 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.24.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Düzeltmeler
+- **street2'de ilçe:** İlçe bilgisi city alanına yazılır, adres 2. satırına (street2) yazılmaz. _apply_qnb_partner_data ve QNB XML parse'da street2=ilçe kontrolü eklendi; 100 mevcut partner'da street2 temizlendi.
+
+---
+
 ## [19.0.2.7.0] - 2026-02-11 (mobilsoft_xml_import)
 
 ### Eklenenler

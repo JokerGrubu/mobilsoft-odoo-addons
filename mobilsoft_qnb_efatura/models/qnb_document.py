@@ -696,10 +696,15 @@ class QnbDocument(models.Model):
                 address = party.find('.//cac:PostalAddress', ns)
                 if address is not None:
                     result['partner']['street'] = self._get_xml_text(address, './/cbc:StreetName', ns)
-                    result['partner']['street2'] = self._get_xml_text(address, './/cbc:BuildingNumber', ns)
+                    street2_raw = self._get_xml_text(address, './/cbc:BuildingNumber', ns)
+                    city_raw = self._get_xml_text(address, './/cbc:CitySubdivisionName', ns)
+                    # street2 = bina no; ilçe city'ye yazılır, street2'ye YAZILMAZ (bazı XML'lerde yanlış mapleniyor)
+                    if street2_raw and city_raw and (street2_raw or '').strip().upper().replace('İ', 'I') == (city_raw or '').strip().upper().replace('İ', 'I'):
+                        street2_raw = ''
+                    result['partner']['street2'] = street2_raw
                     # UBL: CityName=İL, CitySubdivisionName=İLÇE
                     result['partner']['state'] = self._get_xml_text(address, './/cbc:CityName', ns)
-                    result['partner']['city'] = self._get_xml_text(address, './/cbc:CitySubdivisionName', ns)
+                    result['partner']['city'] = city_raw
                     result['partner']['zip'] = self._get_xml_text(address, './/cbc:PostalZone', ns)
                     result['partner']['country'] = self._get_xml_text(address, './/cac:Country/cbc:Name', ns)
 

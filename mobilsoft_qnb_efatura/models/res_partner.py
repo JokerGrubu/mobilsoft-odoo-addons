@@ -499,6 +499,14 @@ class ResPartner(models.Model):
                     pass
                 elif (self.name or '').strip() != name_raw:
                     update_vals['name'] = name_raw
+        # street2 = bina/blok no için; ilçe city alanına yazılır, street2'ye YAZILMAZ
+        def _norm(s):
+            return (s or '').strip().upper().replace('İ', 'I')
+        city_names = {_norm(partner_data.get('city'))}
+        try:
+            city_names.update(_norm(n) for n in self.env['res.city'].search([('country_id.code', '=', 'TR')]).mapped('name') if n)
+        except KeyError:
+            pass
         for src_key, dst_key in [
             ('street', 'street'),
             ('street2', 'street2'),
@@ -515,6 +523,9 @@ class ResPartner(models.Model):
             val = val.strip()
             if not val:
                 continue
+            if dst_key == 'street2':
+                if _norm(val) in city_names:
+                    continue
             current = (self[dst_key] or '').strip()
             if fill_empty_only and current:
                 continue
