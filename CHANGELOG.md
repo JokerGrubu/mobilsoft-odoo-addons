@@ -21,6 +21,13 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.20.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Düzeltmeler
+- **İl/İlçe doğru alanlara yazılıyor:** Odoo city=İlçe, state_id=İl. QNB XML sync'te normalizasyon (KARESİ/BALIKESİR ayrımı, street parse) artık for döngüsünden ÖNCE yapılıyor; böylece "KARESİ / BALIKESİR" gibi birleşik değerler city/state_id'e doğru ayrılıyor. Adres sonundan il/ilçe parse (örn: ... Gömeç balıkesir) eklendi.
+
+---
+
 ## [19.0.1.17.0] - 2026-02-11 (mobilsoft_qnb_efatura)
 
 ### Düzeltmeler

@@ -1990,6 +1990,33 @@ class QnbDocument(models.Model):
                     partner = Partner.create(partner_vals)
                     created += 1
 
+                # İl/İlçe normalizasyonu ÖNCE (city/state doğru alanlara yazılsın)
+                # Odoo: city=İlçe, state_id=İl
+                raw_city = (partner_data.get('city') or '').strip()
+                raw_state = (partner_data.get('state') or '').strip()
+                if raw_city and not raw_state and '/' in raw_city:
+                    parts = [p.strip() for p in raw_city.split('/') if p.strip()]
+                    if len(parts) >= 2:
+                        partner_data['city'] = parts[0]
+                        partner_data['state'] = parts[1]
+                if raw_state and not raw_city and '/' in raw_state:
+                    parts = [p.strip() for p in raw_state.split('/') if p.strip()]
+                    if len(parts) >= 2:
+                        partner_data['city'] = parts[0]
+                        partner_data['state'] = parts[1]
+                # city/state boşsa, street sonundan "İLÇE İL" parse et (örn: ... Gömeç balıkesir)
+                if not partner_data.get('city') and not partner_data.get('state'):
+                    street = (partner_data.get('street') or '').strip()
+                    if len(street) > 4:
+                        words = [w.strip().rstrip(',;.-') for w in street.split() if w.strip()]
+                        if len(words) >= 2:
+                            last_word = (words[-1] or '').rstrip(',;.-').strip()
+                            for st in self.env['res.country.state'].search([('country_id.code', '=', 'TR')]):
+                                if st.name and last_word and st.name.upper().replace('İ', 'I') == last_word.upper().replace('İ', 'I'):
+                                    partner_data['state'] = st.name
+                                    partner_data['city'] = (words[-2] or '').rstrip(',;.-').strip()
+                                    break
+
                 # Partner güncelle (sadece eksik alanları doldur)
                 update_vals = {}
 
@@ -2025,15 +2052,6 @@ class QnbDocument(models.Model):
                         if not (partner.l10n_tr_tax_office_name or '').strip():
                             update_vals['l10n_tr_tax_office_name'] = tax_office
 
-                # İl/İlçe normalizasyonu (ör: "KARESİ / BALIKESİR")
-                raw_city = (partner_data.get('city') or '').strip()
-                raw_state = (partner_data.get('state') or '').strip()
-                if raw_city and not raw_state and '/' in raw_city:
-                    parts = [p.strip() for p in raw_city.split('/') if p.strip()]
-                    if len(parts) >= 2:
-                        partner_data['city'] = parts[0]
-                        partner_data['state'] = parts[1]
-
                 # Ülke/İl eşleştirme
                 country_name = (partner_data.get('country') or '').strip()
                 if country_name and 'country_id' in Partner._fields and not partner.country_id:
@@ -2044,12 +2062,14 @@ class QnbDocument(models.Model):
                 state_name = (partner_data.get('state') or '').strip()
                 if state_name and 'state_id' in Partner._fields and not partner.state_id:
                     domain = [('name', 'ilike', state_name)]
-                    if update_vals.get('country_id') or partner.country_id:
-                        country_id = update_vals.get('country_id') or partner.country_id.id
+                    country_id = update_vals.get('country_id') or (partner.country_id and partner.country_id.id)
+                    if country_id:
                         domain.append(('country_id', '=', country_id))
                     state = self.env['res.country.state'].search(domain, limit=1)
                     if state:
                         update_vals['state_id'] = state.id
+                        if not country_id and not partner.country_id and state.country_id.code == 'TR':
+                            update_vals['country_id'] = state.country_id.id
 
                 if doc.direction == 'incoming' and partner.supplier_rank < 1:
                     update_vals['supplier_rank'] = 1
