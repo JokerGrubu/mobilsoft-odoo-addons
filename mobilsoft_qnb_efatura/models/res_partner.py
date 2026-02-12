@@ -785,6 +785,9 @@ class ResPartner(models.Model):
                                 continue
                     except Exception:
                         pass
+                if not partner_data and partner.street and (not partner.city or not partner.state_id):
+                    # Abdül Vehap Aktaş Bakkal vb: Nilvera/QNB veri yok, adresten il/ilçe parse
+                    partner_data = {'street': partner.street}
                 if partner_data:
                     # Nilvera sadece ünvan döndürse bile, partner'da adres varsa il/ilçe parse et
                     if not partner_data.get('street') and not partner_data.get('city') and not partner_data.get('state') and partner.street:
