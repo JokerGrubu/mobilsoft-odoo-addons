@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Etiket form/list - color_picker VToggler hatasina neden oluyor (undefined[0]),
+         integer widget ile degistirildi. Renk: 0-11 -->
+    <record id="view_partner_category_form_qnb_fix" model="ir.ui.view">
+        <field name="name">res.partner.category.form.qnb.fix</field>
+        <field name="model">res.partner.category</field>
+        <field name="inherit_id" ref="base.view_partner_category_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='color']" position="replace">
+                <field name="color" widget="integer" string="Renk (0-11)"/>
+            </xpath>
+        </field>
+    </record>
+    <record id="view_partner_category_list_qnb_fix" model="ir.ui.view">
+        <field name="name">res.partner.category.list.qnb.fix</field>
+        <field name="model">res.partner.category</field>
+        <field name="inherit_id" ref="base.view_partner_category_list" />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='color']" position="replace">
+                <field name="color" widget="integer" string="Renk"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
