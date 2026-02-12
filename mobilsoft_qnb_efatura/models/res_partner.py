@@ -425,7 +425,13 @@ class ResPartner(models.Model):
             return None
         company = company or self.env.company
         if not getattr(company, 'l10n_tr_nilvera_api_key', None) or not company.l10n_tr_nilvera_api_key:
-            return None
+            # Partner'ın şirketinde API anahtarı yoksa, anahtarı olan herhangi bir şirket kullan
+            company = self.env['res.company'].search([
+                ('l10n_tr_nilvera_api_key', '!=', False),
+                ('l10n_tr_nilvera_api_key', '!=', ''),
+            ], limit=1)
+            if not company:
+                return None
         try:
             from odoo.addons.l10n_tr_nilvera.lib.nilvera_client import _get_nilvera_client
             with _get_nilvera_client(company, timeout_limit=15) as client:

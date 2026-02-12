@@ -13,6 +13,13 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.1.17.0] - 2026-02-11 (mobilsoft_qnb_efatura)
+
+### Düzeltmeler
+- **Nilvera API anahtarı fallback:** Partner'ın şirketinde (örn. Joker Tedarik) Nilvera API anahtarı yoksa, anahtarı olan herhangi bir şirket kullanılıyor. Böylece Altınkılıçlar vb. Joker Tedarik partnerleri de Nilvera ünvan/bilgi güncellemesinden yararlanıyor.
+
+---
+
 ## [19.0.1.16.0] - 2026-02-11 (mobilsoft_qnb_efatura, l10n_tr_tax_office_mobilsoft)
 
 ### Degistirilenler
