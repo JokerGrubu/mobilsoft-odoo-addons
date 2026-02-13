@@ -6,6 +6,37 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.2.0.0] - 2026-02-13 (mobilsoft_bank_integration)
+
+### Eklenenler
+- **Banka Entegrasyonu modülü** tamamen yeniden yazıldı — Odoo 19 ile %100 uyumlu.
+- **Tek model mimarisi:** `bank.connector` modeli `bank_type` selection ile banka seçimi (abstract model kaldırıldı).
+- **3 banka desteği:** Garanti BBVA, Ziraat Bankası, QNB Finansbank — tümü OAuth 2.0 ile.
+- **Odoo standart entegrasyon:** İşlemler `account.bank.statement.line` üzerine yazılıyor (özel `bank.transaction` modeli kaldırıldı).
+- **Mükerrer önleme:** `bank_import_ref` alanı ile UNIQUE constraint (`models.Constraint` — Odoo 19 formatı).
+- **Döviz kuru senkronizasyonu:** Banka API'lerinden alınan kurlar `res.currency.rate` üzerine kaynak bilgisi ile yazılıyor.
+- **Partner eşleştirme:** VKN → IBAN → İsim sırasıyla otomatik eşleştirme.
+- **Senkronizasyon wizard'ı:** Tüm bankalar için toplu hesap/işlem/kur senkronizasyonu.
+- **Güvenlik:** Kullanıcı/Yönetici grupları, çoklu şirket kuralı, ACL tanımları.
+- **Cron:** Otomatik senkronizasyon (yapılandırılabilir aralık).
+
+### Kaldırılanlar
+- `bank.transaction` özel modeli (Odoo standart `account.bank.statement.line` kullanılıyor)
+- `bank_account.py` (res.partner.bank extension sadeleştirildi)
+- `currency_rate.py` (res_currency.py ile değiştirildi)
+- `garantibbva_connector.py`, `ziraat_connector.py` (bank_connector_*.py ile değiştirildi)
+- `demo/` klasörü
+- `_sql_constraints` kullanımı (Odoo 19 `models.Constraint` ile değiştirildi)
+- `category_id` res.groups referansı (Odoo 19'da `privilege_id` sistemi)
+
+### Düzeltmeler
+- `security.xml`: Odoo 19'da `res.groups` üzerinde `category_id` alanı kaldırıldı, `implied_ids` ile grup hiyerarşisi kuruldu.
+- `account_bank_statement.py`: `_sql_constraints` → `models.Constraint` formatına dönüştürüldü.
+- Search view: `expand` attribute kaldırıldı (Odoo 19 RNG şeması uyumsuzluğu).
+- Manifest: Wizard view dosyası menü dosyasından önce yüklenmesi sağlandı (XML ID referans sıralaması).
+
+---
+
 ## [19.0.1.25.0] - 2026-02-11 (petrol_bayilik_import)
 
 ### Düzeltmeler
