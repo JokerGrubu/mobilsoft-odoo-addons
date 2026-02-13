@@ -3,7 +3,7 @@
 import uuid
 import base64
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
 from odoo import models, fields, api, _
