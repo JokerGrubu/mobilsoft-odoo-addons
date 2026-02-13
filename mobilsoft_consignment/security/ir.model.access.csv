@@ -1,5 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_joker_consignment_user,joker.consignment.user,model_joker_consignment,base.group_user,1,1,1,0
-access_joker_consignment_manager,joker.consignment.manager,model_joker_consignment,sales_team.group_sale_manager,1,1,1,1
-access_joker_consignment_line_user,joker.consignment.line.user,model_joker_consignment_line,base.group_user,1,1,1,0
-access_joker_consignment_line_manager,joker.consignment.line.manager,model_joker_consignment_line,sales_team.group_sale_manager,1,1,1,1
