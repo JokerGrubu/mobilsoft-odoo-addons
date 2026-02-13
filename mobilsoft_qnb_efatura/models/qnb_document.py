@@ -1487,7 +1487,7 @@ class QnbDocument(models.Model):
                 start_date = parse_date('2025-01-01')
                 end_date = datetime.now()
 
-                result = api_client.get_outgoing_documents(start_date, end_date, company=company)
+                result = api_client.get_outgoing_documents(start_date, end_date, document_type='FATURA_UBL', company=company)
 
                 if not result.get('success'):
                     _logger.warning(f"Giden belgeler alınamadı: {result.get('message')}")

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'MobilSoft QNB e-Fatura Entegrasyonu',
-    'version': '19.0.1.23.0',
+    'version': '19.0.1.24.0',
     'category': 'Accounting/Localizations',
     'summary': 'QNB e-Solutions e-Fatura, e-Arşiv, e-İrsaliye Entegrasyonu',
     'description': """
@@ -46,6 +46,7 @@ Teknik Özellikler:
         'data/ir_sequence_data.xml',
         'data/ir_cron_data.xml',
         'data/ir_cron_data_update.xml',
+        'data/ir_cron_reconcile_external.xml',
         'data/nilvera_cron_override.xml',
         'views/res_config_settings_views.xml',
         'views/account_move_views.xml',

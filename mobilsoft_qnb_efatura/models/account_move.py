@@ -627,84 +627,408 @@ class AccountMove(models.Model):
         except Exception:
             return None
 
-    def _qnb_fetch_incoming_documents(self):
-        """
-        Gelen e-belgeleri QNB API'den çeker; Odoo UBL import akışı (Nilvera ile aynı) ile fatura oluşturur.
+    def _qnb_fetch_incoming_documents(self, overlap_days=15, min_start_date='2026-01-01'):
+        """Gelen e-belgeleri QNB API'den çeker ve Odoo'da draft fatura oluşturur.
+
+        Notlar:
+        - Eksik belge kalmaması için son çekim tarihinden geriye doğru `overlap_days` kadar da kontrol eder.
+        - 2026+ için draft aktarım hedeflenir; `min_start_date` performans sınırı için kullanılır.
+        - Ürün eşleştirme: XML satırlarından ürün bulur/oluşturur ve fatura satırına bağlar.
         """
         company = self.env.company
         api_client = self.env['qnb.api.client']
-        start_date = self._qnb_get_last_fetch_date(company)
-        end_date = fields.Date.today().strftime("%Y-%m-%d")
+
+        end_date = fields.Date.today()
+        last_fetched_raw = self._qnb_get_last_fetch_date(company)
+        try:
+            last_fetched = fields.Date.from_string(last_fetched_raw)
+        except Exception:
+            last_fetched = end_date - timedelta(days=30)
+
+        try:
+            min_start = fields.Date.from_string(min_start_date)
+        except Exception:
+            min_start = fields.Date.to_date('2026-01-01')
+
+        start_date = max(min_start, last_fetched - timedelta(days=overlap_days))
 
         result = api_client.get_incoming_documents(start_date, end_date, document_type='EFATURA', company=company)
         if not result.get('success'):
+            _logger.warning("QNB gelen belgeler alınamadı: %s", result.get('message'))
             return
 
         journal = self._qnb_get_purchase_journal(company)
         if not journal:
+            _logger.warning("QNB gelen: satınalma yevmiyesi bulunamadı (company=%s)", company.id)
             return
 
-        for doc in result.get('documents', []):
-            ettn = doc.get('ettn')
+        documents = result.get('documents', []) or []
+
+        def _doc_date_in_range(doc):
+            raw = (doc.get('date') or '').strip()
+            if not raw:
+                return False
+            if len(raw) == 8 and raw.isdigit():
+                raw = f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
+            try:
+                d = fields.Date.from_string(raw)
+            except Exception:
+                return False
+            return start_date <= d <= end_date
+
+        filtered = [doc for doc in documents if _doc_date_in_range(doc)]
+
+        ettns = [d.get('ettn') for d in filtered if d.get('ettn')]
+        refs = [d.get('belge_no') for d in filtered if d.get('belge_no')]
+
+        existing_ettn = set()
+        if ettns:
+            existing_ettn = set(r['qnb_ettn'] for r in self.search_read([
+                ('company_id', '=', company.id),
+                ('qnb_ettn', 'in', ettns),
+            ], ['qnb_ettn']))
+
+        existing_ref = set()
+        if refs:
+            existing_ref = set(r['ref'] for r in self.search_read([
+                ('company_id', '=', company.id),
+                ('move_type', '=', 'in_invoice'),
+                ('ref', 'in', refs),
+            ], ['ref']))
+
+        imported = 0
+        skipped = 0
+        errors = 0
+
+        for doc in filtered:
+            ettn = (doc.get('ettn') or '').strip()
             if not ettn:
                 continue
-            if self.search_count([('qnb_ettn', '=', ettn), ('company_id', '=', company.id)]) > 0:
+            ref = (doc.get('belge_no') or '').strip()
+            if ettn in existing_ettn or (ref and ref in existing_ref):
+                skipped += 1
                 continue
 
             download = api_client.download_incoming_document(ettn, document_type='EFATURA', company=company)
             if not download.get('success'):
-                continue
-            if self.search_count([('qnb_ettn', '=', ettn), ('company_id', '=', company.id)]) > 0:
+                errors += 1
+                _logger.warning("QNB gelen XML indirilemedi (ETTN=%s): %s", ettn, download.get('message'))
                 continue
 
             xml_bytes = self._qnb_normalize_xml_bytes(download.get('content'))
             if not xml_bytes:
+                errors += 1
+                _logger.warning("QNB gelen XML boş (ETTN=%s)", ettn)
                 continue
 
-            # Nilvera ile aynı: attachment oluştur, Odoo UBL import ile fatura üret
+            parsed = self.env['qnb.document']._parse_invoice_xml_full(xml_bytes, direction='incoming')
+            partner_data = parsed.get('partner') or {}
+            doc_info = parsed.get('document_info') or {}
+
+            fallback = {
+                'vat': (doc.get('sender_vkn') or doc.get('sender_vkn_tckn') or '').strip(),
+                'name': (doc.get('sender_title') or '').strip(),
+            }
+
+            profile = (doc_info.get('profile') or '').strip()
+            is_einvoice = str(profile).upper() != 'EARSIVFATURA'
+            partner = self._qnb_find_or_create_partner_from_data(company, partner_data, fallback, is_einvoice)
+            if not partner:
+                errors += 1
+                _logger.warning("QNB gelen partner eşleşmedi/oluşturulamadı (ETTN=%s, ref=%s)", ettn, ref or '-')
+                continue
+
+            invoice_lines = []
+            for line in (parsed.get('lines') or []):
+                product = self._qnb_find_or_create_product_from_line(company, line, partner=partner)
+                qty = line.get('quantity') or 1.0
+                unit_price = line.get('unit_price')
+                if not unit_price and line.get('line_total') and qty:
+                    try:
+                        unit_price = float(line.get('line_total')) / float(qty)
+                    except Exception:
+                        unit_price = 0.0
+
+                line_vals = {
+                    'name': line.get('product_description') or line.get('product_name') or (product.name if product else 'Ürün'),
+                    'quantity': qty,
+                    'price_unit': unit_price or 0.0,
+                }
+                if product:
+                    line_vals['product_id'] = product.id
+
+                tax = self._qnb_find_tax(company, line.get('tax_percent'), tax_use='purchase')
+                if tax:
+                    line_vals['tax_ids'] = [(6, 0, [tax.id])]
+
+                invoice_lines.append((0, 0, line_vals))
+
+            if not invoice_lines:
+                total_amount = (doc.get('total') or (parsed.get('amounts') or {}).get('total') or 0.0)
+                invoice_lines = [(0, 0, {
+                    'name': ref or (doc_info.get('invoice_id') or 'QNB Fatura'),
+                    'quantity': 1.0,
+                    'price_unit': float(total_amount or 0.0),
+                })]
+
+            doc_date = None
+            doc_date_raw = doc_info.get('issue_date') or doc.get('date')
+            if doc_date_raw:
+                try:
+                    if isinstance(doc_date_raw, str) and len(doc_date_raw) == 8 and doc_date_raw.isdigit():
+                        doc_date_raw = f"{doc_date_raw[:4]}-{doc_date_raw[4:6]}-{doc_date_raw[6:8]}"
+                    doc_date = fields.Date.from_string(doc_date_raw)
+                except Exception:
+                    doc_date = fields.Date.today()
+
+            currency_name = (doc_info.get('currency') or doc.get('currency') or 'TRY')
+            currency = self.env['res.currency'].search([('name', '=', currency_name)], limit=1)
+
+            uuid_val = self._qnb_extract_uuid_from_xml(xml_bytes)
+            move = self.env['account.move'].create({
+                'move_type': 'in_invoice',
+                'partner_id': partner.id,
+                'invoice_date': doc_date or fields.Date.today(),
+                'ref': ref or doc_info.get('invoice_id') or ettn,
+                'company_id': company.id,
+                'journal_id': journal.id,
+                'currency_id': currency.id if currency else company.currency_id.id,
+                'invoice_line_ids': invoice_lines,
+                'qnb_ettn': ettn,
+                'qnb_uuid': uuid_val,
+                'qnb_state': 'delivered',
+            })
+
             attachment = self.env['ir.attachment'].create({
-                'name': f'{ettn}.xml',
+                'name': f"{move.ref or ettn}.xml",
+                'res_model': 'account.move',
+                'res_id': move.id,
                 'raw': xml_bytes,
                 'type': 'binary',
                 'mimetype': 'application/xml',
             })
+            if not move.message_main_attachment_id:
+                move.message_main_attachment_id = attachment
+
+            try:
+                move._qnb_generate_odoo_pdf()
+            except Exception as e:
+                _logger.warning("PDF oluşturma hatası (ETTN=%s): %s", ettn, str(e))
+
+            imported += 1
+            existing_ettn.add(ettn)
+            if ref:
+                existing_ref.add(ref)
+
+        self._qnb_set_last_fetch_date(company, fields.Date.to_string(end_date))
+        _logger.info(
+            "QNB gelen senkron (overlap=%s gün, start=%s, end=%s): yeni=%s, atla=%s, hata=%s",
+            overlap_days, start_date, end_date, imported, skipped, errors
+        )
+
+    def _qnb_reconcile_outgoing_recent(self, days=60, batch_size=200):
+        """QNB giden belgelerde (FATURA_UBL) Odoo'da olmayanları kontrol eder, draft satış faturası oluşturur."""
+        company = self.env.company
+        if not getattr(company, 'qnb_enabled', False):
+            return
+
+        api_client = self.env['qnb.api.client']
+        end_date = fields.Date.today()
+        start_date = end_date - timedelta(days=days)
+        start_date = max(start_date, fields.Date.to_date('2026-01-01'))
+
+        journal = self._qnb_get_sale_journal(company)
+        if not journal:
+            _logger.warning("QNB giden: satış yevmiyesi bulunamadı (company=%s)", company.id)
+            return
+
+        result = api_client.get_outgoing_documents(
+            datetime.combine(start_date, datetime.min.time()),
+            datetime.combine(end_date, datetime.max.time()),
+            document_type='FATURA_UBL',
+            company=company,
+        )
+        if not result.get('success'):
+            _logger.warning("QNB giden liste alınamadı: %s", result.get('message'))
+            return
+
+        documents = result.get('documents', []) or []
+
+        def _doc_date(doc):
+            raw = (doc.get('date') or '').strip()
+            if isinstance(raw, str) and len(raw) == 8 and raw.isdigit():
+                raw = f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
+            try:
+                return fields.Date.from_string(raw) if raw else None
+            except Exception:
+                return None
+
+        filtered = []
+        for doc in documents:
+            d = _doc_date(doc)
+            if d and start_date <= d <= end_date:
+                filtered.append(doc)
+
+        ettns = [d.get('ettn') for d in filtered if d.get('ettn')]
+        refs = [d.get('belge_no') for d in filtered if d.get('belge_no')]
+
+        existing_ettn = set()
+        if ettns:
+            existing_ettn = set(r['qnb_ettn'] for r in self.search_read([
+                ('company_id', '=', company.id),
+                ('qnb_ettn', 'in', ettns),
+            ], ['qnb_ettn']))
+
+        existing_ref = set()
+        if refs:
+            existing_ref = set(r['ref'] for r in self.search_read([
+                ('company_id', '=', company.id),
+                ('move_type', 'in', ['out_invoice', 'out_refund']),
+                ('ref', 'in', refs),
+            ], ['ref']))
+
+        imported = 0
+        skipped = 0
+        errors = 0
+
+        for doc in filtered[:batch_size]:
+            ettn = (doc.get('ettn') or '').strip()
+            if not ettn:
+                continue
+            ref = (doc.get('belge_no') or '').strip()
+            if ettn in existing_ettn or (ref and ref in existing_ref):
+                skipped += 1
+                continue
+
+            download = api_client.download_outgoing_document(ettn, document_type='FATURA', company=company, format_type='UBL')
+            if not download.get('success'):
+                errors += 1
+                _logger.warning("QNB giden XML indirilemedi (ETTN=%s): %s", ettn, download.get('message'))
+                continue
+
+            xml_bytes = self._qnb_normalize_xml_bytes(download.get('content'))
+            if not xml_bytes:
+                errors += 1
+                _logger.warning("QNB giden XML boş (ETTN=%s)", ettn)
+                continue
+
+            parsed = self.env['qnb.document']._parse_invoice_xml_full(xml_bytes, direction='outgoing')
+            partner_data = parsed.get('partner') or {}
+            doc_info = parsed.get('document_info') or {}
+
+            fallback = {
+                'vat': (doc.get('recipient_vkn') or doc.get('receiver_vkn') or '').strip(),
+                'name': (doc.get('recipient_title') or doc.get('receiver_title') or '').strip(),
+            }
+            profile = (doc_info.get('profile') or '').strip()
+            is_einvoice = str(profile).upper() != 'EARSIVFATURA'
+            partner = self._qnb_find_or_create_partner_from_data(company, partner_data, fallback, is_einvoice)
+            if not partner:
+                errors += 1
+                _logger.warning("QNB giden partner eşleşmedi/oluşturulamadı (ETTN=%s, ref=%s)", ettn, ref or '-')
+                continue
+
+            invoice_lines = []
+            for line in (parsed.get('lines') or []):
+                product = self._qnb_find_or_create_product_from_line(company, line, partner=partner)
+                qty = line.get('quantity') or 1.0
+                unit_price = line.get('unit_price')
+                if not unit_price and line.get('line_total') and qty:
+                    try:
+                        unit_price = float(line.get('line_total')) / float(qty)
+                    except Exception:
+                        unit_price = 0.0
+
+                line_vals = {
+                    'name': line.get('product_description') or line.get('product_name') or (product.name if product else 'Ürün'),
+                    'quantity': qty,
+                    'price_unit': unit_price or 0.0,
+                }
+                if product:
+                    line_vals['product_id'] = product.id
+                tax = self._qnb_find_tax(company, line.get('tax_percent'), tax_use='sale')
+                if tax:
+                    line_vals['tax_ids'] = [(6, 0, [tax.id])]
+                invoice_lines.append((0, 0, line_vals))
+
+            if not invoice_lines:
+                total_amount = (doc.get('total') or (parsed.get('amounts') or {}).get('total') or 0.0)
+                invoice_lines = [(0, 0, {
+                    'name': ref or (doc_info.get('invoice_id') or 'QNB Satış Faturası'),
+                    'quantity': 1.0,
+                    'price_unit': float(total_amount or 0.0),
+                })]
+
+            doc_date = None
+            doc_date_raw = doc_info.get('issue_date') or doc.get('date')
+            if doc_date_raw:
+                try:
+                    if isinstance(doc_date_raw, str) and len(doc_date_raw) == 8 and doc_date_raw.isdigit():
+                        doc_date_raw = f"{doc_date_raw[:4]}-{doc_date_raw[4:6]}-{doc_date_raw[6:8]}"
+                    doc_date = fields.Date.from_string(doc_date_raw)
+                except Exception:
+                    doc_date = fields.Date.today()
+
+            currency_name = (doc_info.get('currency') or doc.get('currency') or 'TRY')
+            currency = self.env['res.currency'].search([('name', '=', currency_name)], limit=1)
 
             uuid_val = self._qnb_extract_uuid_from_xml(xml_bytes)
+            move = self.env['account.move'].create({
+                'move_type': 'out_invoice',
+                'partner_id': partner.id,
+                'invoice_date': doc_date or fields.Date.today(),
+                'ref': ref or doc_info.get('invoice_id') or ettn,
+                'company_id': company.id,
+                'journal_id': journal.id,
+                'currency_id': currency.id if currency else company.currency_id.id,
+                'invoice_line_ids': invoice_lines,
+                'qnb_ettn': ettn,
+                'qnb_uuid': uuid_val,
+                'qnb_state': 'sent',
+            })
+
+            attachment = self.env['ir.attachment'].create({
+                'name': f"{move.ref or ettn}.xml",
+                'res_model': 'account.move',
+                'res_id': move.id,
+                'raw': xml_bytes,
+                'type': 'binary',
+                'mimetype': 'application/xml',
+            })
+            if not move.message_main_attachment_id:
+                move.message_main_attachment_id = attachment
+
             try:
-                invoices = journal.with_context(
-                    default_move_type='in_invoice',
-                )._create_document_from_attachment(attachment.id)
+                move._qnb_generate_odoo_pdf()
             except Exception as e:
-                _logger.warning(f"QNB UBL import hatası (ETTN: {ettn}): {e}")
-                # Nilvera gibi: hata olursa boş fatura + attachment ile devam et
-                invoices = self.env['account.move'].create({
-                    'move_type': 'in_invoice',
-                    'company_id': company.id,
-                    'journal_id': journal.id,
-                    'qnb_ettn': ettn,
-                    'qnb_uuid': uuid_val,
-                    'qnb_state': 'delivered',
-                    'message_main_attachment_id': attachment.id,
-                })
-                attachment.write({'res_model': 'account.move', 'res_id': invoices.id})
-                invoices.message_post(body=_("QNB belge UBL import sırasında hata oluştu. Manuel kontrol gerekebilir."))
+                _logger.warning("PDF oluşturma hatası (ETTN=%s): %s", ettn, str(e))
 
-            # QNB alanlarını her durumda güncelle
-            for move in invoices:
-                move.write({
-                    'qnb_ettn': ettn,
-                    'qnb_uuid': uuid_val or move.qnb_uuid,
-                    'qnb_state': 'delivered',
-                })
+            imported += 1
+            existing_ettn.add(ettn)
+            if ref:
+                existing_ref.add(ref)
 
-            for move in invoices:
-                try:
-                    move._qnb_generate_odoo_pdf()
-                except Exception as e:
-                    _logger.warning(f"PDF oluşturma hatası (ETTN: {ettn}): {str(e)}")
+        _logger.info(
+            "QNB giden mutabakat (son %s gün, start=%s, end=%s): yeni=%s, atla=%s, hata=%s",
+            days, start_date, end_date, imported, skipped, errors
+        )
 
-        self._qnb_set_last_fetch_date(company, end_date)
+    @api.model
+    def _cron_reconcile_external_invoices(self):
+        """30 dakikada bir mutabakat: QNB/Nilvera kaynaklarında olup Odoo'da olmayan kalmasın."""
+        companies = self.env['res.company'].search([('qnb_enabled', '=', True)])
+        for company in companies:
+            try:
+                self.with_company(company).with_context(allowed_company_ids=[company.id])._qnb_fetch_incoming_documents()
+            except Exception as e:
+                _logger.error("QNB gelen mutabakat hatası (company=%s): %s", company.id, str(e))
 
+            try:
+                self.with_company(company).with_context(allowed_company_ids=[company.id])._qnb_reconcile_outgoing_recent()
+            except Exception as e:
+                _logger.error("QNB giden mutabakat hatası (company=%s): %s", company.id, str(e))
+
+        # Nilvera cronları zaten 15 dk çalışıyor.
     def _qnb_fetch_outgoing_documents(self, batch_size=50):
         company = self.env.company
         api_client = self.env['qnb.api.client']
