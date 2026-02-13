@@ -15,10 +15,7 @@ class AccountBankStatementLine(models.Model):
         help='Mükerrer önleme için benzersiz banka işlem referansı',
     )
 
-    _sql_constraints = [
-        (
-            'unique_bank_import_ref',
-            'UNIQUE(bank_import_ref)',
-            'Bu banka işlemi zaten içeri aktarılmış!',
-        ),
-    ]
+    _unique_bank_import_ref = models.Constraint(
+        'UNIQUE(bank_import_ref)',
+        'Bu banka işlemi zaten içeri aktarılmış!',
+    )

@@ -165,7 +165,7 @@
                 <filter name="error" string="Hatalı"
                     domain="[('state', '=', 'error')]" />
                 <separator />
-                <group expand="0" string="Grupla">
+                <group>
                     <filter string="Banka" name="group_bank"
                         context="{'group_by': 'bank_type'}" />
                     <filter string="Durum" name="group_state"
