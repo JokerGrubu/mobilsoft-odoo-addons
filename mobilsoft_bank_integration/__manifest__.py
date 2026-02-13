@@ -1,77 +1,41 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'MobilSoft Banka Entegrasyonu',
-    "version": "19.0.1.0.0",
-    "category": "Accounting/Banking",
-    "summary": "Turkish Banks Open Banking API Integration (Garanti BBVA, Ziraat, QNB, İş Bankası)",
-    "description": """
-Turkish Banks Open Banking Integration
-========================================
+    'version': '19.0.2.0.0',
+    'category': 'Accounting/Banking',
+    'summary': 'Türk Bankaları Open Banking API Entegrasyonu',
+    'description': """
+Türk Bankaları Open Banking Entegrasyonu - Odoo 19
 
-Comprehensive banking integration for Turkish banks with Open Banking APIs.
+Desteklenen Bankalar:
+* Garanti BBVA - OAuth 2.0 ile tam entegrasyon
+* Ziraat Bankası - Kurumsal ve bireysel hesap desteği
+* QNB Finansbank - Hesap ve işlem senkronizasyonu
 
-Features:
----------
-* **Garanti BBVA API** - Full integration with OAuth 2.0
-* **Ziraat Bank API** - Corporate and retail accounts
-* **Multi-Currency Support** - Auto exchange rate updates
-* **Transaction Sync** - Automated transaction fetching
-* **Account Management** - Real-time balance and account info
-* **Payment Initiation** - Domestic and international transfers
-* **Webhook Support** - Real-time payment notifications
-* **Security** - Encrypted credentials, KVKK/GDPR compliant
-
-Supported Banks:
-----------------
-* Garanti BBVA ✅ (Priority)
-* Ziraat Bankası ✅ (Priority)
-* QNB Finansbank ⏳ (Planned)
-* İş Bankası ⏳ (Planned)
-* TEB, Denizbank, Halk ⏳ (Future)
-
-Technical Stack:
-----------------
-* OAuth 2.0 Authentication
-* REST API Integration
-* Automated Cron Jobs
-* Multi-company Support
-* Test Data / Sandbox Mode
+Özellikler:
+* Banka hesaplarını otomatik senkronize eder
+* İşlemleri Odoo banka ekstresi satırı olarak kaydeder
+* Döviz kurlarını bankadan günceller
+* Mükerrer işlem önleme (unique import ref)
+* Otomatik partner eşleştirme (VKN, IBAN, isim)
+* Çoklu şirket desteği
+* Güvenlik grupları ve yetkilendirme
     """,
     'author': 'MobilSoft',
-    'website': 'https://www.mobilsoft.net',
+    'website': 'https://www.jokergrubu.com',
     'license': 'LGPL-3',
-    "depends": [
-        "base",
-        "account",
-        "account_payment",
-        "base_setup",
+    'depends': ['account', 'mail'],
+    'data': [
+        'security/security.xml',
+        'security/ir.model.access.csv',
+        'data/bank_data.xml',
+        'data/cron_jobs.xml',
+        'views/bank_connector_views.xml',
+        'views/menu_views.xml',
+        'wizards/bank_sync_wizard_views.xml',
     ],
-    "data": [
-        # Security
-        "security/security.xml",
-        "security/ir.model.access.csv",
-        # Data
-        "data/bank_data.xml",
-        "data/cron_jobs.xml",
-        # Views - order matters! actions must be defined before use
-        "views/bank_account_views.xml",
-        "views/bank_transaction_views.xml",
-        "views/bank_connector_views.xml",
-        "views/menu_views.xml",
-        # Wizards
-        "wizards/bank_sync_wizard_views.xml",
-    ],
-    "demo": [
-        "demo/demo_data.xml",
-    ],
-    "images": [
-        "static/description/banner.png",
-        "static/description/icon.png",
-    ],
-    "installable": True,
-    "application": True,
-    "auto_install": False,
-    "external_dependencies": {
-        "python": ["requests"],
-    },
+    'installable': True,
+    'application': True,
+    'auto_install': False,
+    'external_dependencies': {'python': ['requests']},
 }

@@ -1,44 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Main Menu -->
+    <!-- Root Menu -->
     <menuitem id="menu_bank_integration_root"
-        name="Bank Integration"
+        name="Banka Entegrasyonu"
         sequence="50"
-        web_icon="mobilsoft_bank_integration,static/description/icon.png" />
+        web_icon="mobilsoft_bank_integration,static/description/icon.png"
+        groups="group_bank_integration_user" />
 
-    <!-- Configuration Menu -->
-    <menuitem id="menu_bank_integration_config"
-        name="Configuration"
+    <!-- Connectors -->
+    <menuitem id="menu_bank_connectors"
+        name="Banka Bağlantıları"
         parent="menu_bank_integration_root"
-        sequence="100" />
-
-    <!-- Garanti BBVA -->
-    <menuitem id="menu_bank_connector_garantibbva"
-        name="Garanti BBVA"
-        parent="menu_bank_integration_config"
-        action="action_bank_connector_garantibbva"
+        action="action_bank_connector"
         sequence="10" />
 
-    <!-- Ziraat Bank -->
-    <menuitem id="menu_bank_connector_ziraat"
-        name="Ziraat Bank"
-        parent="menu_bank_integration_config"
-        action="action_bank_connector_ziraat"
-        sequence="20" />
-
-    <!-- Transactions Menu -->
-    <menuitem id="menu_bank_transactions"
-        name="Transactions"
+    <!-- Sync Wizard -->
+    <menuitem id="menu_bank_sync_wizard"
+        name="Senkronizasyon"
         parent="menu_bank_integration_root"
-        action="action_bank_transaction"
-        sequence="10" />
-
-    <!-- Bank Accounts Menu -->
-    <menuitem id="menu_bank_accounts"
-        name="Bank Accounts"
-        parent="menu_bank_integration_root"
-        action="action_bank_account"
+        action="action_bank_sync_wizard"
         sequence="20" />
 
 </odoo>

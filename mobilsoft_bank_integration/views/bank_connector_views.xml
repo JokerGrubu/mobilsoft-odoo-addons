@@ -1,85 +1,124 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Garanti BBVA Connector Form View -->
-    <record id="view_bank_connector_garantibbva_form" model="ir.ui.view">
-        <field name="name">bank.connector.garantibbva.form</field>
-        <field name="model">bank.connector.garantibbva</field>
+    <!-- Bank Connector Form View -->
+    <record id="view_bank_connector_form" model="ir.ui.view">
+        <field name="name">bank.connector.form</field>
+        <field name="model">bank.connector</field>
         <field name="arch" type="xml">
-            <form string="Garanti BBVA Connector">
+            <form string="Banka Konektörü">
                 <header>
-                    <button name="action_connect" string="Connect" type="object"
-                        class="btn-primary" invisible="state == 'connected'" />
-                    <button name="action_disconnect" string="Disconnect" type="object"
-                        class="btn-secondary" invisible="state != 'connected'" />
-                    <button name="action_test_connection" string="Test Connection" type="object"
-                        class="btn-secondary" invisible="state != 'connected'" />
-                    <button name="sync_accounts" string="Sync Accounts" type="object"
-                        class="btn-primary" invisible="state != 'connected'" />
-                    <button name="sync_transactions" string="Sync Transactions" type="object"
-                        class="btn-primary" invisible="state != 'connected'" />
-                    <button name="sync_exchange_rates" string="Sync Exchange Rates" type="object"
-                        class="btn-primary" invisible="state != 'connected'" />
-                    <button name="action_sync_all" string="Sync All" type="object"
-                        class="btn-primary" invisible="state != 'connected'" />
+                    <button name="action_connect" string="Bağlan" type="object"
+                        class="btn-primary"
+                        invisible="state == 'connected'" />
+                    <button name="action_disconnect" string="Bağlantıyı Kes" type="object"
+                        class="btn-secondary"
+                        invisible="state != 'connected'" />
+                    <button name="action_test_connection" string="Bağlantı Testi" type="object"
+                        class="btn-secondary"
+                        invisible="state != 'connected'" />
+                    <button name="sync_accounts" string="Hesapları Çek" type="object"
+                        class="btn-primary"
+                        invisible="state != 'connected'" />
+                    <button name="sync_transactions" string="İşlemleri Çek" type="object"
+                        class="btn-primary"
+                        invisible="state != 'connected'" />
+                    <button name="sync_exchange_rates" string="Kurları Güncelle" type="object"
+                        class="btn-primary"
+                        invisible="state != 'connected'" />
+                    <button name="action_sync_all" string="Tümünü Senkronize Et" type="object"
+                        class="btn-success"
+                        invisible="state != 'connected'" />
                     <field name="state" widget="statusbar"
                         statusbar_visible="draft,connected" />
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button name="%(action_bank_transaction)d" type="action"
-                            class="oe_stat_button" icon="fa-exchange">
-                            <field name="total_transactions" widget="statinfo"
-                                string="Transactions" />
-                        </button>
-                        <button name="%(action_bank_account)d" type="action"
-                            class="oe_stat_button" icon="fa-bank">
+                        <button class="oe_stat_button" icon="fa-bank"
+                            type="object" name="action_view_accounts">
                             <field name="total_accounts" widget="statinfo"
-                                string="Accounts" />
+                                string="Hesap" />
                         </button>
                     </div>
 
-                    <widget name="web_ribbon" title="Sandbox" bg_color="text-bg-warning"
+                    <widget name="web_ribbon" title="Test Modu"
+                        bg_color="text-bg-warning"
                         invisible="not sandbox_mode" />
 
                     <div class="oe_title">
-                        <label for="name" string="Connector Name" />
+                        <label for="name" />
                         <h1>
-                            <field name="name" placeholder="e.g., Garanti BBVA Production" />
+                            <field name="name"
+                                placeholder="Bağlantı adı..." />
                         </h1>
                     </div>
 
                     <group>
-                        <group name="basic_info">
-                            <field name="bank_id" options="{'no_create': True}" />
-                            <field name="company_id" groups="base.group_multi_company" />
+                        <group string="Genel">
+                            <field name="bank_type" />
+                            <field name="bank_id"
+                                options="{'no_create': True}" />
+                            <field name="company_id"
+                                groups="base.group_multi_company" />
                             <field name="sandbox_mode" />
                         </group>
-                        <group name="sync_info">
+                        <group string="Senkronizasyon">
                             <field name="auto_sync_enabled" />
                             <field name="sync_interval"
                                 invisible="not auto_sync_enabled" />
-                            <field name="last_sync" readonly="1" />
+                            <field name="last_sync" />
                         </group>
                     </group>
 
                     <notebook>
-                        <page string="OAuth Configuration" name="oauth">
+                        <page string="OAuth Yapılandırması" name="oauth">
                             <group>
                                 <group>
-                                    <field name="client_id" password="True" />
-                                    <field name="client_secret" password="True" />
+                                    <field name="client_id"
+                                        password="True" />
+                                    <field name="client_secret"
+                                        password="True" />
                                     <field name="redirect_uri" />
                                 </group>
                                 <group>
-                                    <field name="garantibbva_scope" />
-                                    <field name="access_token" readonly="1" password="True" />
-                                    <field name="token_expires_at" readonly="1" />
+                                    <field name="garantibbva_scope"
+                                        invisible="bank_type != 'garantibbva'" />
+                                    <field name="token_expires_at"
+                                        readonly="1" />
                                 </group>
                             </group>
                         </page>
 
-                        <page string="Error Log" name="errors"
+                        <page string="Banka Ayarları" name="bank_settings"
+                            invisible="bank_type not in ('ziraat', 'qnb')">
+                            <group invisible="bank_type != 'ziraat'"
+                                string="Ziraat Bankası">
+                                <field name="is_corporate" />
+                                <field name="corporate_customer_no"
+                                    invisible="not is_corporate" />
+                                <field name="ziraat_tax_number"
+                                    invisible="not is_corporate" />
+                            </group>
+                            <group invisible="bank_type != 'qnb'"
+                                string="QNB Finansbank">
+                                <field name="qnb_customer_no" />
+                                <field name="qnb_branch_code" />
+                            </group>
+                        </page>
+
+                        <page string="Banka Hesapları" name="accounts">
+                            <field name="account_ids" readonly="1">
+                                <list>
+                                    <field name="acc_number" />
+                                    <field name="acc_holder_name" />
+                                    <field name="currency_id" />
+                                    <field name="bank_external_account_id" />
+                                    <field name="last_sync" />
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Hata Günlüğü" name="errors"
                             invisible="not last_error">
                             <field name="last_error" readonly="1" />
                         </page>
@@ -90,109 +129,64 @@
         </field>
     </record>
 
-    <!-- Garanti BBVA Connector List View -->
-    <record id="view_bank_connector_garantibbva_list" model="ir.ui.view">
-        <field name="name">bank.connector.garantibbva.list</field>
-        <field name="model">bank.connector.garantibbva</field>
+    <!-- Bank Connector List View -->
+    <record id="view_bank_connector_list" model="ir.ui.view">
+        <field name="name">bank.connector.list</field>
+        <field name="model">bank.connector</field>
         <field name="arch" type="xml">
-            <list string="Garanti BBVA Connectors">
+            <list string="Banka Konektörleri">
                 <field name="name" />
+                <field name="bank_type" />
                 <field name="bank_id" />
-                <field name="company_id" groups="base.group_multi_company" />
+                <field name="company_id"
+                    groups="base.group_multi_company" />
                 <field name="sandbox_mode" widget="boolean_toggle" />
                 <field name="state" widget="badge"
                     decoration-success="state == 'connected'"
                     decoration-danger="state == 'error'"
-                    decoration-muted="state == 'disconnected'" />
+                    decoration-muted="state in ('disconnected', 'draft')" />
                 <field name="last_sync" />
                 <field name="total_accounts" />
-                <field name="total_transactions" />
             </list>
         </field>
     </record>
 
-    <!-- Ziraat Connector Form View -->
-    <record id="view_bank_connector_ziraat_form" model="ir.ui.view">
-        <field name="name">bank.connector.ziraat.form</field>
-        <field name="model">bank.connector.ziraat</field>
+    <!-- Bank Connector Search View -->
+    <record id="view_bank_connector_search" model="ir.ui.view">
+        <field name="name">bank.connector.search</field>
+        <field name="model">bank.connector</field>
         <field name="arch" type="xml">
-            <form string="Ziraat Bank Connector">
-                <header>
-                    <button name="action_connect" string="Connect" type="object"
-                        class="btn-primary" invisible="state == 'connected'" />
-                    <button name="action_disconnect" string="Disconnect" type="object"
-                        class="btn-secondary" invisible="state != 'connected'" />
-                    <button name="sync_accounts" string="Sync Accounts" type="object"
-                        class="btn-primary" invisible="state != 'connected'" />
-                    <field name="state" widget="statusbar"
-                        statusbar_visible="draft,connected" />
-                </header>
-                <sheet>
-                    <widget name="web_ribbon" title="Corporate" bg_color="text-bg-info"
-                        invisible="not is_corporate" />
-
-                    <div class="oe_title">
-                        <label for="name" string="Connector Name" />
-                        <h1>
-                            <field name="name" placeholder="e.g., Ziraat Bank Corporate" />
-                        </h1>
-                    </div>
-
-                    <group>
-                        <group>
-                            <field name="bank_id" />
-                            <field name="company_id" groups="base.group_multi_company" />
-                            <field name="sandbox_mode" />
-                            <field name="is_corporate" />
-                        </group>
-                        <group>
-                            <field name="corporate_customer_no"
-                                invisible="not is_corporate" />
-                            <field name="tax_number"
-                                invisible="not is_corporate" />
-                            <field name="last_sync" readonly="1" />
-                        </group>
-                    </group>
-
-                    <notebook>
-                        <page string="OAuth Configuration" name="oauth">
-                            <group>
-                                <field name="client_id" password="True" />
-                                <field name="client_secret" password="True" />
-                                <field name="redirect_uri" />
-                            </group>
-                        </page>
-                    </notebook>
-                </sheet>
-            </form>
+            <search string="Banka Konektörleri">
+                <field name="name" />
+                <field name="bank_type" />
+                <field name="bank_id" />
+                <filter name="connected" string="Bağlı"
+                    domain="[('state', '=', 'connected')]" />
+                <filter name="error" string="Hatalı"
+                    domain="[('state', '=', 'error')]" />
+                <separator />
+                <group expand="0" string="Grupla">
+                    <filter string="Banka" name="group_bank"
+                        context="{'group_by': 'bank_type'}" />
+                    <filter string="Durum" name="group_state"
+                        context="{'group_by': 'state'}" />
+                </group>
+            </search>
         </field>
     </record>
 
-    <!-- Actions -->
-    <record id="action_bank_connector_garantibbva" model="ir.actions.act_window">
-        <field name="name">Garanti BBVA Connectors</field>
-        <field name="res_model">bank.connector.garantibbva</field>
+    <!-- Action -->
+    <record id="action_bank_connector" model="ir.actions.act_window">
+        <field name="name">Banka Konektörleri</field>
+        <field name="res_model">bank.connector</field>
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Create a Garanti BBVA Bank Connection
+                Yeni bir banka bağlantısı oluşturun
             </p>
             <p>
-                Configure OAuth credentials to connect to Garanti BBVA Open Banking API.
-            </p>
-        </field>
-    </record>
-
-    <record id="action_bank_connector_ziraat" model="ir.actions.act_window">
-        <field name="name">Ziraat Bank Connectors</field>
-        <field name="res_model">bank.connector.ziraat</field>
-        <field name="view_mode">list,form</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                Create a Ziraat Bank Connection
-            </p>
-            <p>
-                Configure OAuth credentials for Ziraat Bank API integration.
+                Garanti BBVA, Ziraat Bankası veya QNB Finansbank
+                API bağlantısı yapılandırın.
             </p>
         </field>
     </record>

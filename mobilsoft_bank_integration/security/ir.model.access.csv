@@ -1,8 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_bank_connector_garantibbva_user,bank.connector.garantibbva user,model_bank_connector_garantibbva,group_bank_integration_user,1,0,0,0
-access_bank_connector_garantibbva_manager,bank.connector.garantibbva manager,model_bank_connector_garantibbva,group_bank_integration_manager,1,1,1,1
-access_bank_connector_ziraat_user,bank.connector.ziraat user,model_bank_connector_ziraat,group_bank_integration_user,1,0,0,0
-access_bank_connector_ziraat_manager,bank.connector.ziraat manager,model_bank_connector_ziraat,group_bank_integration_manager,1,1,1,1
-access_bank_transaction_user,bank.transaction user,model_bank_transaction,group_bank_integration_user,1,1,0,0
-access_bank_transaction_manager,bank.transaction manager,model_bank_transaction,group_bank_integration_manager,1,1,1,1
-access_bank_transaction_accountant,bank.transaction accountant,model_bank_transaction,account.group_account_user,1,1,1,0
+access_bank_connector_user,bank.connector user,model_bank_connector,group_bank_integration_user,1,0,0,0
+access_bank_connector_manager,bank.connector manager,model_bank_connector,group_bank_integration_manager,1,1,1,1
+access_bank_sync_wizard_manager,bank.sync.wizard manager,model_bank_sync_wizard,group_bank_integration_manager,1,1,1,1
