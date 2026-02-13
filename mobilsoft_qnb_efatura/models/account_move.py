@@ -734,6 +734,25 @@ class AccountMove(models.Model):
             is_einvoice = str(profile).upper() != 'EARSIVFATURA'
             partner = self._qnb_find_or_create_partner_from_data(company, partner_data, fallback, is_einvoice)
             if not partner:
+                # Şirket ayarlarında otomatik partner oluşturma kapalı olsa bile,
+                # 2026+ belgelerde fatura eksik kalmasın diye minimum partner oluştur.
+                vat = (partner_data.get('vat') or fallback.get('vat') or '').strip()
+                name = (partner_data.get('name') or fallback.get('name') or '').strip()
+                if vat or name:
+                    vat_tr = vat if str(vat).upper().startswith('TR') else (f'TR{vat}' if vat else False)
+                    partner = self.env['res.partner'].create({
+                        'name': name or (f'Firma {vat}' if vat else 'Firma'),
+                        'vat': vat_tr,
+                        'is_company': True,
+                        'supplier_rank': 1,
+                        'customer_rank': 0,
+                    })
+                    _logger.warning(
+                        "QNB gelen partner bulunamadı; otomatik oluşturuldu (ETTN=%s, ref=%s, vat=%s)",
+                        ettn, ref or '-', vat_tr or '-'
+                    )
+
+            if not partner:
                 errors += 1
                 _logger.warning("QNB gelen partner eşleşmedi/oluşturulamadı (ETTN=%s, ref=%s)", ettn, ref or '-')
                 continue
@@ -923,6 +942,23 @@ class AccountMove(models.Model):
             profile = (doc_info.get('profile') or '').strip()
             is_einvoice = str(profile).upper() != 'EARSIVFATURA'
             partner = self._qnb_find_or_create_partner_from_data(company, partner_data, fallback, is_einvoice)
+            if not partner:
+                vat = (partner_data.get('vat') or fallback.get('vat') or '').strip()
+                name = (partner_data.get('name') or fallback.get('name') or '').strip()
+                if vat or name:
+                    vat_tr = vat if str(vat).upper().startswith('TR') else (f'TR{vat}' if vat else False)
+                    partner = self.env['res.partner'].create({
+                        'name': name or (f'Firma {vat}' if vat else 'Müşteri'),
+                        'vat': vat_tr,
+                        'is_company': True,
+                        'supplier_rank': 0,
+                        'customer_rank': 1,
+                    })
+                    _logger.warning(
+                        "QNB giden partner bulunamadı; otomatik oluşturuldu (ETTN=%s, ref=%s, vat=%s)",
+                        ettn, ref or '-', vat_tr or '-'
+                    )
+
             if not partner:
                 errors += 1
                 _logger.warning("QNB giden partner eşleşmedi/oluşturulamadı (ETTN=%s, ref=%s)", ettn, ref or '-')
