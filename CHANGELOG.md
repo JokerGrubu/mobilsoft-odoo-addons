@@ -6,6 +6,16 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.2.0.1] - 2026-02-13 (mobilsoft_chart_update)
+
+### Kaldırılanlar
+- **mobilsoft_chart_update_tr** modülü kaldırıldı ve ana modülle birleştirildi.
+  - TR modülü sadece `_prepare_fp_vals` metodunu override ediyordu ancak bu metot ana modülde mevcut değildi (ölü kod).
+  - Modül uninstall edildi ve klasörü silindi.
+  - Ana modül (`mobilsoft_chart_update`) değişiklik gerektirmedi.
+
+---
+
 ## [19.0.2.0.0] - 2026-02-13 (mobilsoft_bank_integration)
 
 ### Eklenenler
