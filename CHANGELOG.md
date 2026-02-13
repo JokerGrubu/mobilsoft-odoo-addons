@@ -9,7 +9,7 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 ## [19.0.2.0.2] - 2026-02-13 (Modül Temizliği)
 
 ### Kaldırılanlar
-- **8 kullanılmayan modül** kaldırıldı (uninstall + klasör silme):
+- **11 kullanılmayan modül** kaldırıldı (uninstall + klasör silme):
   - `_disabled_mobilsoft_account_patch` — Bozuk (KeyError: tax_src_id), uninstallable
   - `mobilsoft_sequence_dynamic` — Odoo 16 versiyonu, Odoo 19 uyumsuz
   - `joker_enterprise_theme` — Kullanılmıyor
@@ -18,6 +18,9 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
   - `mobilsoft_pos_invoice` — Kullanılmıyor
   - `mobilsoft_consignment` — Kullanılmıyor
   - `l10n_tr_bank_mobilsoft` — Banka verileri DB'de kaldı, modüle gerek yok
+  - `l10n_tr_city_mobilsoft` — 973 ilçe verisi DB'de korundu (ir.model.data sahipliği __import__'a taşındı)
+  - `l10n_tr_mobilsoft` — Hesap planı şablonu ve alanları kullanılmıyordu (0 kayıt)
+  - `mobilsoft_chart_update` — Hesap planı güncelleme wizard'ı hiç kullanılmamıştı
 
 ---
 
