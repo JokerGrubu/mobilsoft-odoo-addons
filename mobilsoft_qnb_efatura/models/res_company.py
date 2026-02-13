@@ -165,7 +165,7 @@ class ResCompany(models.Model):
                 if low_credits:
                     # Sistem yöneticilerine mail gönder
                     admin_users = self.env['res.users'].search([
-                        ('groups_id', 'in', self.env.ref('base.group_system').id)
+                        ('group_ids', 'in', [self.env.ref('base.group_system').id])
                     ])
                     
                     for user in admin_users:

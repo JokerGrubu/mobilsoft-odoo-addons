@@ -8,7 +8,7 @@
     "summary": "A PayTR payment provider.",
     'author': 'MobilSoft',
     'website': 'https://www.mobilsoft.net',
-    "depends": ["payment", "account_payment", "sale"],
+    "depends": ["payment", "account_payment", "sale", "website_sale"],
     "data": [
         "data/payment_provider_data.xml",
         "views/payment_provider_views.xml",

@@ -47,40 +47,6 @@ class PaymentTransaction(models.Model):
 
         return super()._compute_reference(provider_code, prefix=re.sub(r'[\W]', '', prefix or ''), separator="", **kwargs)
 
-    @api.model
-    def _compute_reference_prefix(self, provider_code, separator, **values):
-        """Compute the reference prefix from the transaction values.
-
-        For PayTR, we need to ensure that the reference prefix contains only
-        alphanumeric characters without any special characters or spaces.
-
-        Args:
-            provider_code: The code of the payment provider
-            separator: The separator to use between prefix and reference
-            values: The transaction values used to compute the reference prefix
-
-        Returns:
-            str: The computed reference prefix
-        """
-        """ Compute the reference prefix from the transaction values.
-
-        Note: This method should be called in sudo mode to give access to the documents (invoices,
-        sales orders) referenced in the transaction values.
-
-        :param str provider_code: The code of the provider handling the transaction.
-        :param str separator: The custom separator used to separate parts of the computed
-                              reference prefix.
-        :param dict values: The transaction values used to compute the reference prefix.
-        :return: The computed reference prefix.
-        :rtype: str
-        """
-        if provider_code != 'paytr':
-            return super()._compute_reference_prefix(provider_code, separator, **values)
-
-        prefix = super()._compute_reference_prefix(provider_code, separator="", **values)
-
-        return re.sub(r'[\W]', '', prefix or '')
-
     def _get_tx_from_notification_data(self, provider_code, notification_data):
         """Find the transaction based on PayTR notification data.
 

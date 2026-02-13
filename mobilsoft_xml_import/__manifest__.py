@@ -50,6 +50,9 @@ XML Ürün Yönetimi - Import & Export Modülü
         'views/menu_views.xml',
         'views/product_enrichment_views.xml',
     ],
+    'external_dependencies': {
+        'python': ['beautifulsoup4', 'requests'],
+    },
     'installable': True,
     'application': True,
     'auto_install': False,
