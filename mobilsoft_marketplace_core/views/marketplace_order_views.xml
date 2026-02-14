@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
 
         <!-- Marketplace Order List View -->
         <record id="marketplace_order_tree" model="ir.ui.view">
             <field name="name">marketplace.order.tree</field>
             <field name="model">marketplace.order</field>
             <field name="arch" type="xml">
-                <tree string="Pazaryeri Siparişleri" decoration-danger="status == 'error'">
+                <list string="Pazaryeri Siparişleri" decoration-danger="status == 'error'">
                     <field name="channel_order_id" />
                     <field name="channel_id" />
                     <field name="order_date" />
@@ -15,7 +14,7 @@
                     <field name="amount_total" sum="Toplam" />
                     <field name="status" />
                     <field name="shipping_status" />
-                </tree>
+                </list>
             </field>
         </record>
 
@@ -28,20 +27,20 @@
                     <header>
                         <button name="action_confirm" type="object" string="Odoo'ya Aktar"
                             class="oe_highlight"
-                            invisible="('synced_to_odoo', '=', True)" />
+                            invisible="synced_to_odoo" />
                         <button name="action_mark_shipped" type="object" string="Gönderildi"
-                            invisible="('status', 'not in', ['confirmed', 'packed'])" />
+                            invisible="status not in ('confirmed', 'packed')" />
                         <button name="action_mark_delivered" type="object" string="Teslim Edildi"
-                            invisible="('status', 'not in', ['shipped'])" />
+                            invisible="status not in ('shipped',)" />
                         <button name="action_cancel" type="object" string="İptal Et"
-                            invisible="('status', 'in', ['delivered', 'cancelled'])" />
+                            invisible="status in ('delivered', 'cancelled')" />
                         <field name="status" widget="statusbar" options="{'clickable': True}" />
                     </header>
                     <sheet>
                         <div class="oe_button_box" name="button_box">
-                            <button name="%(sale_order_action)d" type="action"
+                            <button name="action_view_sale_order" type="object"
                                 class="oe_stat_button" icon="fa-file-o"
-                                invisible="('sale_order_id', '=', False)">
+                                invisible="not sale_order_id">
                                 <field string="Satış Siparişi" name="sale_order_id"
                                     widget="statinfo" />
                             </button>
@@ -116,23 +115,23 @@
 
                             <page string="İrsaliye &amp; Fatura" name="docs">
                                 <field name="picking_ids" nolabel="1">
-                                    <tree>
+                                    <list>
                                         <field name="name" />
                                         <field name="state" />
                                         <field name="scheduled_date" />
-                                    </tree>
+                                    </list>
                                 </field>
                                 <field name="invoice_ids" nolabel="1">
-                                    <tree>
+                                    <list>
                                         <field name="name" />
                                         <field name="state" />
                                         <field name="amount_total" />
-                                    </tree>
+                                    </list>
                                 </field>
                             </page>
                         </notebook>
 
-                        <div invisible="('sync_error', '=', False)">
+                        <div invisible="not sync_error">
                             <group>
                                 <label for="sync_error" />
                                 <field name="sync_error" widget="text" nolabel="1" />
@@ -147,9 +146,8 @@
         <record id="marketplace_order_action" model="ir.actions.act_window">
             <field name="name">Pazaryeri Siparişleri</field>
             <field name="res_model">marketplace.order</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
             <field name="context">{'search_default_pending': 1}</field>
         </record>
 
-    </data>
 </odoo>

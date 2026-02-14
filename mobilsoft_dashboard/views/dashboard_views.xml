@@ -89,9 +89,9 @@
                     <group col="4">
                         <field name="channel_type" widget="radio" />
                         <field name="channel_id"
-                            invisible="('channel_type', '!=', 'pazaryeri')" />
+                            invisible="channel_type != 'pazaryeri'" />
                         <field name="qcommerce_channel_id"
-                            invisible="('channel_type', '!=', 'qcommerce')" />
+                            invisible="channel_type != 'qcommerce'" />
                         <field name="status" widget="badge" decoration-success="status == 'success'"
                             decoration-danger="status == 'error'"
                             decoration-info="status == 'syncing'" />
@@ -100,7 +100,7 @@
                         <field name="records_synced" />
                     </group>
                     <group string="Hata Detayları"
-                        invisible="('error_message', '=', False)">
+                        invisible="not error_message">
                         <field name="error_message" nolabel="1" />
                     </group>
                 </form>
@@ -125,5 +125,4 @@
             </field>
         </record>
 
-    </data>
 </odoo>

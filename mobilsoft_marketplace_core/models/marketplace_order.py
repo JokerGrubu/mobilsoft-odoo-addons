@@ -106,6 +106,17 @@ class MarketplaceOrder(models.Model):
                 record.action_confirm()
         return records
 
+    def action_view_sale_order(self):
+        """Bağlı satış siparişini aç"""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "sale.order",
+            "res_id": self.sale_order_id.id,
+            "view_mode": "form",
+            "target": "current",
+        }
+
     def action_confirm(self):
         """Siparişi onayla ve Odoo'ya aktar"""
         for record in self:

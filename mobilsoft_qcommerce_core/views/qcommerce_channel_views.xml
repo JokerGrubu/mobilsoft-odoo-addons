@@ -1,20 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
 
         <!-- Q-Commerce Kanal -->
         <record id="view_qcommerce_channel_tree" model="ir.ui.view">
             <field name="name">qcommerce.channel.tree</field>
             <field name="model">qcommerce.channel</field>
             <field name="arch" type="xml">
-                <tree string="Hızlı Teslimat Kanalları">
+                <list string="Hızlı Teslimat Kanalları">
                     <field name="name" />
                     <field name="platform_type" />
                     <field name="total_orders" />
                     <field name="pending_orders_count" />
                     <field name="success_rate" widget="percentage" />
                     <field name="last_sync" />
-                </tree>
+                </list>
             </field>
         </record>
 
@@ -64,25 +63,25 @@
                         <notebook>
                             <page string="Siparişler">
                                 <field name="order_ids" nolabel="1">
-                                    <tree>
+                                    <list>
                                         <field name="name" />
                                         <field name="platform_order_id" />
                                         <field name="status" />
                                         <field name="amount_total" />
                                         <field name="order_date" />
-                                    </tree>
+                                    </list>
                                 </field>
                             </page>
                             <page string="Senkronizasyon Logları">
                                 <field name="sync_log_ids" nolabel="1">
-                                    <tree>
+                                    <list>
                                         <field name="name" />
                                         <field name="operation_type" />
                                         <field name="status" />
                                         <field name="records_processed" />
                                         <field name="duration_seconds" />
                                         <field name="start_date" />
-                                    </tree>
+                                    </list>
                                 </field>
                             </page>
                         </notebook>
@@ -124,5 +123,4 @@
             </field>
         </record>
 
-    </data>
 </odoo>

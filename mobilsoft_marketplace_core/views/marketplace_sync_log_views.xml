@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
 
         <!-- Marketplace Sync Log List View -->
         <record id="marketplace_sync_log_tree" model="ir.ui.view">
@@ -31,7 +30,7 @@
                     <header>
                         <button name="action_retry" type="object" string="Yeniden Dene"
                             class="oe_highlight"
-                            invisible="('status', '!=', 'error')" />
+                            invisible="status != 'error'" />
                         <field name="status" widget="statusbar" options="{'clickable': False}" />
                     </header>
                     <sheet>
@@ -59,7 +58,7 @@
                             </page>
 
                             <page string="Hata Bilgileri" name="errors"
-                                invisible="('status', '!=', 'error')">
+                                invisible="status != 'error'">
                                 <group>
                                     <field name="error_message" widget="text" />
                                 </group>
@@ -79,8 +78,7 @@
         <record id="marketplace_sync_log_action" model="ir.actions.act_window">
             <field name="name">Senkronizasyon Logları</field>
             <field name="res_model">marketplace.sync.log</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
-    </data>
 </odoo>

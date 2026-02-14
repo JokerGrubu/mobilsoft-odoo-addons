@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
 
         <!-- Actions -->
         <record id="action_qcommerce_channel" model="ir.actions.act_window">
             <field name="name">Hızlı Teslimat Kanalları</field>
             <field name="res_model">qcommerce.channel</field>
-            <field name="view_mode">kanban,tree,form</field>
+            <field name="view_mode">kanban,list,form</field>
             <field name="view_id" ref="view_qcommerce_channel_kanban" />
             <field name="search_view_id" ref="view_qcommerce_channel_search" />
             <field name="help">Hızlı teslimat platformlarının kanallarını yönetin</field>
@@ -15,7 +14,7 @@
         <record id="action_qcommerce_order" model="ir.actions.act_window">
             <field name="name">Hızlı Teslimat Siparişleri</field>
             <field name="res_model">qcommerce.order</field>
-            <field name="view_mode">kanban,tree,form</field>
+            <field name="view_mode">kanban,list,form</field>
             <field name="view_id" ref="view_qcommerce_order_kanban" />
             <field name="search_view_id" ref="view_qcommerce_order_search" />
             <field name="help">Hızlı teslimat siparişlerini yönetin</field>
@@ -24,7 +23,7 @@
         <record id="action_qcommerce_delivery" model="ir.actions.act_window">
             <field name="name">Teslimatlar</field>
             <field name="res_model">qcommerce.delivery</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
             <field name="view_id" ref="view_qcommerce_delivery_tree" />
             <field name="search_view_id" ref="view_qcommerce_delivery_search" />
             <field name="help">Teslimatları takip edin</field>
@@ -33,7 +32,7 @@
         <record id="action_qcommerce_sync_log" model="ir.actions.act_window">
             <field name="name">Senkronizasyon Logları</field>
             <field name="res_model">qcommerce.sync.log</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
             <field name="view_id" ref="view_qcommerce_sync_log_tree" />
             <field name="search_view_id" ref="view_qcommerce_sync_log_search" />
             <field name="help">API senkronizasyon loglarını görüntüleyin</field>
@@ -105,5 +104,4 @@
             </field>
         </record>
 
-    </data>
 </odoo>

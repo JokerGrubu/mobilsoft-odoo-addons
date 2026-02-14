@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
 
         <!-- Q-Commerce Teslimat -->
         <record id="view_qcommerce_delivery_tree" model="ir.ui.view">
@@ -72,5 +71,4 @@
             </field>
         </record>
 
-    </data>
 </odoo>

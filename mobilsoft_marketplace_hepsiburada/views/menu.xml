@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
 
         <!-- Hepsiburada Menu Items -->
         <menuitem
@@ -9,5 +8,4 @@
             parent="marketplace_menu_integration"
             sequence="30" />
 
-    </data>
 </odoo>

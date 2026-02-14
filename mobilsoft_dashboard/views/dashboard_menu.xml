@@ -21,7 +21,7 @@
         <record id="action_dashboard_sync" model="ir.actions.act_window">
             <field name="name">Senkronizasyon Durumu</field>
             <field name="res_model">dashboard.sync</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
         <menuitem id="menu_dashboard_sync" name="🔄 Senkronizasyon Durumu"
@@ -31,7 +31,7 @@
         <record id="action_dashboard_pazaryeri_orders" model="ir.actions.act_window">
             <field name="name">Pazaryeri Siparişleri</field>
             <field name="res_model">marketplace.order</field>
-            <field name="view_mode">tree,form,kanban</field>
+            <field name="view_mode">list,form,kanban</field>
         </record>
 
         <menuitem id="menu_dashboard_pazaryeri_orders" name="📦 Pazaryeri Siparişleri"
@@ -41,7 +41,7 @@
         <record id="action_dashboard_qcommerce_orders" model="ir.actions.act_window">
             <field name="name">Hızlı Teslimat Siparişleri</field>
             <field name="res_model">qcommerce.order</field>
-            <field name="view_mode">tree,form,kanban</field>
+            <field name="view_mode">list,form,kanban</field>
         </record>
 
         <menuitem id="menu_dashboard_qcommerce_orders" name="⚡ Hızlı Teslimat Siparişleri"
@@ -51,7 +51,7 @@
         <record id="action_dashboard_qcommerce_deliveries" model="ir.actions.act_window">
             <field name="name">Teslimatlar</field>
             <field name="res_model">qcommerce.delivery</field>
-            <field name="view_mode">tree,form,kanban</field>
+            <field name="view_mode">list,form,kanban</field>
         </record>
 
         <menuitem id="menu_dashboard_qcommerce_deliveries" name="🚗 Teslimatlar"
@@ -61,7 +61,7 @@
         <record id="action_dashboard_pazaryeri_channels" model="ir.actions.act_window">
             <field name="name">Pazaryeri Kanalları</field>
             <field name="res_model">marketplace.channel</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
         <menuitem id="menu_dashboard_pazaryeri_channels" name="🏪 Pazaryeri Kanalları"
@@ -71,11 +71,10 @@
         <record id="action_dashboard_qcommerce_channels" model="ir.actions.act_window">
             <field name="name">Hızlı Teslimat Kanalları</field>
             <field name="res_model">qcommerce.channel</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
         <menuitem id="menu_dashboard_qcommerce_channels" name="⚡ Hızlı Teslimat Kanalları"
             parent="menu_dashboard_root" action="action_dashboard_qcommerce_channels" sequence="7" />
 
-    </data>
 </odoo>

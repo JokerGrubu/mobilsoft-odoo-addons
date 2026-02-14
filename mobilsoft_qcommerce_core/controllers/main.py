@@ -15,7 +15,7 @@ class QCommerceWebhookController(http.Controller):
 
     @http.route(
         "/api/webhook/qcommerce/<string:platform>",
-        type="json",
+        type="jsonrpc",
         auth="none",
         methods=["POST"],
         csrf=False,
