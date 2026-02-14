@@ -11,11 +11,9 @@
         "views/qcommerce_channel_views.xml",
         "views/qcommerce_order_views.xml",
         "views/qcommerce_delivery_views.xml",
-        "views/qcommerce_actions.xml",
         "views/qcommerce_sync_log_views.xml",
+        "views/qcommerce_actions.xml",
         "views/menu.xml",
-        # Data
-        "data/qcommerce_data.xml",
     ],
     "installable": True,
     "auto_install": False,

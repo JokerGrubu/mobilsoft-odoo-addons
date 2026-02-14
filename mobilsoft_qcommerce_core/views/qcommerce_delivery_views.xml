@@ -7,7 +7,8 @@
             <field name="model">qcommerce.delivery</field>
             <field name="arch" type="xml">
                 <list string="Teslimatlar"
-                    colors="red:status=='cancelled';green:status=='delivered'">
+                    decoration-danger="status == 'cancelled'"
+                    decoration-success="status == 'delivered'">
                     <field name="name" />
                     <field name="order_id" />
                     <field name="courier_name" />
@@ -26,9 +27,9 @@
                 <form string="Teslimat">
                     <header>
                         <button name="action_pickup" type="object" class="btn-info"
-                            string="Kargoya Çıktı" states="assigned" />
+                            string="Kargoya Çıktı" invisible="status != 'assigned'" />
                         <button name="action_delivered" type="object" class="btn-success"
-                            string="Teslim Edildi" states="in_progress" />
+                            string="Teslim Edildi" invisible="status != 'in_progress'" />
                         <button name="action_cancel" type="object" class="btn-danger"
                             string="İptal Et" />
                         <field name="status" widget="statusbar"
