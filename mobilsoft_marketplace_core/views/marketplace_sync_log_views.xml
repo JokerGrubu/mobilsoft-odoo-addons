@@ -31,7 +31,7 @@
                     <header>
                         <button name="action_retry" type="object" string="Yeniden Dene"
                             class="oe_highlight"
-                            attrs="{'invisible': [('status', '!=', 'error')]}" />
+                            invisible="('status', '!=', 'error')" />
                         <field name="status" widget="statusbar" options="{'clickable': False}" />
                     </header>
                     <sheet>
@@ -59,7 +59,7 @@
                             </page>
 
                             <page string="Hata Bilgileri" name="errors"
-                                attrs="{'invisible': [('status', '!=', 'error')]}">
+                                invisible="('status', '!=', 'error')">
                                 <group>
                                     <field name="error_message" widget="text" />
                                 </group>

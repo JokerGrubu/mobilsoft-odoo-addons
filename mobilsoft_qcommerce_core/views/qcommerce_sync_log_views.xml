@@ -50,7 +50,7 @@
                             <field name="records_updated" />
                             <field name="records_failed" />
                         </group>
-                        <group string="Hata" attrs="{'invisible': [('status', '!=', 'error')]}">
+                        <group string="Hata" invisible="('status', '!=', 'error')">
                             <field name="error_message" nolabel="1" />
                             <field name="error_details" nolabel="1" />
                         </group>

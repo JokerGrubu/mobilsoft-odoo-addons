@@ -3,8 +3,8 @@
     "version": "19.0.1.0.0",
     "category": "MobilSoft/Dashboard",
     "application": True,
-    "icon": "/mobilsoft_dashboard/static/description/icon.png",
-    "author": "MobilSoft",
+"author": "MobilSoft",
+    "website": "https://www.jokergrubu.com",
     "depends": [
         "base",
         "sale",

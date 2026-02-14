@@ -10,7 +10,7 @@
         "sale",
         "stock",
         "account",
-        "purchase",
+        "mail",
     ],
     "data": [
         "security/ir.model.access.csv",
@@ -21,11 +21,10 @@
         "views/menu.xml",
     ],
     "external_dependencies": {
-        "python": ["requests", "lxml", "zeep"],
+        "python": ["requests"],
     },
     "installable": True,
     "application": True,
     "auto_install": False,
     "license": "LGPL-3",
-    "post_init_hook": "post_init_hook",
 }

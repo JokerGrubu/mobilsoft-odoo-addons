@@ -33,7 +33,7 @@ class MarketplaceOrder(models.Model):
         ],
         string="Durum",
         default="pending",
-        track_visibility="onchange",
+        tracking=True,
     )
 
     # Customer Info
@@ -155,7 +155,7 @@ class MarketplaceOrder(models.Model):
 
                 # Auto create invoice if needed
                 if record.channel_id.auto_create_invoice:
-                    sale_order.action_invoice_create()
+                    sale_order._create_invoices()
 
             except Exception as e:
                 record.write(

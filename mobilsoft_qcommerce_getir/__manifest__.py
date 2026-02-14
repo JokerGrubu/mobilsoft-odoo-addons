@@ -1,8 +1,9 @@
 {
     "name": "MobilSoft Getir Entegrasyonu",
     "version": "19.0.1.0.0",
-    "category": "Sales/E-Commerce",
+    "category": "Sales/Q-Commerce",
     "author": "MobilSoft",
+    "website": "https://www.jokergrubu.com",
     "depends": ["mobilsoft_qcommerce_core"],
     "data": [
         "views/menu.xml",

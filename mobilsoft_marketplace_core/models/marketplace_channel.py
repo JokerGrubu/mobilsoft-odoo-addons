@@ -15,7 +15,7 @@ class MarketplaceChannel(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 
-    name = fields.Char("Kanal Adı", required=True, track_visibility="onchange")
+    name = fields.Char("Kanal Adı", required=True, tracking=True)
     channel_type = fields.Selection(
         [
             ("n11", "N11"),
@@ -30,7 +30,7 @@ class MarketplaceChannel(models.Model):
         ],
         string="Kanal Tipi",
         required=True,
-        track_visibility="onchange",
+        tracking=True,
     )
 
     # API Credentials
@@ -40,7 +40,7 @@ class MarketplaceChannel(models.Model):
     shop_id = fields.Char("Mağaza ID", required=False)
 
     # Configuration
-    active = fields.Boolean("Aktif", default=True, track_visibility="onchange")
+    active = fields.Boolean("Aktif", default=True, tracking=True)
     sync_interval = fields.Integer(
         "Senkronizasyon Aralığı (dakika)",
         default=30,
@@ -179,8 +179,8 @@ class MarketplaceChannel(models.Model):
             "hepsiburada": "mobilsoft_marketplace_hepsiburada.connectors.base_connector.HepsiburadaConnector",
             "n11": "mobilsoft_marketplace_n11.connectors.base_connector.N11Connector",
             "cicek_sepeti": "mobilsoft_marketplace_cicek_sepeti.connectors.base_connector.CicekSepetiConnector",
-            "getir": "mobilsoft_qcommerce_getir.connectors.base_connector.GetirConnector",
-            "yemeksepeti": "mobilsoft_qcommerce_yemeksepeti.connectors.base_connector.YemeksepetiConnector",
+            "getir": "mobilsoft_qcommerce_getir.connectors.getir_connector.GetirConnector",
+            "yemeksepeti": "mobilsoft_qcommerce_yemeksepeti.connectors.yemeksepeti_connector.YemeksepetiConnector",
         }
 
         connector_path = connector_mapping.get(self.channel_type)

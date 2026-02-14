@@ -4,7 +4,6 @@ Q-Commerce Teslimat Takibi
 Hızlı teslimat siparişlerinin teslimat aşamalarını takip eder.
 """
 
-from datetime import datetime
 import logging
 
 from odoo import api, fields, models
@@ -96,7 +95,7 @@ class QCommerceDelivery(models.Model):
         self.write(
             {
                 "status": "assigned",
-                "assigned_date": datetime.now(),
+                "assigned_date": fields.Datetime.now(),
                 "courier_name": courier_data.get("name"),
                 "courier_phone": courier_data.get("phone"),
                 "courier_vehicle": courier_data.get("vehicle"),
@@ -108,7 +107,7 @@ class QCommerceDelivery(models.Model):
         self.write(
             {
                 "status": "in_progress",
-                "pickup_date": datetime.now(),
+                "pickup_date": fields.Datetime.now(),
             }
         )
 
@@ -117,7 +116,7 @@ class QCommerceDelivery(models.Model):
         self.write(
             {
                 "status": "delivered",
-                "delivered_date": datetime.now(),
+                "delivered_date": fields.Datetime.now(),
             }
         )
 
@@ -146,7 +145,7 @@ class QCommerceDelivery(models.Model):
 
         if self.estimated_delivery_minutes:
             elapsed = (
-                datetime.now() - (self.requested_date or datetime.now())
+                fields.Datetime.now() - (self.requested_date or fields.Datetime.now())
             ).total_seconds() / 60
             remaining = max(0, self.estimated_delivery_minutes - int(elapsed))
             return remaining

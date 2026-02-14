@@ -28,20 +28,20 @@
                     <header>
                         <button name="action_confirm" type="object" string="Odoo'ya Aktar"
                             class="oe_highlight"
-                            attrs="{'invisible': [('synced_to_odoo', '=', True)]}" />
+                            invisible="('synced_to_odoo', '=', True)" />
                         <button name="action_mark_shipped" type="object" string="Gönderildi"
-                            attrs="{'invisible': [('status', 'not in', ['confirmed', 'packed'])]}" />
+                            invisible="('status', 'not in', ['confirmed', 'packed'])" />
                         <button name="action_mark_delivered" type="object" string="Teslim Edildi"
-                            attrs="{'invisible': [('status', 'not in', ['shipped'])]}" />
+                            invisible="('status', 'not in', ['shipped'])" />
                         <button name="action_cancel" type="object" string="İptal Et"
-                            attrs="{'invisible': [('status', 'in', ['delivered', 'cancelled'])]}" />
+                            invisible="('status', 'in', ['delivered', 'cancelled'])" />
                         <field name="status" widget="statusbar" options="{'clickable': True}" />
                     </header>
                     <sheet>
                         <div class="oe_button_box" name="button_box">
                             <button name="%(sale_order_action)d" type="action"
                                 class="oe_stat_button" icon="fa-file-o"
-                                attrs="{'invisible': [('sale_order_id', '=', False)]}">
+                                invisible="('sale_order_id', '=', False)">
                                 <field string="Satış Siparişi" name="sale_order_id"
                                     widget="statinfo" />
                             </button>
@@ -132,7 +132,7 @@
                             </page>
                         </notebook>
 
-                        <div attrs="{'invisible': [('sync_error', '=', False)]}">
+                        <div invisible="('sync_error', '=', False)">
                             <group>
                                 <label for="sync_error" />
                                 <field name="sync_error" widget="text" nolabel="1" />

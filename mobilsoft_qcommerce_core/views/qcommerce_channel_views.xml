@@ -26,7 +26,7 @@
                     <header>
                         <button name="action_sync_orders" type="object" class="btn-primary"
                             string="Siparişleri Senkronize Et" />
-                        <button name="test_connection" type="object" class="btn-info"
+                        <button name="action_test_connection" type="object" class="btn-info"
                             string="Bağlantıyı Test Et" />
                     </header>
                     <sheet>

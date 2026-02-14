@@ -4,7 +4,6 @@ Q-Commerce Senkronizasyon Logları
 API çağrılarını ve senkronizasyon işlemlerini loglar.
 """
 
-from datetime import datetime
 import logging
 
 from odoo import api, fields, models
@@ -71,7 +70,7 @@ class QCommerceSyncLog(models.Model):
                 "name": f"{channel.name} - {operation_type}",
                 "channel_id": channel.id,
                 "operation_type": operation_type,
-                "start_date": datetime.now(),
+                "start_date": fields.Datetime.now(),
             }
         )
 
@@ -83,9 +82,8 @@ class QCommerceSyncLog(models.Model):
         records_failed=0,
     ):
         """Başarılı işlemi logla"""
-        from datetime import datetime
 
-        end_time = datetime.now()
+        end_time = fields.Datetime.now()
         duration = (end_time - self.start_date).total_seconds()
 
         self.write(
@@ -102,9 +100,8 @@ class QCommerceSyncLog(models.Model):
 
     def log_error(self, error_message, error_details=""):
         """Hata işlemi logla"""
-        from datetime import datetime
 
-        end_time = datetime.now()
+        end_time = fields.Datetime.now()
         duration = (end_time - self.start_date).total_seconds()
 
         self.write(

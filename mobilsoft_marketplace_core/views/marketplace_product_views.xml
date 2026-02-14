@@ -28,9 +28,9 @@
                     <header>
                         <button name="action_activate" type="object" string="Aktif Yap"
                             class="oe_highlight"
-                            attrs="{'invisible': [('status', '!=', 'inactive')]}" />
+                            invisible="('status', '!=', 'inactive')" />
                         <button name="action_deactivate" type="object" string="Deaktif Yap"
-                            attrs="{'invisible': [('status', '=', 'inactive')]}" />
+                            invisible="('status', '=', 'inactive')" />
                         <button name="action_sync_now" type="object" string="Senkronize Et" />
                         <field name="status" widget="statusbar" options="{'clickable': True}" />
                     </header>
@@ -88,7 +88,7 @@
                             </page>
                         </notebook>
 
-                        <div attrs="{'invisible': [('sync_error', '=', False)]}">
+                        <div invisible="('sync_error', '=', False)">
                             <group>
                                 <label for="sync_error" />
                                 <field name="sync_error" widget="text" nolabel="1" />

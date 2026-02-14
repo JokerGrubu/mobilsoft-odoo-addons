@@ -109,7 +109,7 @@
                             </page>
                         </notebook>
 
-                        <div attrs="{'invisible': [('last_error', '=', False)]}">
+                        <div invisible="('last_error', '=', False)">
                             <group>
                                 <label for="last_error" />
                                 <field name="last_error" widget="text" nolabel="1" />

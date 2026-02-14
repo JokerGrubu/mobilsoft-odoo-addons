@@ -1,9 +1,9 @@
 {
     "name": "MobilSoft Hızlı Teslimat - Core",
     "version": "19.0.1.0.0",
-    "category": "Sales/E-Commerce",
+    "category": "Sales/Q-Commerce",
     "author": "MobilSoft",
-    "depends": ["base", "sale", "stock", "account", "base_address"],
+    "depends": ["base", "sale", "stock", "account", "mail"],
     "data": [
         # Security
         "security/ir.model.access.csv",

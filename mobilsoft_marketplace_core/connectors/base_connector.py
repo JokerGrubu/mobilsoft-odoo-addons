@@ -247,7 +247,7 @@ class BaseMarketplaceConnector(ABC):
         return Product.create(
             {
                 "name": product_data.get("name", "Untitled Product"),
-                "type": "product",
+                "is_storable": True,
                 "categ_id": self._get_product_category(product_data).id,
                 "default_code": product_data.get("sku"),
                 "list_price": product_data.get("price", 0),

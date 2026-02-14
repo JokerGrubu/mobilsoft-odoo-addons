@@ -4,7 +4,6 @@ Q-Commerce Hızlı Teslimat Siparişi
 Getir, Yemeksepeti, Vigo gibi platformlardan gelen siparişleri temsil eder.
 """
 
-from datetime import datetime
 import json
 import logging
 
@@ -137,7 +136,7 @@ class QCommerceOrder(models.Model):
         self.write(
             {
                 "status": "confirmed",
-                "confirmed_date": datetime.now(),
+                "confirmed_date": fields.Datetime.now(),
             }
         )
         _logger.info(f"Sipariş {self.name} onaylandı")
@@ -151,7 +150,7 @@ class QCommerceOrder(models.Model):
         self.write(
             {
                 "status": "ready",
-                "ready_date": datetime.now(),
+                "ready_date": fields.Datetime.now(),
             }
         )
 
@@ -168,7 +167,7 @@ class QCommerceOrder(models.Model):
         self.write(
             {
                 "status": "delivered",
-                "delivered_date": datetime.now(),
+                "delivered_date": fields.Datetime.now(),
             }
         )
 
@@ -177,7 +176,7 @@ class QCommerceOrder(models.Model):
             self.sale_order_id.write(
                 {
                     "state": "done",
-                    "qcommerce_delivered_date": datetime.now(),
+                    "qcommerce_delivered_date": fields.Datetime.now(),
                 }
             )
 
@@ -200,20 +199,7 @@ class QCommerceOrder(models.Model):
 
     def _get_connector(self):
         """Platform connector'ını al"""
-        if self.channel_id.platform_type == "getir":
-            from .connectors.getir_connector import GetirConnector
-
-            return GetirConnector(self.channel_id)
-        elif self.channel_id.platform_type == "yemeksepeti":
-            from .connectors.yemeksepeti_connector import YemeksepetiConnector
-
-            return YemeksepetiConnector(self.channel_id)
-        elif self.channel_id.platform_type == "vigo":
-            from .connectors.vigo_connector import VigoConnector
-
-            return VigoConnector(self.channel_id)
-        else:
-            raise ValueError(f"Bilinmeyen platform: {self.channel_id.platform_type}")
+        return self.channel_id._get_connector()
 
     def create_sale_order(self):
         """Qcommerce siparişinden satış siparişi oluştur"""
