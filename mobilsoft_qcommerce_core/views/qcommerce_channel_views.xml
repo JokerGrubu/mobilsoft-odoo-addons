@@ -99,23 +99,12 @@
             <field name="arch" type="xml">
                 <kanban default_group_by="platform_type" quick_create="False">
                     <templates>
-                        <t t-name="kanban-box">
-                            <div class="oe_kanban_card">
-                                <div class="oe_kanban_content">
-                                    <strong>
-                                        <field name="name" />
-                                    </strong>
-                                    <br />
-                                    <small>
-                                        <span class="badge badge-info"><field name="total_orders" />
-                                            sipariş</span>
-                                        <span class="badge badge-warning"><field
-                                                name="pending_orders_count" /> bekleme</span>
-                                        <span class="badge badge-success">
-                                            <field name="success_rate" widget="percentage" />
-                                        </span>
-                                    </small>
-                                </div>
+                        <t t-name="card">
+                            <field name="name" class="fw-bold" />
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                <span class="badge text-bg-info"><field name="total_orders" /> sipariş</span>
+                                <span class="badge text-bg-warning"><field name="pending_orders_count" /> bekleme</span>
+                                <span class="badge text-bg-success"><field name="success_rate" widget="percentage" /></span>
                             </div>
                         </t>
                     </templates>

@@ -140,7 +140,7 @@ class DashboardMetrics(models.TransientModel):
                     / rec.pazaryeri_total_orders
                     * 100
                 )
-                rec.pazaryeri_total_amount = sum(orders.mapped("total_amount"))
+                rec.pazaryeri_total_amount = sum(orders.mapped("amount_total"))
             else:
                 rec.pazaryeri_success_rate = 0.0
                 rec.pazaryeri_total_amount = 0.0
@@ -181,20 +181,16 @@ class DashboardMetrics(models.TransientModel):
                 rec.qcommerce_success_rate = (
                     rec.qcommerce_delivered_orders / rec.qcommerce_total_orders * 100
                 )
-                rec.qcommerce_total_amount = sum(orders.mapped("total_amount"))
+                rec.qcommerce_total_amount = sum(orders.mapped("amount_total"))
 
                 # Ortalama teslimat süresi (delivered siparişlerden)
                 delivered = orders.filtered(lambda o: o.status == "delivered")
                 if delivered:
-                    total_minutes = 0
-                    for order in delivered:
-                        if order.delivery_id and order.delivery_id.actual_delivery_time:
-                            # delivery.actual_delivery_time ve order.create_date farkı
-                            delta = (
-                                order.delivery_id.actual_delivery_time
-                                - order.create_date
-                            )
-                            total_minutes += delta.total_seconds() / 60
+                    total_minutes = sum(
+                        o.delivery_id.actual_delivery_minutes
+                        for o in delivered
+                        if o.delivery_id and o.delivery_id.actual_delivery_minutes
+                    )
                     rec.qcommerce_avg_delivery_time = total_minutes / len(delivered)
                 else:
                     rec.qcommerce_avg_delivery_time = 0.0
@@ -348,7 +344,7 @@ class DashboardMetrics(models.TransientModel):
                 rows.append("</tr>")
 
             rows.append("</tbody></table>")
-            rec.channel_stats = (
+            rec.qcommerce_channel_stats = (
                 "\n".join(rows) if channels else "<p>Kanal bulunamadı</p>"
             )
 

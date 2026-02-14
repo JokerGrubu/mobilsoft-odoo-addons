@@ -113,18 +113,11 @@
             <field name="arch" type="xml">
                 <kanban default_group_by="status" quick_create="False">
                     <templates>
-                        <t t-name="kanban-box">
-                            <div class="oe_kanban_card">
-                                <div class="oe_kanban_content">
-                                    <strong>
-                                        <field name="name" />
-                                    </strong>
-                                    <br />
-                                    <small>
-                                        <field name="customer_name" /><br /> ₺<field
-                                            name="amount_total" />
-                                    </small>
-                                </div>
+                        <t t-name="card">
+                            <field name="name" class="fw-bold" />
+                            <field name="customer_name" class="text-muted" />
+                            <div class="mt-1">
+                                <field name="amount_total" widget="monetary" />
                             </div>
                         </t>
                     </templates>
