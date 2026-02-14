@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>
-    <data noupdate="1">
+<odoo noupdate="1">
 
-        <!-- Main Dashboard Menu -->
-        <menuitem id="menu_dashboard_root" name="📊 Dashboard" parent="web.menu_root" sequence="1" />
+    <!-- Main Dashboard Menu -->
+        <menuitem id="menu_dashboard_root" name="Dashboard" sequence="1" />
 
         <!-- Dashboard Metrics Action -->
         <record id="action_dashboard_metrics" model="ir.actions.act_window">
