@@ -14,10 +14,10 @@
     ],
     "data": [
         "security/ir.model.access.csv",
-        "views/marketplace_channel_views.xml",
         "views/marketplace_product_views.xml",
         "views/marketplace_order_views.xml",
         "views/marketplace_sync_log_views.xml",
+        "views/marketplace_channel_views.xml",
         "views/menu.xml",
     ],
     "external_dependencies": {

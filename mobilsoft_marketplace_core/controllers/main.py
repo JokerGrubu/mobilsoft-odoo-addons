@@ -16,7 +16,7 @@ _logger = logging.getLogger(__name__)
 class MarketplaceController(http.Controller):
     """Main marketplace API controller"""
 
-    @http.route("/api/marketplace/channels", type="json", auth="user", methods=["GET"])
+    @http.route("/api/marketplace/channels", type="jsonrpc", auth="user", methods=["GET"])
     def get_channels(self, **kw):
         """Get all marketplace channels"""
         try:
@@ -42,7 +42,7 @@ class MarketplaceController(http.Controller):
 
     @http.route(
         "/api/marketplace/channels/<int:channel_id>",
-        type="json",
+        type="jsonrpc",
         auth="user",
         methods=["GET"],
     )
@@ -73,7 +73,7 @@ class MarketplaceController(http.Controller):
 
     @http.route(
         "/api/marketplace/channels/<int:channel_id>/sync",
-        type="json",
+        type="jsonrpc",
         auth="user",
         methods=["POST"],
     )
@@ -94,7 +94,7 @@ class MarketplaceController(http.Controller):
             _logger.error(f"Sync error: {str(e)}")
             return {"status": "error", "message": str(e)}, 500
 
-    @http.route("/api/marketplace/orders", type="json", auth="user", methods=["GET"])
+    @http.route("/api/marketplace/orders", type="jsonrpc", auth="user", methods=["GET"])
     def get_orders(self, **kw):
         """Get marketplace orders"""
         try:
@@ -128,7 +128,7 @@ class MarketplaceController(http.Controller):
 
     @http.route(
         "/api/marketplace/orders/<int:order_id>",
-        type="json",
+        type="jsonrpc",
         auth="user",
         methods=["GET"],
     )
@@ -168,7 +168,7 @@ class MarketplaceController(http.Controller):
 
     @http.route(
         "/api/marketplace/orders/<int:order_id>/confirm",
-        type="json",
+        type="jsonrpc",
         auth="user",
         methods=["POST"],
     )
@@ -190,7 +190,7 @@ class MarketplaceController(http.Controller):
             _logger.error(f"Order confirmation error: {str(e)}")
             return {"status": "error", "message": str(e)}, 500
 
-    @http.route("/api/marketplace/products", type="json", auth="user", methods=["GET"])
+    @http.route("/api/marketplace/products", type="jsonrpc", auth="user", methods=["GET"])
     def get_products(self, **kw):
         """Get marketplace products"""
         try:
@@ -225,7 +225,7 @@ class WebhookController(http.Controller):
 
     @http.route(
         "/api/webhook/marketplace/<channel>",
-        type="json",
+        type="jsonrpc",
         auth="none",
         methods=["POST"],
         csrf=False,
