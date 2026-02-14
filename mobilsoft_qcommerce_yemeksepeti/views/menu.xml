@@ -5,7 +5,7 @@
         <menuitem
             id="qcommerce_menu_yemeksepeti"
             name="Yemeksepeti"
-            parent="qcommerce_menu_root"
+            parent="mobilsoft_qcommerce_core.qcommerce_menu_root"
             sequence="13" />
 
 </odoo>

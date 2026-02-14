@@ -2,11 +2,10 @@
 <odoo>
 
     <!-- Pazaryeri Menü -->
-        <menuitem
-            id="marketplace_menu_root"
-            name="Pazaryeri Yönetimi"
-            icon="fa-shopping-cart"
-            sequence="40" />
+    <menuitem
+        id="marketplace_menu_root"
+        name="Pazaryeri Yönetimi"
+        sequence="40" />
 
         <!-- Pazaryeri Entegrasyonu -->
         <menuitem

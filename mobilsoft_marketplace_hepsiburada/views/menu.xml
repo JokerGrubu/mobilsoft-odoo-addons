@@ -5,7 +5,7 @@
         <menuitem
             id="marketplace_hepsiburada_menu"
             name="Hepsiburada"
-            parent="marketplace_menu_integration"
+            parent="mobilsoft_marketplace_core.marketplace_menu_integration"
             sequence="30" />
 
 </odoo>

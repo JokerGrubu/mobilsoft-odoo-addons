@@ -5,14 +5,14 @@
         <menuitem
             id="marketplace_n11_menu"
             name="N11"
-            parent="marketplace_menu_integration"
+            parent="mobilsoft_marketplace_core.marketplace_menu_integration"
             sequence="40" />
 
         <menuitem
             id="marketplace_n11_dashboard"
             name="N11 Dashboard"
             parent="marketplace_n11_menu"
-            action="marketplace_channel_action"
+            action="mobilsoft_marketplace_core.marketplace_channel_action"
             sequence="10" />
 
 </odoo>

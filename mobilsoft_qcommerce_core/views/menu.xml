@@ -5,7 +5,7 @@
         <menuitem
             id="qcommerce_menu_root"
             name="Hızlı Teslimat"
-            icon="fa-bolt"
+
             sequence="25" />
 
         <menuitem

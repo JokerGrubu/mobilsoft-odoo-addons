@@ -5,7 +5,7 @@
         <menuitem
             id="marketplace_cicek_sepeti_menu"
             name="Çiçek Sepeti"
-            parent="marketplace_menu_integration"
+            parent="mobilsoft_marketplace_core.marketplace_menu_integration"
             sequence="50" />
 
 </odoo>

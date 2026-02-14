@@ -7,7 +7,8 @@
             <field name="model">qcommerce.order</field>
             <field name="arch" type="xml">
                 <list string="Hızlı Teslimat Siparişleri"
-                    colors="red:status=='cancelled';green:status=='delivered'">
+                    decoration-danger="status == 'cancelled'"
+                    decoration-success="status == 'delivered'">
                     <field name="name" />
                     <field name="platform_order_id" />
                     <field name="channel_id" />
@@ -26,17 +27,17 @@
                 <form string="Hızlı Teslimat Siparişi">
                     <header>
                         <button name="action_confirm" type="object" class="btn-primary"
-                            string="Onayla" states="pending" />
+                            string="Onayla" invisible="status != 'pending'" />
                         <button name="action_mark_preparing" type="object" class="btn-info"
-                            string="Hazırlanıyor" states="confirmed" />
+                            string="Hazırlanıyor" invisible="status != 'confirmed'" />
                         <button name="action_mark_ready" type="object" class="btn-success"
-                            string="Hazır" states="preparing" />
+                            string="Hazır" invisible="status != 'preparing'" />
                         <button name="action_mark_on_way" type="object" class="btn-info"
-                            string="Yolda" states="ready" />
+                            string="Yolda" invisible="status != 'ready'" />
                         <button name="action_mark_delivered" type="object" class="btn-success"
-                            string="Teslim Edildi" states="on_way" />
+                            string="Teslim Edildi" invisible="status != 'on_way'" />
                         <button name="action_cancel" type="object" class="btn-danger"
-                            string="İptal Et" states="pending,confirmed" />
+                            string="İptal Et" invisible="status not in ('pending', 'confirmed')" />
                         <field name="status" widget="statusbar"
                             statusbar_visible="pending,confirmed,preparing,ready,on_way,delivered,cancelled" />
                     </header>

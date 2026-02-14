@@ -7,7 +7,8 @@
             <field name="model">qcommerce.sync.log</field>
             <field name="arch" type="xml">
                 <list string="Senkronizasyon Logları"
-                    colors="red:status=='error';green:status=='success'">
+                    decoration-danger="status == 'error'"
+                    decoration-success="status == 'success'">
                     <field name="name" />
                     <field name="operation_type" />
                     <field name="status" />
