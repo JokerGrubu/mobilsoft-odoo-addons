@@ -24,10 +24,7 @@ Turkiye icin Odoo 19 Community modulleri. Herhangi bir Odoo 19 kurulumuna eklene
 
 | Modul | Aciklama | Durum |
 |-------|----------|-------|
-| `l10n_tr_mobilsoft` | Turkiye Tek Duzen Hesap Plani | Aktif |
-| `l10n_tr_bank_mobilsoft` | Turk Bankalari Listesi | Aktif |
 | `l10n_tr_tax_office_mobilsoft` | Turkiye Vergi Daireleri | Aktif |
-| `l10n_tr_city_mobilsoft` | Turkiye Il/Ilce Verileri | Aktif |
 
 ### On Muhasebe Entegrasyonlari
 
@@ -58,13 +55,57 @@ Turkiye icin Odoo 19 Community modulleri. Herhangi bir Odoo 19 kurulumuna eklene
 - Kontor uyari sistemi
 - Musteri mukelleflik sorgulamasi
 
+### Pazaryeri Entegrasyonlari
+
+| Modul | Aciklama | Durum |
+|-------|----------|-------|
+| `mobilsoft_marketplace_core` | Pazaryeri Temel Altyapisi | Aktif |
+| `mobilsoft_marketplace_trendyol` | Trendyol Connector | Aktif |
+| `mobilsoft_marketplace_hepsiburada` | Hepsiburada Connector | Aktif |
+| `mobilsoft_marketplace_n11` | N11 Connector | Aktif |
+| `mobilsoft_marketplace_cicek_sepeti` | Cicek Sepeti Connector | Aktif |
+
+**Pazaryeri Ozellikleri:**
+- Coklu kanal yonetimi (Trendyol, Hepsiburada, N11, Cicek Sepeti)
+- Siparis senkronizasyonu (pending → confirmed → shipped → delivered)
+- Urun listeleme ve stok guncelleme
+- Kanban ve list gorunumleri
+- Detayli senkronizasyon loglari
+
+### Q-Commerce (Hizli Teslimat) Entegrasyonlari
+
+| Modul | Aciklama | Durum |
+|-------|----------|-------|
+| `mobilsoft_qcommerce_core` | Q-Commerce Temel Altyapisi | Aktif |
+| `mobilsoft_qcommerce_getir` | Getir Connector | Aktif |
+| `mobilsoft_qcommerce_yemeksepeti` | Yemeksepeti Connector | Aktif |
+| `mobilsoft_qcommerce_vigo` | Vigo Connector | Aktif |
+
+**Q-Commerce Ozellikleri:**
+- Hizli teslimat platformlari (Getir, Yemeksepeti, Vigo)
+- Siparis durumu takibi (pending → preparing → ready → on_way → delivered)
+- Teslimat takibi (kurye, sure, konum)
+- Kanban board ile gorsel siparis yonetimi
+- Statusbar ile siparis akisi
+
+### Birlestik Dashboard
+
+| Modul | Aciklama | Durum |
+|-------|----------|-------|
+| `mobilsoft_dashboard` | Pazaryeri & Q-Commerce Analitik Dashboard | Aktif |
+
+**Dashboard Ozellikleri:**
+- Unified KPI kartlari (toplam siparis, beklemede, basari orani)
+- Platform karsilastirma (Pazaryeri vs Q-Commerce)
+- Channel istatistik tablolari
+- Senkronizasyon durumu takibi
+- Siparis tutar ozeti
+
 ### Urun Yonetimi
 
 | Modul | Aciklama | Durum |
 |-------|----------|-------|
 | `mobilsoft_xml_import` | XML Urun Ice Aktarma | Aktif |
-| `mobilsoft_product_image_sync` | Urun Gorsel Senkronizasyonu | Aktif |
-| `mobilsoft_consignment` | Konsinye Stok Yonetimi | Aktif |
 
 **XML Import Ozellikleri:**
 - URL veya dosya tabanli XML ice aktarma
@@ -79,27 +120,6 @@ Turkiye icin Odoo 19 Community modulleri. Herhangi bir Odoo 19 kurulumuna eklene
 |-------|----------|-------|
 | `mobilsoft_bank_integration` | Turk Bankalari Open Banking API | Aktif |
 | `mobilsoft_payment_paytr` | PayTR Odeme Entegrasyonu | Aktif |
-
-### Muhasebe & Finans
-
-| Modul | Aciklama | Durum |
-|-------|----------|-------|
-| `mobilsoft_chart_update` | Hesap Plani Guncelleme Sihirbazi | Aktif |
-| `mobilsoft_chart_update_tr` | TR Hesap Plani Guncelleme | Aktif |
-| `mobilsoft_onmuhasebe` | On Muhasebe Islemleri | Aktif |
-
-### POS & Satis
-
-| Modul | Aciklama | Durum |
-|-------|----------|-------|
-| `mobilsoft_pos_invoice` | POS Ozel Fatura Raporu | Aktif |
-
-### Teknik Moduller
-
-| Modul | Aciklama | Durum |
-|-------|----------|-------|
-| `mobilsoft_sequence_dynamic` | Dinamik Sira Numaralari | Aktif |
-| `mobilsoft_api_services` | API Servisleri | Aktif |
 
 ---
 
@@ -131,13 +151,19 @@ Turkiye icin Odoo 19 Community modulleri. Herhangi bir Odoo 19 kurulumuna eklene
 
 ```
 +-------------+       +-------------+       +-------------+
-|  BizimHesap |<----->|    Odoo     |<----->| QNB e-Fatura|
-+-------------+       +-------------+       +-------------+
-      |                     |                     |
-      v                     v                     v
-  Cariler              Urunler               e-Fatura
-  Urunler              Faturalar             e-Arsiv
-  Faturalar            Stok                  e-Irsaliye
+|  BizimHesap |<----->|             |<----->| QNB e-Fatura|
++-------------+       |             |       +-------------+
+                       |    Odoo     |
++-------------+       |             |       +-------------+
+|  Pazaryeri  |<----->|  Dashboard  |<----->| Q-Commerce  |
+| Trendyol    |       |             |       | Getir       |
+| Hepsiburada |       +-------------+       | Yemeksepeti |
+| N11         |            |                | Vigo        |
+| Cicek Sepeti|            v                +-------------+
++-------------+     +-------------+
+                    | XML Import  |
+                    | Banka API   |
+                    +-------------+
 ```
 
 ---
@@ -264,6 +290,14 @@ Teknik destek icin:
 ---
 
 ## Degisiklik Gecmisi
+
+### v19.0.3.0.0 (2026-02-15)
+- 10 yeni modul: Pazaryeri (5), Q-Commerce (4), Dashboard (1)
+- Tum moduller Odoo 19 uyumlu (tree→list, states→invisible, kanban-box→card)
+
+### v19.0.2.0.2 (2026-02-13)
+- 11 kullanilmayan modul kaldirildi
+- mobilsoft_bank_integration Odoo 19 uyumlu yeniden yazildi
 
 ### v19.0.1.0.0 (2026-01-30)
 - BizimHesap entegrasyonu - Cok sirketli yonlendirme eklendi

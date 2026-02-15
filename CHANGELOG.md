@@ -6,6 +6,49 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.3.0.0] - 2026-02-15 (Pazaryeri, Q-Commerce & Dashboard)
+
+### Eklenenler
+- **10 yeni modül** joker_* kurtarma modüllerinden MobilSoft standardına dönüştürüldü ve Odoo 19 uyumlu hale getirildi:
+
+#### Pazaryeri Modülleri
+- **mobilsoft_marketplace_core** — Pazaryeri temel altyapısı (channel, order, product, sync_log modelleri)
+- **mobilsoft_marketplace_trendyol** — Trendyol connector
+- **mobilsoft_marketplace_hepsiburada** — Hepsiburada connector
+- **mobilsoft_marketplace_n11** — N11 connector
+- **mobilsoft_marketplace_cicek_sepeti** — Çiçek Sepeti connector
+
+#### Q-Commerce (Hızlı Teslimat) Modülleri
+- **mobilsoft_qcommerce_core** — Q-Commerce temel altyapısı (channel, order, delivery, sync_log modelleri)
+- **mobilsoft_qcommerce_getir** — Getir connector
+- **mobilsoft_qcommerce_yemeksepeti** — Yemeksepeti connector
+- **mobilsoft_qcommerce_vigo** — Vigo connector
+
+#### Dashboard
+- **mobilsoft_dashboard** — Birleşik analitik dashboard (Pazaryeri + Q-Commerce KPI kartları, channel istatistikleri, sync durumu)
+
+### Degistirilenler (Odoo 19 Uyumluluk)
+- `<tree>` → `<list>` tüm view dosyalarında
+- `view_mode` tree → list
+- `<data>` wrapper XML'lerden kaldırıldı
+- `<menuitem icon="fa-...">` kaldırıldı (butonlarda korundu)
+- `colors="..."` → `decoration-danger/success/info/warning`
+- `states="..."` → `invisible="..."` Python ifadesi
+- `attrs="{...}"` → doğrudan `invisible/readonly/required` attribute
+- `invisible="('field','=',val)"` tuple → `invisible="field == val"` Python ifadesi
+- `type="json"` → `type="jsonrpc"` controller route'larında
+- `<t t-name="kanban-box">` → `<t t-name="card">` kanban view'larda
+- `base.group_sale_manager` → `sales_team.group_sale_manager`
+- Cross-module XML referanslar `module_name.xml_id` formatına güncellendi
+- Manifest data dosya sıralaması düzeltildi (bağımlılık referansları)
+
+### Duzeltmeler
+- Dashboard compute metodu: `rec.channel_stats` → `rec.qcommerce_channel_stats` (yanlış alan ataması)
+- Dashboard: `orders.mapped("total_amount")` → `orders.mapped("amount_total")` (yanlış alan adı)
+- Dashboard: `order.delivery_id.actual_delivery_time` → `o.delivery_id.actual_delivery_minutes` (olmayan alan)
+
+---
+
 ## [19.0.2.0.2] - 2026-02-13 (Modül Temizliği)
 
 ### Kaldırılanlar
