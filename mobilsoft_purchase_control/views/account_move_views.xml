@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vendor Bill Form - Purchase Verification -->
+    <record id="view_move_form_purchase_control" model="ir.ui.view">
+        <field name="name">account.move.form.purchase.control</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+
+            <!-- Banner: Doğrulama durumu -->
+            <xpath expr="//div[hasclass('oe_title')]" position="before">
+                <div class="alert alert-warning text-center mb-0"
+                     role="alert"
+                     invisible="purchase_verification_status != 'pending'">
+                    <strong>Fatura fiyat kontrolü bekliyor.</strong>
+                    Tedarikçi fiyatlarını doğrulamak için "Fiyat Kontrolü" butonuna tıklayın.
+                </div>
+                <div class="alert alert-success text-center mb-0"
+                     role="alert"
+                     invisible="purchase_verification_status != 'verified'">
+                    <strong>Fatura fiyatları doğrulandı.</strong>
+                    Faturayı onaylayıp stok girişi oluşturmak için "Onayla ve Depoya Al" butonuna tıklayın.
+                </div>
+                <div class="alert alert-danger text-center mb-0"
+                     role="alert"
+                     invisible="purchase_verification_status != 'rejected'">
+                    <strong>Fatura fiyatları uyuşmuyor!</strong>
+                    Detaylar için "Fiyat Kontrol" sekmesini inceleyin.
+                </div>
+            </xpath>
+
+            <!-- Header butonları -->
+            <xpath expr="//header" position="inside">
+                <button name="action_verify_prices"
+                        string="Fiyat Kontrolü"
+                        type="object"
+                        class="btn-primary"
+                        invisible="purchase_verification_status not in ('pending', 'rejected') or move_type != 'in_invoice' or state != 'draft'"/>
+                <button name="action_approve_and_receive"
+                        string="Onayla ve Depoya Al"
+                        type="object"
+                        class="btn-success"
+                        invisible="purchase_verification_status != 'verified' or state != 'draft'"/>
+                <button name="action_reject_invoice"
+                        string="Reddet"
+                        type="object"
+                        class="btn-danger"
+                        invisible="purchase_verification_status not in ('pending', 'verified') or move_type != 'in_invoice' or state != 'draft'"
+                        confirm="Faturayı reddetmek istediğinizden emin misiniz?"/>
+            </xpath>
+
+            <!-- Stok girişi smart button -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_stock_picking"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-truck"
+                        invisible="not purchase_stock_picking_id">
+                    <span class="o_stat_text">Stok Girişi</span>
+                </button>
+            </xpath>
+
+            <!-- Fiyat Kontrol sekmesi -->
+            <xpath expr="//page[@id='other_tab']" position="after">
+                <page string="Fiyat Kontrol" name="purchase_verification_tab"
+                      invisible="move_type != 'in_invoice'">
+                    <group>
+                        <group string="Kontrol Durumu">
+                            <field name="purchase_verification_status" widget="badge"
+                                   decoration-warning="purchase_verification_status == 'pending'"
+                                   decoration-success="purchase_verification_status == 'verified'"
+                                   decoration-danger="purchase_verification_status == 'rejected'"
+                                   decoration-muted="purchase_verification_status == 'not_applicable'"/>
+                            <field name="purchase_verification_date"
+                                   invisible="not purchase_verification_date"/>
+                            <field name="purchase_stock_picking_id"
+                                   invisible="not purchase_stock_picking_id"/>
+                        </group>
+                    </group>
+                    <group string="Kontrol Detayı"
+                           invisible="not purchase_verification_note">
+                        <field name="purchase_verification_note" nolabel="1"
+                               colspan="2" readonly="1"/>
+                    </group>
+                    <group string="Satır Bazlı Fiyat Karşılaştırma">
+                        <field name="invoice_line_ids" nolabel="1" colspan="2"
+                               readonly="1" mode="list">
+                            <list decoration-danger="price_match == False"
+                                  decoration-success="price_match == True"
+                                  editable="bottom"
+                                  no_open="1">
+                                <field name="product_id" string="Ürün" readonly="1"/>
+                                <field name="quantity" string="Miktar" readonly="1"/>
+                                <field name="price_unit" string="Fatura Fiyatı (TRY)" readonly="1"/>
+                                <field name="expected_price_usd" string="Tedarikçi (USD)" readonly="1"/>
+                                <field name="expected_price_try" string="Beklenen (TRY)" readonly="1"/>
+                                <field name="price_difference" string="Fark (TRY)" readonly="1"/>
+                                <field name="price_match" string="OK" readonly="1" widget="boolean"/>
+                                <field name="verification_note" string="Not" readonly="1"/>
+                                <field name="display_type" column_invisible="1"/>
+                            </list>
+                        </field>
+                    </group>
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
