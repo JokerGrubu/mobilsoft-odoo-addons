@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- MobilSoft Kiracı Veri İzolasyon Kuralları -->
+    <!-- Bu kurallar, her kullanıcının sadece kendi şirketinin verisini görmesini sağlar -->
+
+    <!-- Odoo'nun standart Multi-Company record rule'ları zaten company_id bazlı izolasyon yapar -->
+    <!-- Bu dosya, ek özel kurallar için kullanılabilir -->
+
+</odoo>
