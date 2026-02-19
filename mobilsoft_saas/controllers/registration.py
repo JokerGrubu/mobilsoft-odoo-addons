@@ -124,16 +124,28 @@ class MobilSoftRegistrationController(http.Controller):
             user = env['res.users'].sudo().create(user_vals)
             _logger.info('MobilSoft SaaS: Kullanıcı oluşturuldu: %s (ID: %s)', user.login, user.id)
 
-            # Grup atamaları (create sonrasında write ile)
+            # Grup atamaları - Odoo 19'da field adı group_ids (groups_id değil!)
+            # Temel gruplar: Invoicing, Product Manager, Sales, Stock User, Partner Creation
+            group_xml_ids = [
+                'base.group_user',                # Dahili Kullanıcı (zaten var)
+                'base.group_partner_manager',     # Cari/Ortak Oluşturma
+                'account.group_account_invoice',  # Faturalama
+                'account.group_account_basic',    # Muhasebe Temel
+                'product.group_product_manager',  # Ürün Oluşturma
+                'product.group_product_variant',  # Ürün Varyant
+                'sales_team.group_sale_salesman', # Satış Kullanıcı
+                'stock.group_stock_user',         # Stok Kullanıcı
+            ]
             groups_to_add = []
-            for ref in ['base.group_user', 'account.group_account_user',
-                        'sales_team.group_sale_salesman', 'stock.group_stock_user']:
+            for ref in group_xml_ids:
                 g = env.ref(ref, raise_if_not_found=False)
                 if g:
                     groups_to_add.append(g.id)
             if groups_to_add:
                 try:
-                    user.sudo().write({'groups_id': [(6, 0, groups_to_add)]})
+                    # Odoo 19: group_ids (not groups_id)
+                    user.sudo().write({'group_ids': [(6, 0, groups_to_add)]})
+                    _logger.info('MobilSoft SaaS: Gruplar atandı: %s', groups_to_add)
                 except Exception as ge:
                     _logger.warning('MobilSoft SaaS: Grup ataması başarısız: %s', ge)
 
