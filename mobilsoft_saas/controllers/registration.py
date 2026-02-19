@@ -86,20 +86,16 @@ class MobilSoftRegistrationController(http.Controller):
             _logger.info('MobilSoft SaaS: Şirket oluşturuldu: %s (ID: %s)', company.name, company.id)
 
             # ==================== 2. HESAP PLANI YÜKLE ====================
-            # l10n_tr şablonunu bul
-            chart_template = env['account.chart.template'].sudo().search(
-                [('name', 'ilike', 'Turkey')], limit=1
-            )
-            if not chart_template:
-                chart_template = env['account.chart.template'].sudo().search([], limit=1)
-
-            if chart_template:
-                try:
-                    chart_template.sudo()._load(company=company)
-                    _logger.info('MobilSoft SaaS: Hesap planı yüklendi: %s', chart_template.name)
-                except Exception as e:
-                    _logger.warning('MobilSoft SaaS: Hesap planı yüklenemedi: %s', e)
-                    # Hesap planı olmadan devam et - manuel kurulabilir
+            # Odoo 19'da chart template code tabanlı çalışır (DB kayıt değil)
+            # l10n_tr için template code: 'tr'
+            try:
+                env['account.chart.template'].sudo().try_loading(
+                    'tr', company, install_demo=False
+                )
+                _logger.info('MobilSoft SaaS: Türk hesap planı (l10n_tr) yüklendi.')
+            except Exception as e:
+                _logger.warning('MobilSoft SaaS: Hesap planı yüklenemedi: %s', e)
+                # Hesap planı olmadan devam et - manuel kurulabilir
 
             # ==================== 3. DEPO OTOMATIK OLUŞUR ====================
             # stock.warehouse, res.company create'de otomatik oluşturulur
@@ -116,30 +112,30 @@ class MobilSoftRegistrationController(http.Controller):
 
             # ==================== 4. KULLANICI OLUŞTUR ====================
             # Temel grup: Dahili Kullanıcı
-            internal_group = env.ref('base.group_user', raise_if_not_found=False)
-            # Muhasebe: Muhasebeci
-            account_group = env.ref('account.group_account_user', raise_if_not_found=False)
-            # Satış
-            sale_group = env.ref('sales_team.group_sale_salesman', raise_if_not_found=False)
-            # Stok
-            stock_group = env.ref('stock.group_stock_user', raise_if_not_found=False)
-
-            groups = []
-            for g in [internal_group, account_group, sale_group, stock_group]:
-                if g:
-                    groups.append(g.id)
-
+            # Kullanıcı oluştur (grup ataması ayrı adımda yapılır)
             user_vals = {
                 'name': user_name,
                 'login': email,
                 'password': password,
                 'company_id': company.id,
                 'company_ids': [(6, 0, [company.id])],
-                'groups_id': [(6, 0, groups)],
             }
 
             user = env['res.users'].sudo().create(user_vals)
             _logger.info('MobilSoft SaaS: Kullanıcı oluşturuldu: %s (ID: %s)', user.login, user.id)
+
+            # Grup atamaları (create sonrasında write ile)
+            groups_to_add = []
+            for ref in ['base.group_user', 'account.group_account_user',
+                        'sales_team.group_sale_salesman', 'stock.group_stock_user']:
+                g = env.ref(ref, raise_if_not_found=False)
+                if g:
+                    groups_to_add.append(g.id)
+            if groups_to_add:
+                try:
+                    user.sudo().write({'groups_id': [(6, 0, groups_to_add)]})
+                except Exception as ge:
+                    _logger.warning('MobilSoft SaaS: Grup ataması başarısız: %s', ge)
 
             # ==================== 5. TEMEL GÜNLÜKLER ====================
             # Kasa günlüğü yok ise oluştur
@@ -159,6 +155,11 @@ class MobilSoftRegistrationController(http.Controller):
 
         except Exception as e:
             _logger.error('MobilSoft SaaS kayıt hatası: %s', e, exc_info=True)
+            # Rollback: Kısmi oluşturulan verileri geri al
+            try:
+                request.env.cr.rollback()
+            except Exception:
+                pass
             return {'success': False, 'error': str(e)}
 
     def _create_default_journals(self, env, company):
@@ -213,14 +214,14 @@ class MobilSoftRegistrationController(http.Controller):
         results['accounts'] = account_count
 
         if account_count == 0:
-            chart_template = env['account.chart.template'].sudo().search(
-                [('name', 'ilike', 'Turkey')], limit=1
-            )
-            if chart_template:
-                chart_template.sudo()._load(company=company)
+            try:
+                env['account.chart.template'].sudo().try_loading(
+                    'tr', company, install_demo=False
+                )
                 results['chart_loaded'] = True
-            else:
+            except Exception as e:
                 results['chart_loaded'] = False
+                results['chart_error'] = str(e)
 
         # Depo
         warehouse = env['stock.warehouse'].sudo().search([('company_id', '=', company_id)], limit=1)
