@@ -166,7 +166,11 @@ class MobilSoftRegistrationController(http.Controller):
             # ==================== 7. MobilSoft HOME ACTION ====================
             # Kullanıcı giriş yaptığında MobilSoft dashboard'una yönlendir
             try:
+                # Önce yeni SPA action'ı dene, yoksa eski dashboard'u kullan
                 ms_home_action = env.ref(
+                    'mobilsoft_interface.action_mobilsoft_app',
+                    raise_if_not_found=False
+                ) or env.ref(
                     'mobilsoft_interface.action_mobilsoft_home',
                     raise_if_not_found=False
                 )

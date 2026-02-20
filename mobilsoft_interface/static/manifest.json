@@ -1,0 +1,38 @@
+{
+    "name": "MobilSoft ERP",
+    "short_name": "MobilSoft",
+    "description": "MobilSoft KOBİ ERP - İşletmenizi Yönetin",
+    "start_url": "/odoo",
+    "display": "standalone",
+    "background_color": "#2D6A4F",
+    "theme_color": "#2D6A4F",
+    "orientation": "portrait-primary",
+    "lang": "tr",
+    "icons": [
+        {
+            "src": "/mobilsoft_interface/static/src/img/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/mobilsoft_interface/static/src/img/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["business", "productivity"],
+    "shortcuts": [
+        {
+            "name": "Ürünler",
+            "url": "/odoo",
+            "description": "Ürün yönetimi"
+        },
+        {
+            "name": "Cariler",
+            "url": "/odoo",
+            "description": "Cari yönetimi"
+        }
+    ]
+}

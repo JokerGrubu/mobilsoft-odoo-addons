@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+<t t-name="mobilsoft_interface.SalesModule">
+    <div class="ms-page">
+
+        <div class="ms-page__header">
+            <div>
+                <h1 class="ms-page__title">🛒 Satış Siparişleri</h1>
+                <p class="ms-page__subtitle"><t t-esc="state.total"/> sipariş</p>
+            </div>
+            <div class="ms-page__actions">
+                <button class="ms-btn ms-btn--primary" t-on-click="newOrder">+ Yeni Sipariş</button>
+            </div>
+        </div>
+
+        <!-- Araç çubuğu -->
+        <div class="ms-toolbar">
+            <div class="ms-search">
+                <span class="ms-search__icon">🔍</span>
+                <input
+                    class="ms-search__input"
+                    type="text"
+                    placeholder="Sipariş no veya müşteri ara..."
+                    t-att-value="state.search"
+                    t-on-input="onSearch"
+                />
+            </div>
+            <div class="ms-tabs">
+                <button t-attf-class="ms-tab{{ state.filter === 'all' ? ' ms-tab--active' : '' }}" t-on-click="() => setFilter('all')">Tümü</button>
+                <button t-attf-class="ms-tab{{ state.filter === 'today' ? ' ms-tab--active' : '' }}" t-on-click="() => setFilter('today')">Bugün</button>
+                <button t-attf-class="ms-tab{{ state.filter === 'week' ? ' ms-tab--active' : '' }}" t-on-click="() => setFilter('week')">Bu Hafta</button>
+                <button t-attf-class="ms-tab{{ state.filter === 'month' ? ' ms-tab--active' : '' }}" t-on-click="() => setFilter('month')">Bu Ay</button>
+            </div>
+        </div>
+
+        <!-- Durum filtreleri -->
+        <div style="display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap">
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'draft' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('draft')">Taslak</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'sale' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('sale')">Onaylı</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'done' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('done')">Tamamlandı</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'cancel' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('cancel')">İptal</button>
+        </div>
+
+        <!-- Tablo -->
+        <div class="ms-table-container">
+            <t t-if="state.loading">
+                <div class="ms-spinner">Siparişler yükleniyor...</div>
+            </t>
+            <t t-elif="state.records.length === 0">
+                <div class="ms-empty">
+                    <div class="ms-empty__icon">🛒</div>
+                    <p class="ms-empty__title">Sipariş bulunamadı</p>
+                    <p class="ms-empty__desc">Henüz sipariş yok veya filtreyi değiştirin.</p>
+                    <button class="ms-btn ms-btn--primary" t-on-click="newOrder">+ Yeni Sipariş</button>
+                </div>
+            </t>
+            <t t-else="">
+                <table class="ms-table">
+                    <thead>
+                        <tr>
+                            <th>Sipariş No</th>
+                            <th>Tarih</th>
+                            <th>Müşteri</th>
+                            <th>Tutar</th>
+                            <th>Durum</th>
+                            <th style="width:60px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="state.records" t-as="rec" t-key="rec.id">
+                            <tr t-on-click="() => openOrder(rec)">
+                                <td style="font-family:monospace; font-weight:600">
+                                    <t t-esc="rec.name"/>
+                                </td>
+                                <td><t t-esc="formatDate(rec.date_order)"/></td>
+                                <td><t t-esc="rec.partner_id ? rec.partner_id[1] : '—'"/></td>
+                                <td style="font-weight:600; color:#2D6A4F">
+                                    <t t-esc="formatCurrency(rec.amount_total)"/>
+                                </td>
+                                <td>
+                                    <t t-set="badge" t-value="getStateBadge(rec.state)"/>
+                                    <span t-attf-class="ms-badge {{ badge.cls }}">
+                                        <t t-esc="badge.label"/>
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="ms-btn ms-btn--secondary ms-btn--sm" t-on-click.stop="() => openOrder(rec)">
+                                        →
+                                    </button>
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+
+                <div class="ms-pagination">
+                    <span class="ms-pagination__info">
+                        <t t-esc="pageStart"/> – <t t-esc="pageEnd"/> / <t t-esc="state.total"/> kayıt
+                    </span>
+                    <div class="ms-pagination__controls">
+                        <button class="ms-pagination__btn" t-att-disabled="state.offset <= 0" t-on-click="prevPage">◀ Önceki</button>
+                        <span style="padding: 5px 12px; font-size:13px"><t t-esc="currentPage"/> / <t t-esc="totalPages"/></span>
+                        <button class="ms-pagination__btn" t-att-disabled="state.offset + state.limit >= state.total" t-on-click="nextPage">Sonraki ▶</button>
+                    </div>
+                </div>
+            </t>
+        </div>
+
+    </div>
+</t>
+
+</templates>

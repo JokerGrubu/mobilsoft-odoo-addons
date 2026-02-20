@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'MobilSoft Interface',
-    'version': '19.0.1.0.0',
-    'summary': 'MobilSoft - Kullanıcı Dostu KOBİ ERP Arayüzü',
+    'version': '19.0.2.0.0',
+    'summary': 'MobilSoft - Tam ERP Arayüzü (SPA)',
     'description': """
-        Odoo'nun gücünü arkasına alan, bakkal/market/KOBİ için
-        sadeleştirilmiş arayüz modülü.
+        Odoo'nun gücünü kullanan, KOBİ için tam özel SPA (Single Page Application) arayüz.
 
-        - Özel ana sayfa (OWL Dashboard)
-        - POS hızlı başlatma
-        - Basitleştirilmiş navigasyon
-        - Kiracı bazlı izolasyon
+        - Sidebar navigasyon (Ürünler, Cariler, Satışlar, Stok, Faturalar, Raporlar)
+        - Tam özel OWL form ve liste görünümleri
+        - Responsive tasarım (masaüstü + mobil)
+        - PWA desteği (Android/iOS kurulabilir)
+        - Hiçbir Odoo chrome görünmez
     """,
     'category': 'MobilSoft',
     'author': 'MobilSoft',
@@ -33,9 +33,30 @@
     ],
     'assets': {
         'web.assets_backend': [
+            # SCSS (önce yükle - temel tema ve yeni stiller)
             'mobilsoft_interface/static/src/scss/mobilsoft_theme.scss',
+            'mobilsoft_interface/static/src/scss/ms_app.scss',
+            'mobilsoft_interface/static/src/scss/ms_modules.scss',
+
+            # Ana Dashboard bileşeni
             'mobilsoft_interface/static/src/components/mobilsoft_home/mobilsoft_home.js',
             'mobilsoft_interface/static/src/components/mobilsoft_home/mobilsoft_home.xml',
+
+            # Ürünler modülü
+            'mobilsoft_interface/static/src/components/ms_products/products.js',
+            'mobilsoft_interface/static/src/components/ms_products/products.xml',
+
+            # Cariler modülü
+            'mobilsoft_interface/static/src/components/ms_customers/customers.js',
+            'mobilsoft_interface/static/src/components/ms_customers/customers.xml',
+
+            # Satışlar modülü
+            'mobilsoft_interface/static/src/components/ms_sales/sales.js',
+            'mobilsoft_interface/static/src/components/ms_sales/sales.xml',
+
+            # Ana SPA Shell (son yüklenmeli - alt bileşenleri import ediyor)
+            'mobilsoft_interface/static/src/app/mobilsoft_app.js',
+            'mobilsoft_interface/static/src/app/mobilsoft_app.xml',
         ],
     },
     'application': False,

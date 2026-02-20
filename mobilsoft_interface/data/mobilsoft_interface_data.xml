@@ -1,18 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo noupdate="1">
 
-    <!-- MobilSoft Ana Sayfa Action (Client Action - OWL) -->
+    <!-- MobilSoft Ana Sayfa Action (Eski - geriye dönük uyumluluk) -->
     <record id="action_mobilsoft_home" model="ir.actions.client">
         <field name="name">MobilSoft Ana Sayfa</field>
         <field name="tag">mobilsoft_home</field>
         <field name="target">main</field>
     </record>
 
-    <!-- MobilSoft ana menü öğesi (Odoo 19: group_ids, groups_id değil) -->
+    <!-- MobilSoft SPA App Action (Yeni - tam ERP arayüzü) -->
+    <record id="action_mobilsoft_app" model="ir.actions.client">
+        <field name="name">MobilSoft ERP</field>
+        <field name="tag">mobilsoft_app</field>
+        <field name="target">main</field>
+    </record>
+
+    <!-- MobilSoft Ana Menü Öğesi -->
     <record id="menu_mobilsoft_root" model="ir.ui.menu">
         <field name="name">MobilSoft</field>
         <field name="sequence">1</field>
-        <field name="action" ref="action_mobilsoft_home"/>
+        <field name="action" ref="action_mobilsoft_app"/>
     </record>
 
 </odoo>
