@@ -194,7 +194,12 @@ class MobilSoftRegistrationController(http.Controller):
             return {'success': False, 'error': str(e)}
 
     def _create_pos_config(self, env, company, cash_journal=None):
-        """Şirket için POS konfigürasyonu oluştur."""
+        """
+        Şirket için POS konfigürasyonu oluştur.
+
+        NOT: pos.config.journal_id ve invoice_journal_id aynı şirkete ait OLMALI.
+        Bu yüzden sale journal'ını şirket bazlı bulup açıkça belirtiyoruz.
+        """
         try:
             # Zaten var mı?
             existing = env['pos.config'].sudo().search(
@@ -203,18 +208,36 @@ class MobilSoftRegistrationController(http.Controller):
             if existing:
                 return existing
 
+            # 1. Nakit ödeme yöntemi oluştur
+            cash_pm = env['pos.payment.method'].sudo().search([
+                ('company_id', '=', company.id),
+            ], limit=1)
+            if not cash_pm:
+                pm_vals = {
+                    'name': 'Nakit',
+                    'payment_method_type': 'cash',
+                    'company_id': company.id,
+                    'is_cash_count': True,
+                }
+                if cash_journal:
+                    pm_vals['journal_id'] = cash_journal.id
+                cash_pm = env['pos.payment.method'].sudo().create(pm_vals)
+
+            # 2. Bu şirkete ait satış journal'ını bul (POS journal ve invoice journal için)
+            sale_journal = env['account.journal'].sudo().search([
+                ('company_id', '=', company.id),
+                ('type', '=', 'sale'),
+            ], limit=1)
+
             pos_vals = {
                 'name': f"{company.name} Kasası",
                 'company_id': company.id,
+                'payment_method_ids': [(6, 0, [cash_pm.id])],
             }
-            # Kasa journal'ını bul
-            if not cash_journal:
-                cash_journal = env['account.journal'].sudo().search([
-                    ('company_id', '=', company.id),
-                    ('type', '=', 'cash'),
-                ], limit=1)
-            if cash_journal:
-                pos_vals['payment_method_ids'] = [(4, self._get_pos_cash_payment_method(env, company, cash_journal))]
+            # journal_id ve invoice_journal_id aynı şirketten OLMALI
+            if sale_journal:
+                pos_vals['journal_id'] = sale_journal.id
+                pos_vals['invoice_journal_id'] = sale_journal.id
 
             pos_config = env['pos.config'].sudo().create(pos_vals)
             _logger.info('MobilSoft SaaS: POS konfigürasyonu oluşturuldu: %s', pos_config.name)
@@ -222,18 +245,6 @@ class MobilSoftRegistrationController(http.Controller):
         except Exception as e:
             _logger.warning('MobilSoft SaaS: POS konfigürasyonu oluşturulamadı: %s', e)
             return None
-
-    def _get_pos_cash_payment_method(self, env, company, cash_journal):
-        """POS için nakit ödeme yöntemi ID'sini döndür, yoksa oluştur."""
-        method = env['pos.payment.method'].sudo().search([
-            ('company_id', '=', company.id),
-            ('type', '=', 'cash'),
-        ], limit=1)
-        if not method:
-            method = env['pos.payment.method'].sudo().search([
-                ('company_id', '=', company.id),
-            ], limit=1)
-        return method.id if method else False
 
     def _create_default_journals(self, env, company):
         """Temel muhasebe günlüklerini oluştur."""
