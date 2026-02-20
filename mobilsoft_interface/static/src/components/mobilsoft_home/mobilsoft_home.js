@@ -3,26 +3,31 @@
 import { Component, useState, onMounted } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
+import { session } from "@web/session";
 import { _t } from "@web/core/l10n/translation";
 
 /**
  * MobilSoft Ana Sayfa - OWL Dashboard
  *
- * Odoo 19 uyumlu: `rpc` servisi kaldırıldı, `orm` servisi kullanılıyor.
+ * Odoo 19 uyumlu:
+ * - `useService("rpc")` → `useService("orm")`
+ * - `useService("user")` → `import { session } from "@web/session"`
  */
 export class MobilSoftHome extends Component {
     static template = "mobilsoft_interface.MobilSoftHome";
     static props = {};
 
     setup() {
-        // Odoo 19: rpc servisi yok, orm kullan
+        // Odoo 19: action, orm, notification servisleri güvenli
         this.action = useService("action");
         this.orm = useService("orm");
-        this.user = useService("user");
         this.notification = useService("notification");
 
+        // Kullanıcı ve şirket bilgisi için session kullan (her zaman mevcut)
+        this.session = session;
+
         this.state = useState({
-            companyName: "",
+            companyName: session.company_name || session.name || "MobilSoft",
             stats: {
                 todaySales: "0,00",
                 pendingInvoices: 0,
@@ -37,11 +42,8 @@ export class MobilSoftHome extends Component {
 
     async _loadDashboardData() {
         try {
-            // Şirket adı
-            const companyId = this.user.context.allowed_company_ids
-                ? this.user.context.allowed_company_ids[0]
-                : this.user.company?.id;
-
+            // Şirket adını ORM ile doğrula (session.company_name bazen yanlış olabilir)
+            const companyId = session.company_id;
             if (companyId) {
                 const companies = await this.orm.read(
                     "res.company",
@@ -79,13 +81,17 @@ export class MobilSoftHome extends Component {
                 ]
             );
 
-            // Kritik stok uyarıları (storable, sıfırın altında)
-            this.state.stats.stockAlerts = await this.orm.searchCount(
-                "product.product",
-                [["qty_available", "<=", 0], ["type", "=", "consu"], ["is_storable", "=", true]]
-            );
+            // Kritik stok uyarıları
+            try {
+                this.state.stats.stockAlerts = await this.orm.searchCount(
+                    "product.product",
+                    [["qty_available", "<=", 0], ["type", "=", "consu"]]
+                );
+            } catch (e) {
+                this.state.stats.stockAlerts = 0;
+            }
 
-            // POS konfigürasyonu (bu şirkete ait)
+            // POS konfigürasyonu
             const posConfigs = await this.orm.searchRead(
                 "pos.config",
                 [["active", "=", true]],
@@ -95,13 +101,13 @@ export class MobilSoftHome extends Component {
             this.state.posConfig = posConfigs.length ? posConfigs[0] : null;
 
         } catch (e) {
-            console.error("MobilSoft dashboard yükleme hatası:", e);
+            console.error("MobilSoft dashboard hatası:", e);
         } finally {
             this.state.loading = false;
         }
     }
 
-    // === Navigasyon Metodları ===
+    // === Navigasyon ===
 
     async openPOS() {
         if (!this.state.posConfig) {
