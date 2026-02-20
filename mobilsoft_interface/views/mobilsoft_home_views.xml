@@ -1,4 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- MobilSoft Dashboard ana view - sadece referans -->
+
+    <!-- PWA Manifest link injection (web.layout template override) -->
+    <template id="mobilsoft_pwa_manifest" name="MobilSoft PWA Manifest" inherit_id="web.layout" priority="16">
+        <xpath expr="//head" position="inside">
+            <link rel="manifest" href="/mobilsoft_interface/static/manifest.json"/>
+            <meta name="theme-color" content="#2D6A4F"/>
+            <meta name="mobile-web-app-capable" content="yes"/>
+            <meta name="apple-mobile-web-app-capable" content="yes"/>
+            <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+            <meta name="apple-mobile-web-app-title" content="MobilSoft"/>
+            <link rel="apple-touch-icon" href="/mobilsoft_interface/static/src/img/icon-192.png"/>
+        </xpath>
+    </template>
+
 </odoo>
