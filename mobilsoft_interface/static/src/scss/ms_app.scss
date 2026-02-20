@@ -1,0 +1,246 @@
+/**
+ * MobilSoft App Shell - Sidebar & Layout
+ * Ana uygulama çerçevesi stilleri
+ */
+
+// Odoo chrome'u gizle - MobilSoft arayüzü tam ekran
+.o_action.o_client_action:has(.ms-app) ~ .o_main_navbar,
+body:has(.ms-app) .o_main_navbar {
+    display: none !important;
+}
+
+body:has(.ms-app) .o_action_manager {
+    height: 100vh !important;
+}
+
+// Ana App Container
+.ms-app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: var(--ms-bg);
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+// Header
+.ms-app__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--ms-primary), var(--ms-secondary));
+    color: white;
+    flex-shrink: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.ms-app__header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ms-app__menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    line-height: 1;
+
+    &:hover { background: rgba(255,255,255,0.15); }
+
+    @media (max-width: 768px) {
+        display: flex;
+        align-items: center;
+    }
+}
+
+.ms-app__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ms-app__logo {
+    font-size: 24px;
+}
+
+.ms-app__title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+}
+
+.ms-app__company {
+    font-size: 12px;
+    opacity: 0.8;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    @media (max-width: 480px) { display: none; }
+}
+
+.ms-app__header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ms-app__user-info {
+    font-size: 13px;
+    opacity: 0.9;
+    margin-right: 4px;
+
+    @media (max-width: 600px) { display: none; }
+}
+
+.ms-app__header-btn {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &:hover { background: rgba(255,255,255,0.25); }
+}
+
+// App Body
+.ms-app__body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+// Sidebar
+.ms-app__sidebar {
+    width: 220px;
+    background: #1C3D2F;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+    transition: transform 0.3s ease;
+    z-index: 50;
+
+    @media (max-width: 768px) {
+        position: fixed;
+        top: 56px;
+        left: 0;
+        bottom: 0;
+        transform: translateX(-100%);
+        box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+
+        &.ms-sidebar--open {
+            transform: translateX(0);
+        }
+    }
+}
+
+.ms-sidebar__section {
+    padding: 16px 0 8px;
+}
+
+.ms-sidebar__section-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.4);
+    padding: 0 16px;
+    margin-bottom: 4px;
+}
+
+.ms-sidebar__nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.ms-sidebar__item {
+    margin: 1px 8px;
+}
+
+.ms-sidebar__link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: rgba(255,255,255,0.75);
+    font-size: 13.5px;
+    font-weight: 500;
+    user-select: none;
+
+    &:hover {
+        background: rgba(255,255,255,0.1);
+        color: white;
+    }
+
+    &.ms-sidebar__link--active {
+        background: var(--ms-primary-light);
+        color: white;
+        font-weight: 600;
+    }
+}
+
+.ms-sidebar__icon {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.ms-sidebar__label {
+    flex: 1;
+}
+
+.ms-sidebar__badge {
+    background: var(--ms-accent);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+}
+
+// Sidebar overlay (mobile)
+.ms-sidebar__overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    top: 56px;
+    background: rgba(0,0,0,0.4);
+    z-index: 40;
+
+    @media (max-width: 768px) {
+        display: block;
+    }
+}
+
+// Main Content Area
+.ms-app__content {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--ms-bg);
+
+    @media (max-width: 768px) {
+        width: 100%;
+    }
+}
