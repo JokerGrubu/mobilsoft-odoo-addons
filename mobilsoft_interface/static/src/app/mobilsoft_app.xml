@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+<t t-name="mobilsoft_interface.MobilSoftApp">
+    <div class="ms-app">
+
+        <!-- HEADER -->
+        <header class="ms-app__header">
+            <div class="ms-app__header-left">
+                <!-- Hamburger (mobil) -->
+                <button class="ms-app__menu-btn" t-on-click="toggleSidebar" title="Menü">
+                    ☰
+                </button>
+                <div class="ms-app__brand">
+                    <span class="ms-app__logo">🏪</span>
+                    <div>
+                        <div class="ms-app__title">MobilSoft</div>
+                        <div class="ms-app__company"><t t-esc="state.companyName"/></div>
+                    </div>
+                </div>
+            </div>
+            <div class="ms-app__header-right">
+                <span class="ms-app__user-info">👤 <t t-esc="state.userName"/></span>
+                <button class="ms-app__header-btn" t-on-click="logout">Çıkış</button>
+            </div>
+        </header>
+
+        <!-- BODY -->
+        <div class="ms-app__body">
+
+            <!-- Sidebar overlay (mobil kapanış) -->
+            <t t-if="state.sidebarOpen">
+                <div class="ms-sidebar__overlay" t-on-click="closeSidebar"/>
+            </t>
+
+            <!-- SIDEBAR -->
+            <nav t-attf-class="ms-app__sidebar{{ state.sidebarOpen ? ' ms-sidebar--open' : '' }}">
+                <div class="ms-sidebar__section">
+                    <div class="ms-sidebar__section-title">Modüller</div>
+                    <ul class="ms-sidebar__nav">
+                        <t t-foreach="navItems" t-as="item" t-key="item.id">
+                            <li class="ms-sidebar__item">
+                                <div
+                                    t-attf-class="ms-sidebar__link{{ state.currentPage === item.id ? ' ms-sidebar__link--active' : '' }}"
+                                    t-on-click="() => onNavClick(item)"
+                                >
+                                    <span class="ms-sidebar__icon"><t t-esc="item.icon"/></span>
+                                    <span class="ms-sidebar__label"><t t-esc="item.label"/></span>
+                                    <t t-if="item.badge">
+                                        <span class="ms-sidebar__badge"><t t-esc="item.badge"/></span>
+                                    </t>
+                                </div>
+                            </li>
+                        </t>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- MAIN CONTENT -->
+            <main class="ms-app__content">
+                <!-- Ana Sayfa -->
+                <t t-if="state.currentPage === 'home'">
+                    <MobilSoftHome/>
+                </t>
+
+                <!-- Ürünler -->
+                <t t-elif="state.currentPage === 'products'">
+                    <ProductsModule/>
+                </t>
+
+                <!-- Cariler -->
+                <t t-elif="state.currentPage === 'customers'">
+                    <CustomersModule/>
+                </t>
+
+                <!-- Satışlar -->
+                <t t-elif="state.currentPage === 'sales'">
+                    <SalesModule/>
+                </t>
+
+                <!-- Faturalar -->
+                <t t-elif="state.currentPage === 'invoices'">
+                    <div class="ms-page">
+                        <div class="ms-page__header">
+                            <h1 class="ms-page__title">🧾 Faturalar</h1>
+                            <div class="ms-page__actions">
+                                <button class="ms-btn ms-btn--primary">+ Yeni Fatura</button>
+                            </div>
+                        </div>
+                        <div class="ms-spinner">Faturalar yükleniyor...</div>
+                    </div>
+                </t>
+
+                <!-- Stok -->
+                <t t-elif="state.currentPage === 'stock'">
+                    <div class="ms-page">
+                        <div class="ms-page__header">
+                            <h1 class="ms-page__title">📊 Stok Yönetimi</h1>
+                        </div>
+                        <div class="ms-spinner">Stok bilgileri yükleniyor...</div>
+                    </div>
+                </t>
+
+                <!-- Alışlar -->
+                <t t-elif="state.currentPage === 'purchases'">
+                    <div class="ms-page">
+                        <div class="ms-page__header">
+                            <h1 class="ms-page__title">🚚 Alış Siparişleri</h1>
+                        </div>
+                        <div class="ms-spinner">Alışlar yükleniyor...</div>
+                    </div>
+                </t>
+
+                <!-- Raporlar -->
+                <t t-elif="state.currentPage === 'reports'">
+                    <div class="ms-page">
+                        <div class="ms-page__header">
+                            <h1 class="ms-page__title">📈 Raporlar</h1>
+                        </div>
+                        <div class="ms-empty">
+                            <div class="ms-empty__icon">📊</div>
+                            <p class="ms-empty__title">Raporlar Geliyor</p>
+                            <p class="ms-empty__desc">Satış analizi, stok raporu ve finansal özet yakında eklenecek.</p>
+                        </div>
+                    </div>
+                </t>
+
+                <!-- Entegrasyonlar -->
+                <t t-elif="state.currentPage === 'integrations'">
+                    <div class="ms-page">
+                        <div class="ms-page__header">
+                            <h1 class="ms-page__title">🔌 Entegrasyonlar</h1>
+                        </div>
+                        <div class="ms-empty">
+                            <div class="ms-empty__icon">🔗</div>
+                            <p class="ms-empty__title">Entegrasyon Yönetimi</p>
+                            <p class="ms-empty__desc">Trendyol, Hepsiburada, N11, Getir, Yemeksepeti ve XML entegrasyonları yakında bu alandan yönetilebilecek.</p>
+                        </div>
+                    </div>
+                </t>
+            </main>
+
+        </div>
+    </div>
+</t>
+
+</templates>

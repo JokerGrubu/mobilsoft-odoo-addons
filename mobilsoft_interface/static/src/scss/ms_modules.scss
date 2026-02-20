@@ -1,0 +1,597 @@
+/**
+ * MobilSoft Modülleri - Ortak Bileşen Stilleri
+ * Tablo, form, badge, buton, sayfalama
+ */
+
+// ============================================
+// SAYFA BAŞLIĞI
+// ============================================
+.ms-page {
+    padding: 20px 24px;
+
+    @media (max-width: 600px) { padding: 16px; }
+}
+
+.ms-page__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.ms-page__title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ms-text);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ms-page__subtitle {
+    font-size: 13px;
+    color: var(--ms-text-muted);
+    margin: 4px 0 0;
+}
+
+.ms-page__actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+// ============================================
+// BUTONLAR
+// ============================================
+.ms-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+.ms-btn--primary {
+    background: var(--ms-primary);
+    color: white;
+
+    &:hover:not(:disabled) { background: var(--ms-secondary); }
+}
+
+.ms-btn--secondary {
+    background: white;
+    color: var(--ms-text);
+    border: 1.5px solid var(--ms-border);
+
+    &:hover:not(:disabled) { border-color: var(--ms-primary-light); background: #F0FAF4; }
+}
+
+.ms-btn--danger {
+    background: #DC3545;
+    color: white;
+
+    &:hover:not(:disabled) { background: #C82333; }
+}
+
+.ms-btn--sm {
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+.ms-btn--icon {
+    padding: 7px;
+    width: 34px;
+    height: 34px;
+    justify-content: center;
+}
+
+// ============================================
+// ARAMA VE FİLTRE ÇUBUĞU
+// ============================================
+.ms-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.ms-search {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 380px;
+}
+
+.ms-search__icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ms-text-muted);
+    font-size: 14px;
+    pointer-events: none;
+}
+
+.ms-search__input {
+    width: 100%;
+    padding: 8px 12px 8px 34px;
+    border: 1.5px solid var(--ms-border);
+    border-radius: 8px;
+    font-size: 13px;
+    background: white;
+    transition: border-color 0.2s;
+
+    &:focus {
+        outline: none;
+        border-color: var(--ms-primary-light);
+    }
+
+    &::placeholder { color: var(--ms-text-muted); }
+}
+
+.ms-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--ms-border);
+    padding: 3px;
+    border-radius: 8px;
+}
+
+.ms-tab {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--ms-text-muted);
+    transition: all 0.15s;
+    white-space: nowrap;
+
+    &:hover { color: var(--ms-text); }
+
+    &.ms-tab--active {
+        background: white;
+        color: var(--ms-primary);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+}
+
+// ============================================
+// TABLO
+// ============================================
+.ms-table-container {
+    background: white;
+    border-radius: var(--ms-radius);
+    box-shadow: var(--ms-shadow);
+    overflow: hidden;
+}
+
+.ms-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.ms-table thead tr {
+    background: #F8F9FA;
+    border-bottom: 2px solid var(--ms-border);
+}
+
+.ms-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--ms-text-muted);
+    white-space: nowrap;
+}
+
+.ms-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid #F1F3F5;
+    vertical-align: middle;
+    color: var(--ms-text);
+}
+
+.ms-table tbody tr {
+    cursor: pointer;
+    transition: background 0.1s;
+
+    &:hover { background: #F8FBF9; }
+    &:last-child td { border-bottom: none; }
+}
+
+.ms-table__empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: var(--ms-text-muted);
+    font-size: 14px;
+}
+
+.ms-table__img {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: var(--ms-border);
+}
+
+.ms-table__img-placeholder {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    background: var(--ms-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+// ============================================
+// DURUM BADGELERİ
+// ============================================
+.ms-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ms-badge--success  { background: #D1FAE5; color: #065F46; }
+.ms-badge--warning  { background: #FEF3C7; color: #92400E; }
+.ms-badge--danger   { background: #FEE2E2; color: #991B1B; }
+.ms-badge--info     { background: #DBEAFE; color: #1E40AF; }
+.ms-badge--muted    { background: #F3F4F6; color: #4B5563; }
+.ms-badge--purple   { background: #EDE9FE; color: #5B21B6; }
+
+// ============================================
+// SAYFALAMA
+// ============================================
+.ms-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-top: 1px solid var(--ms-border);
+    font-size: 13px;
+    color: var(--ms-text-muted);
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ms-pagination__info {
+    white-space: nowrap;
+}
+
+.ms-pagination__controls {
+    display: flex;
+    gap: 4px;
+}
+
+.ms-pagination__btn {
+    padding: 5px 10px;
+    border: 1.5px solid var(--ms-border);
+    border-radius: 6px;
+    background: white;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--ms-text);
+
+    &:hover:not(:disabled) {
+        border-color: var(--ms-primary-light);
+        color: var(--ms-primary);
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+}
+
+// ============================================
+// FORM STİLLERİ
+// ============================================
+.ms-form-page {
+    padding: 20px 24px;
+
+    @media (max-width: 600px) { padding: 16px; }
+}
+
+.ms-form-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.ms-form-back {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--ms-text-muted);
+    padding: 4px;
+    line-height: 1;
+    border-radius: 6px;
+
+    &:hover { background: var(--ms-border); color: var(--ms-text); }
+}
+
+.ms-form-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ms-text);
+    margin: 0;
+}
+
+.ms-form-card {
+    background: white;
+    border-radius: var(--ms-radius);
+    box-shadow: var(--ms-shadow);
+    padding: 24px;
+    margin-bottom: 16px;
+}
+
+.ms-form-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--ms-text-muted);
+    margin: 0 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--ms-border);
+}
+
+.ms-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+
+    @media (max-width: 600px) { grid-template-columns: 1fr; }
+}
+
+.ms-form-row--3 {
+    grid-template-columns: 1fr 1fr 1fr;
+
+    @media (max-width: 768px) { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 480px) { grid-template-columns: 1fr; }
+}
+
+.ms-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ms-form-group--full {
+    grid-column: 1 / -1;
+}
+
+.ms-form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ms-text);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ms-form-required {
+    color: #DC3545;
+}
+
+.ms-form-input,
+.ms-form-select,
+.ms-form-textarea {
+    padding: 9px 12px;
+    border: 1.5px solid var(--ms-border);
+    border-radius: 8px;
+    font-size: 13px;
+    background: white;
+    color: var(--ms-text);
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+
+    &:focus {
+        outline: none;
+        border-color: var(--ms-primary-light);
+        box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
+    }
+
+    &::placeholder { color: var(--ms-text-muted); }
+
+    &:disabled {
+        background: #F8F9FA;
+        color: var(--ms-text-muted);
+    }
+}
+
+.ms-form-textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.ms-form-error {
+    font-size: 11px;
+    color: #DC3545;
+}
+
+.ms-form-hint {
+    font-size: 11px;
+    color: var(--ms-text-muted);
+}
+
+// Toggle switch
+.ms-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.ms-toggle__switch {
+    width: 40px;
+    height: 22px;
+    background: var(--ms-border);
+    border-radius: 11px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+
+    &::after {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: white;
+        top: 3px;
+        left: 3px;
+        transition: transform 0.2s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+}
+
+.ms-toggle--on .ms-toggle__switch {
+    background: var(--ms-primary);
+
+    &::after { transform: translateX(18px); }
+}
+
+.ms-toggle__label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ms-text);
+}
+
+// Form footer
+.ms-form-footer {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 8px;
+
+    @media (max-width: 480px) {
+        flex-direction: column-reverse;
+        .ms-btn { justify-content: center; }
+    }
+}
+
+// ============================================
+// LOADING SPINNER (ortak)
+// ============================================
+.ms-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    gap: 12px;
+    color: var(--ms-text-muted);
+    font-size: 14px;
+
+    &::before {
+        content: '';
+        width: 28px;
+        height: 28px;
+        border: 3px solid var(--ms-border);
+        border-top-color: var(--ms-primary);
+        border-radius: 50%;
+        animation: ms-spin 0.8s linear infinite;
+        flex-shrink: 0;
+    }
+}
+
+// ============================================
+// BOŞ DURUM
+// ============================================
+.ms-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 24px;
+    gap: 12px;
+    text-align: center;
+}
+
+.ms-empty__icon { font-size: 48px; }
+
+.ms-empty__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ms-text);
+    margin: 0;
+}
+
+.ms-empty__desc {
+    font-size: 13px;
+    color: var(--ms-text-muted);
+    margin: 0;
+}
+
+// ============================================
+// ÖZET KARTLAR (Dashboard içinde)
+// ============================================
+.ms-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.ms-summary-card {
+    background: white;
+    border-radius: var(--ms-radius);
+    box-shadow: var(--ms-shadow);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-left: 4px solid var(--ms-primary);
+
+    &.ms-summary-card--green { border-left-color: #2D6A4F; }
+    &.ms-summary-card--orange { border-left-color: #F77F00; }
+    &.ms-summary-card--red { border-left-color: #DC3545; }
+    &.ms-summary-card--blue { border-left-color: #2563EB; }
+}
+
+.ms-summary-card__icon { font-size: 28px; }
+
+.ms-summary-card__value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ms-text);
+    line-height: 1.1;
+}
+
+.ms-summary-card__label {
+    font-size: 11px;
+    color: var(--ms-text-muted);
+    margin-top: 2px;
+}

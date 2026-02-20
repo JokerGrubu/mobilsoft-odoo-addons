@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+<!-- ================================================
+     ÜRÜNLER MODÜLÜ - Wrapper
+================================================ -->
+<t t-name="mobilsoft_interface.ProductsModule">
+    <t t-if="state.view === 'list'">
+        <ProductsList
+            onEdit="(id) => showEdit(id)"
+            onNew="() => showNew()"
+        />
+    </t>
+    <t t-else="">
+        <ProductForm
+            id="state.editId"
+            onBack="() => showList()"
+            onSaved="() => onSaved()"
+        />
+    </t>
+</t>
+
+<!-- ================================================
+     ÜRÜN LİSTESİ
+================================================ -->
+<t t-name="mobilsoft_interface.ProductsList">
+    <div class="ms-page">
+
+        <!-- Başlık -->
+        <div class="ms-page__header">
+            <div>
+                <h1 class="ms-page__title">📦 Ürünler</h1>
+                <p class="ms-page__subtitle"><t t-esc="state.total"/> ürün</p>
+            </div>
+            <div class="ms-page__actions">
+                <button class="ms-btn ms-btn--primary" t-on-click="() => props.onNew()">
+                    + Yeni Ürün
+                </button>
+            </div>
+        </div>
+
+        <!-- Araç çubuğu -->
+        <div class="ms-toolbar">
+            <div class="ms-search">
+                <span class="ms-search__icon">🔍</span>
+                <input
+                    class="ms-search__input"
+                    type="text"
+                    placeholder="İsim veya barkod ara..."
+                    t-att-value="state.search"
+                    t-on-input="onSearch"
+                />
+            </div>
+            <div class="ms-tabs">
+                <button
+                    t-attf-class="ms-tab{{ state.filter === 'active' ? ' ms-tab--active' : '' }}"
+                    t-on-click="() => setFilter('active')">Aktif</button>
+                <button
+                    t-attf-class="ms-tab{{ state.filter === 'all' ? ' ms-tab--active' : '' }}"
+                    t-on-click="() => setFilter('all')">Tümü</button>
+                <button
+                    t-attf-class="ms-tab{{ state.filter === 'low_stock' ? ' ms-tab--active' : '' }}"
+                    t-on-click="() => setFilter('low_stock')">Kritik Stok</button>
+                <button
+                    t-attf-class="ms-tab{{ state.filter === 'archived' ? ' ms-tab--active' : '' }}"
+                    t-on-click="() => setFilter('archived')">Arşiv</button>
+            </div>
+        </div>
+
+        <!-- Tablo -->
+        <div class="ms-table-container">
+            <t t-if="state.loading">
+                <div class="ms-spinner">Ürünler yükleniyor...</div>
+            </t>
+            <t t-elif="state.records.length === 0">
+                <div class="ms-empty">
+                    <div class="ms-empty__icon">📦</div>
+                    <p class="ms-empty__title">Ürün bulunamadı</p>
+                    <p class="ms-empty__desc">Arama kriterlerinizi değiştirin veya yeni ürün ekleyin.</p>
+                    <button class="ms-btn ms-btn--primary" t-on-click="() => props.onNew()">+ Yeni Ürün</button>
+                </div>
+            </t>
+            <t t-else="">
+                <table class="ms-table">
+                    <thead>
+                        <tr>
+                            <th style="width:44px"></th>
+                            <th>Ürün Adı</th>
+                            <th>Barkod</th>
+                            <th>Kategori</th>
+                            <th>Satış Fiyatı</th>
+                            <th>Stok</th>
+                            <th>Tip</th>
+                            <th style="width:60px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="state.records" t-as="rec" t-key="rec.id">
+                            <tr t-on-click="() => props.onEdit(rec.id)">
+                                <td>
+                                    <t t-if="rec.image_128">
+                                        <img
+                                            class="ms-table__img"
+                                            t-attf-src="data:image/png;base64,{{rec.image_128}}"
+                                            alt=""
+                                        />
+                                    </t>
+                                    <t t-else="">
+                                        <div class="ms-table__img-placeholder">📦</div>
+                                    </t>
+                                </td>
+                                <td><strong><t t-esc="rec.name"/></strong></td>
+                                <td style="font-family:monospace; font-size:12px; color:#666">
+                                    <t t-esc="rec.barcode || '—'"/>
+                                </td>
+                                <td><t t-esc="rec.categ_id ? rec.categ_id[1] : '—'"/></td>
+                                <td style="font-weight:600; color:#2D6A4F">
+                                    ₺ <t t-esc="formatPrice(rec.list_price)"/>
+                                </td>
+                                <td>
+                                    <t t-set="stockInfo" t-value="getStockBadge(rec)"/>
+                                    <t t-if="stockInfo">
+                                        <span t-attf-class="ms-badge {{ stockInfo.class }}">
+                                            <t t-esc="stockInfo.label"/>
+                                        </span>
+                                    </t>
+                                    <t t-else="">
+                                        <span class="ms-badge ms-badge--muted">Hizmet</span>
+                                    </t>
+                                </td>
+                                <td>
+                                    <span class="ms-badge ms-badge--muted">
+                                        <t t-esc="getTypeLabel(rec.type)"/>
+                                    </span>
+                                </td>
+                                <td t-on-click.stop="() => props.onEdit(rec.id)">
+                                    <button class="ms-btn ms-btn--secondary ms-btn--sm">✏️</button>
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+
+                <!-- Sayfalama -->
+                <div class="ms-pagination">
+                    <span class="ms-pagination__info">
+                        <t t-esc="pageStart"/> – <t t-esc="pageEnd"/> / <t t-esc="state.total"/> kayıt
+                    </span>
+                    <div class="ms-pagination__controls">
+                        <button
+                            class="ms-pagination__btn"
+                            t-att-disabled="state.offset <= 0"
+                            t-on-click="prevPage">◀ Önceki</button>
+                        <span style="padding: 5px 12px; font-size:13px">
+                            <t t-esc="currentPage"/> / <t t-esc="totalPages"/>
+                        </span>
+                        <button
+                            class="ms-pagination__btn"
+                            t-att-disabled="state.offset + state.limit >= state.total"
+                            t-on-click="nextPage">Sonraki ▶</button>
+                    </div>
+                </div>
+            </t>
+        </div>
+
+    </div>
+</t>
+
+<!-- ================================================
+     ÜRÜN FORMU
+================================================ -->
+<t t-name="mobilsoft_interface.ProductForm">
+    <div class="ms-form-page">
+
+        <!-- Form başlığı -->
+        <div class="ms-form-header">
+            <button class="ms-form-back" t-on-click="props.onBack" title="Geri dön">←</button>
+            <h1 class="ms-form-title">
+                <t t-if="props.id">Ürün Düzenle</t>
+                <t t-else="">Yeni Ürün</t>
+            </h1>
+        </div>
+
+        <!-- Yükleniyor -->
+        <t t-if="state.loading">
+            <div class="ms-spinner">Ürün yükleniyor...</div>
+        </t>
+
+        <t t-else="">
+            <!-- Temel Bilgiler -->
+            <div class="ms-form-card">
+                <p class="ms-form-section-title">Temel Bilgiler</p>
+                <div class="ms-form-row">
+
+                    <div class="ms-form-group ms-form-group--full">
+                        <label class="ms-form-label">
+                            Ürün Adı <span class="ms-form-required">*</span>
+                        </label>
+                        <input
+                            class="ms-form-input"
+                            type="text"
+                            placeholder="Ürün adını girin"
+                            t-att-value="state.record.name"
+                            t-on-input="(e) => updateField('name', e.target.value)"
+                        />
+                        <t t-if="state.errors.name">
+                            <span class="ms-form-error"><t t-esc="state.errors.name"/></span>
+                        </t>
+                    </div>
+
+                    <div class="ms-form-group">
+                        <label class="ms-form-label">Barkod</label>
+                        <input
+                            class="ms-form-input"
+                            type="text"
+                            placeholder="Barkod (opsiyonel)"
+                            t-att-value="state.record.barcode"
+                            t-on-input="(e) => updateField('barcode', e.target.value)"
+                        />
+                    </div>
+
+                    <div class="ms-form-group">
+                        <label class="ms-form-label">Kategori</label>
+                        <select
+                            class="ms-form-select"
+                            t-on-change="(e) => updateField('categ_id', parseInt(e.target.value) || false)"
+                        >
+                            <option value="">-- Seçiniz --</option>
+                            <t t-foreach="state.categories" t-as="cat" t-key="cat.id">
+                                <option
+                                    t-att-value="cat.id"
+                                    t-att-selected="state.record.categ_id === cat.id"
+                                >
+                                    <t t-esc="cat.name"/>
+                                </option>
+                            </t>
+                        </select>
+                    </div>
+
+                    <div class="ms-form-group">
+                        <label class="ms-form-label">Ürün Tipi</label>
+                        <select
+                            class="ms-form-select"
+                            t-on-change="(e) => updateField('type', e.target.value)"
+                        >
+                            <option value="consu" t-att-selected="state.record.type === 'consu'">Sarf Malzeme</option>
+                            <option value="product" t-att-selected="state.record.type === 'product'">Stoklanabilir</option>
+                            <option value="service" t-att-selected="state.record.type === 'service'">Hizmet</option>
+                        </select>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Fiyatlandırma -->
+            <div class="ms-form-card">
+                <p class="ms-form-section-title">Fiyatlandırma</p>
+                <div class="ms-form-row">
+
+                    <div class="ms-form-group">
+                        <label class="ms-form-label">Satış Fiyatı (₺)</label>
+                        <input
+                            class="ms-form-input"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0,00"
+                            t-att-value="state.record.list_price"
+                            t-on-input="(e) => updateField('list_price', e.target.value)"
+                        />
+                        <t t-if="state.errors.list_price">
+                            <span class="ms-form-error"><t t-esc="state.errors.list_price"/></span>
+                        </t>
+                    </div>
+
+                    <div class="ms-form-group">
+                        <label class="ms-form-label">Maliyet Fiyatı (₺)</label>
+                        <input
+                            class="ms-form-input"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0,00"
+                            t-att-value="state.record.standard_price"
+                            t-on-input="(e) => updateField('standard_price', e.target.value)"
+                        />
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Ek Bilgiler -->
+            <div class="ms-form-card">
+                <p class="ms-form-section-title">Ek Bilgiler</p>
+
+                <div class="ms-form-group">
+                    <label class="ms-form-label">Satış Açıklaması</label>
+                    <textarea
+                        class="ms-form-textarea"
+                        placeholder="Müşterilere gösterilecek açıklama (opsiyonel)"
+                        t-att-value="state.record.description_sale"
+                        t-on-input="(e) => updateField('description_sale', e.target.value)"
+                    />
+                </div>
+
+                <div style="margin-top: 16px">
+                    <div
+                        t-attf-class="ms-toggle{{ state.record.active ? ' ms-toggle--on' : '' }}"
+                        t-on-click="toggleActive"
+                    >
+                        <div class="ms-toggle__switch"></div>
+                        <span class="ms-toggle__label">
+                            <t t-if="state.record.active">Aktif</t>
+                            <t t-else="">Pasif (Arşivlenmiş)</t>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kaydet / İptal -->
+            <div class="ms-form-footer">
+                <button class="ms-btn ms-btn--secondary" t-on-click="props.onBack">
+                    İptal
+                </button>
+                <button
+                    class="ms-btn ms-btn--primary"
+                    t-att-disabled="state.saving"
+                    t-on-click="save"
+                >
+                    <t t-if="state.saving">⏳ Kaydediliyor...</t>
+                    <t t-else="">✓ Kaydet</t>
+                </button>
+            </div>
+        </t>
+
+    </div>
+</t>
+
+</templates>
