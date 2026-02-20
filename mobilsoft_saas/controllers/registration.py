@@ -125,7 +125,7 @@ class MobilSoftRegistrationController(http.Controller):
             _logger.info('MobilSoft SaaS: Kullanıcı oluşturuldu: %s (ID: %s)', user.login, user.id)
 
             # Grup atamaları - Odoo 19'da field adı group_ids (groups_id değil!)
-            # Temel gruplar: Invoicing, Product Manager, Sales, Stock User, Partner Creation
+            # Temel gruplar: Invoicing, Product Manager, Sales, Stock User, Partner Creation, POS
             group_xml_ids = [
                 'base.group_user',                # Dahili Kullanıcı (zaten var)
                 'base.group_partner_manager',     # Cari/Ortak Oluşturma
@@ -135,6 +135,8 @@ class MobilSoftRegistrationController(http.Controller):
                 'product.group_product_variant',  # Ürün Varyant
                 'sales_team.group_sale_salesman', # Satış Kullanıcı
                 'stock.group_stock_user',         # Stok Kullanıcı
+                'point_of_sale.group_pos_user',   # POS Kullanıcı
+                'point_of_sale.group_pos_manager',# POS Yönetici
             ]
             groups_to_add = []
             for ref in group_xml_ids:
@@ -158,10 +160,27 @@ class MobilSoftRegistrationController(http.Controller):
             if not cash_journal:
                 self._create_default_journals(env, company)
 
+            # ==================== 6. POS KONFIGÜRASYONU ====================
+            pos_config = self._create_pos_config(env, company, cash_journal)
+
+            # ==================== 7. MobilSoft HOME ACTION ====================
+            # Kullanıcı giriş yaptığında MobilSoft dashboard'una yönlendir
+            try:
+                ms_home_action = env.ref(
+                    'mobilsoft_interface.action_mobilsoft_home',
+                    raise_if_not_found=False
+                )
+                if ms_home_action:
+                    user.sudo().write({'action_id': ms_home_action.id})
+                    _logger.info('MobilSoft SaaS: MobilSoft home action atandı')
+            except Exception as ae:
+                _logger.warning('MobilSoft SaaS: Home action ataması başarısız: %s', ae)
+
             return {
                 'success': True,
                 'company_id': company.id,
                 'user_id': user.id,
+                'pos_config_id': pos_config.id if pos_config else None,
                 'message': f"'{company_name}' şirketi başarıyla kuruldu. {email} ile giriş yapabilirsiniz.",
             }
 
@@ -173,6 +192,48 @@ class MobilSoftRegistrationController(http.Controller):
             except Exception:
                 pass
             return {'success': False, 'error': str(e)}
+
+    def _create_pos_config(self, env, company, cash_journal=None):
+        """Şirket için POS konfigürasyonu oluştur."""
+        try:
+            # Zaten var mı?
+            existing = env['pos.config'].sudo().search(
+                [('company_id', '=', company.id)], limit=1
+            )
+            if existing:
+                return existing
+
+            pos_vals = {
+                'name': f"{company.name} Kasası",
+                'company_id': company.id,
+            }
+            # Kasa journal'ını bul
+            if not cash_journal:
+                cash_journal = env['account.journal'].sudo().search([
+                    ('company_id', '=', company.id),
+                    ('type', '=', 'cash'),
+                ], limit=1)
+            if cash_journal:
+                pos_vals['payment_method_ids'] = [(4, self._get_pos_cash_payment_method(env, company, cash_journal))]
+
+            pos_config = env['pos.config'].sudo().create(pos_vals)
+            _logger.info('MobilSoft SaaS: POS konfigürasyonu oluşturuldu: %s', pos_config.name)
+            return pos_config
+        except Exception as e:
+            _logger.warning('MobilSoft SaaS: POS konfigürasyonu oluşturulamadı: %s', e)
+            return None
+
+    def _get_pos_cash_payment_method(self, env, company, cash_journal):
+        """POS için nakit ödeme yöntemi ID'sini döndür, yoksa oluştur."""
+        method = env['pos.payment.method'].sudo().search([
+            ('company_id', '=', company.id),
+            ('type', '=', 'cash'),
+        ], limit=1)
+        if not method:
+            method = env['pos.payment.method'].sudo().search([
+                ('company_id', '=', company.id),
+            ], limit=1)
+        return method.id if method else False
 
     def _create_default_journals(self, env, company):
         """Temel muhasebe günlüklerini oluştur."""

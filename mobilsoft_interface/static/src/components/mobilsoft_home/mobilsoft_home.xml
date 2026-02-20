@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+<t t-name="mobilsoft_interface.MobilSoftHome">
+    <div class="ms-home">
+
+        <!-- Yükleme ekranı -->
+        <t t-if="state.loading">
+            <div class="ms-loading">
+                <div class="ms-loading-spinner"></div>
+                <p>MobilSoft yükleniyor...</p>
+            </div>
+        </t>
+
+        <t t-else="">
+            <!-- Üst başlık -->
+            <div class="ms-header">
+                <div class="ms-logo">
+                    <span class="ms-logo-icon">🏪</span>
+                    <div>
+                        <h1 class="ms-company-name"><t t-esc="state.companyName"/></h1>
+                        <p class="ms-tagline">MobilSoft KOBİ ERP</p>
+                    </div>
+                </div>
+                <div class="ms-header-actions">
+                    <span class="ms-date"><t t-esc="new Date().toLocaleDateString('tr-TR', {weekday:'long', day:'numeric', month:'long'})"/></span>
+                </div>
+            </div>
+
+            <!-- KPI Kartları -->
+            <div class="ms-kpi-row">
+                <div class="ms-kpi ms-kpi-green">
+                    <div class="ms-kpi-icon">💰</div>
+                    <div class="ms-kpi-content">
+                        <div class="ms-kpi-value">₺ <t t-esc="formatCurrency(state.stats.todaySales)"/></div>
+                        <div class="ms-kpi-label">Bugün Satış</div>
+                    </div>
+                </div>
+                <div class="ms-kpi ms-kpi-orange" t-on-click="openInvoices">
+                    <div class="ms-kpi-icon">📄</div>
+                    <div class="ms-kpi-content">
+                        <div class="ms-kpi-value"><t t-esc="state.stats.pendingInvoices"/></div>
+                        <div class="ms-kpi-label">Bekleyen Fatura</div>
+                    </div>
+                </div>
+                <div class="ms-kpi ms-kpi-red" t-on-click="openStock">
+                    <div class="ms-kpi-icon">⚠️</div>
+                    <div class="ms-kpi-content">
+                        <div class="ms-kpi-value"><t t-esc="state.stats.stockAlerts"/></div>
+                        <div class="ms-kpi-label">Kritik Stok</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ana Butonlar -->
+            <div class="ms-main-actions">
+
+                <!-- POS - Birincil buton -->
+                <div class="ms-action-primary" t-on-click="openPOS">
+                    <div class="ms-action-icon">🖥️</div>
+                    <div class="ms-action-label">Kasaya Git</div>
+                    <div class="ms-action-sub">Satış Yap / Barkod Okut</div>
+                    <t t-if="state.posConfig">
+                        <div class="ms-pos-badge ms-pos-ready">Kasa Hazır</div>
+                    </t>
+                    <t t-else="">
+                        <div class="ms-pos-badge ms-pos-offline">Kasa Yok</div>
+                    </t>
+                </div>
+
+                <!-- İkincil butonlar grid -->
+                <div class="ms-action-grid">
+                    <div class="ms-action-card" t-on-click="openNewSaleInvoice">
+                        <div class="ms-action-card-icon">🧾</div>
+                        <div class="ms-action-card-label">Fatura Kes</div>
+                    </div>
+                    <div class="ms-action-card" t-on-click="openPartners">
+                        <div class="ms-action-card-icon">👥</div>
+                        <div class="ms-action-card-label">Cariler</div>
+                    </div>
+                    <div class="ms-action-card" t-on-click="openStock">
+                        <div class="ms-action-card-icon">📦</div>
+                        <div class="ms-action-card-label">Stok</div>
+                    </div>
+                    <div class="ms-action-card" t-on-click="openSales">
+                        <div class="ms-action-card-icon">🛒</div>
+                        <div class="ms-action-card-label">Satışlar</div>
+                    </div>
+                    <div class="ms-action-card" t-on-click="openPurchases">
+                        <div class="ms-action-card-icon">🚚</div>
+                        <div class="ms-action-card-label">Alışlar</div>
+                    </div>
+                    <div class="ms-action-card" t-on-click="openNewProduct">
+                        <div class="ms-action-card-icon">➕</div>
+                        <div class="ms-action-card-label">Yeni Ürün</div>
+                    </div>
+                </div>
+            </div>
+
+        </t>
+    </div>
+</t>
+
+</templates>
