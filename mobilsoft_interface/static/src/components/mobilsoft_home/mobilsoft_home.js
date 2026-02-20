@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState, onMounted, useRef } from "@odoo/owl";
+import { Component, useState, onMounted } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
@@ -8,27 +8,25 @@ import { _t } from "@web/core/l10n/translation";
 /**
  * MobilSoft Ana Sayfa - OWL Dashboard
  *
- * Odoo'nun karmaşık arayüzü yerine gösterilen,
- * bakkal/market/KOBİ için özelleştirilmiş sade dashboard.
+ * Odoo 19 uyumlu: `rpc` servisi kaldırıldı, `orm` servisi kullanılıyor.
  */
 export class MobilSoftHome extends Component {
     static template = "mobilsoft_interface.MobilSoftHome";
     static props = {};
 
     setup() {
+        // Odoo 19: rpc servisi yok, orm kullan
         this.action = useService("action");
-        this.rpc = useService("rpc");
+        this.orm = useService("orm");
         this.user = useService("user");
         this.notification = useService("notification");
 
         this.state = useState({
-            companyName: this.user.name || "Şirketim",
-            userName: this.user.name || "",
+            companyName: "",
             stats: {
-                todaySales: 0,
+                todaySales: "0,00",
                 pendingInvoices: 0,
                 stockAlerts: 0,
-                cashBalance: 0,
             },
             posConfig: null,
             loading: true,
@@ -39,62 +37,62 @@ export class MobilSoftHome extends Component {
 
     async _loadDashboardData() {
         try {
-            // Şirket bilgisi
-            const company = await this.rpc("/web/dataset/call_kw", {
-                model: "res.company",
-                method: "read",
-                args: [[this.user.company.id], ["name", "currency_id"]],
-                kwargs: {},
-            });
-            if (company && company[0]) {
-                this.state.companyName = company[0].name;
+            // Şirket adı
+            const companyId = this.user.context.allowed_company_ids
+                ? this.user.context.allowed_company_ids[0]
+                : this.user.company?.id;
+
+            if (companyId) {
+                const companies = await this.orm.read(
+                    "res.company",
+                    [companyId],
+                    ["name"]
+                );
+                if (companies.length) {
+                    this.state.companyName = companies[0].name;
+                }
             }
 
-            // Bugünün satışları (satış siparişleri)
+            // Bugünün satışları
             const today = new Date().toISOString().split("T")[0];
-            const todaySales = await this.rpc("/web/dataset/call_kw", {
-                model: "sale.order",
-                method: "search_read",
-                args: [[
+            const todaySales = await this.orm.searchRead(
+                "sale.order",
+                [
                     ["date_order", ">=", today + " 00:00:00"],
                     ["state", "in", ["sale", "done"]],
-                ]],
-                kwargs: { fields: ["amount_total"], limit: 0 },
-            });
-            this.state.stats.todaySales = todaySales
-                .reduce((s, o) => s + (o.amount_total || 0), 0)
-                .toFixed(2);
+                ],
+                ["amount_total"]
+            );
+            const totalSales = todaySales.reduce(
+                (s, o) => s + (o.amount_total || 0),
+                0
+            );
+            this.state.stats.todaySales = this.formatCurrency(totalSales);
 
             // Bekleyen faturalar
-            const pendingInvoices = await this.rpc("/web/dataset/call_kw", {
-                model: "account.move",
-                method: "search_count",
-                args: [[
+            this.state.stats.pendingInvoices = await this.orm.searchCount(
+                "account.move",
+                [
                     ["move_type", "in", ["out_invoice", "in_invoice"]],
                     ["payment_state", "in", ["not_paid", "partial"]],
                     ["state", "=", "posted"],
-                ]],
-                kwargs: {},
-            });
-            this.state.stats.pendingInvoices = pendingInvoices;
+                ]
+            );
 
-            // Kritik stok uyarıları (sıfır veya negatif)
-            const stockAlerts = await this.rpc("/web/dataset/call_kw", {
-                model: "product.product",
-                method: "search_count",
-                args: [[["qty_available", "<=", 0], ["type", "=", "consu"]]],
-                kwargs: {},
-            });
-            this.state.stats.stockAlerts = stockAlerts;
+            // Kritik stok uyarıları (storable, sıfırın altında)
+            this.state.stats.stockAlerts = await this.orm.searchCount(
+                "product.product",
+                [["qty_available", "<=", 0], ["type", "=", "consu"], ["is_storable", "=", true]]
+            );
 
-            // POS konfigürasyonu
-            const posConfigs = await this.rpc("/web/dataset/call_kw", {
-                model: "pos.config",
-                method: "search_read",
-                args: [[["active", "=", true]]],
-                kwargs: { fields: ["id", "name", "current_session_id"], limit: 1 },
-            });
-            this.state.posConfig = posConfigs && posConfigs[0] ? posConfigs[0] : null;
+            // POS konfigürasyonu (bu şirkete ait)
+            const posConfigs = await this.orm.searchRead(
+                "pos.config",
+                [["active", "=", true]],
+                ["id", "name", "current_session_id"],
+                { limit: 1 }
+            );
+            this.state.posConfig = posConfigs.length ? posConfigs[0] : null;
 
         } catch (e) {
             console.error("MobilSoft dashboard yükleme hatası:", e);
@@ -107,20 +105,17 @@ export class MobilSoftHome extends Component {
 
     async openPOS() {
         if (!this.state.posConfig) {
-            this.notification.add(_t("Kasa sistemi bulunamadı. Lütfen yöneticiye başvurun."), {
-                type: "warning",
-            });
+            this.notification.add(
+                _t("Kasa sistemi bulunamadı. Lütfen yöneticiye başvurun."),
+                { type: "warning" }
+            );
             return;
         }
-        try {
-            await this.action.doAction({
-                type: "ir.actions.act_url",
-                url: `/odoo/point-of-sale/shop/${this.state.posConfig.id}`,
-                target: "self",
-            });
-        } catch (e) {
-            this.notification.add(_t("Kasa açılırken hata oluştu."), { type: "danger" });
-        }
+        await this.action.doAction({
+            type: "ir.actions.act_url",
+            url: `/odoo/point-of-sale/shop/${this.state.posConfig.id}`,
+            target: "self",
+        });
     }
 
     openInvoices() {
@@ -140,7 +135,6 @@ export class MobilSoftHome extends Component {
             name: _t("Satış Siparişleri"),
             res_model: "sale.order",
             views: [[false, "list"], [false, "form"]],
-            context: { default_partner_id: false },
         });
     }
 
@@ -176,7 +170,7 @@ export class MobilSoftHome extends Component {
     openNewSaleInvoice() {
         this.action.doAction({
             type: "ir.actions.act_window",
-            name: _t("Satış Faturası"),
+            name: _t("Yeni Satış Faturası"),
             res_model: "account.move",
             views: [[false, "form"]],
             context: { default_move_type: "out_invoice" },
@@ -188,15 +182,6 @@ export class MobilSoftHome extends Component {
             type: "ir.actions.act_window",
             name: _t("Yeni Ürün"),
             res_model: "product.product",
-            views: [[false, "form"]],
-        });
-    }
-
-    openNewPartner() {
-        this.action.doAction({
-            type: "ir.actions.act_window",
-            name: _t("Yeni Cari"),
-            res_model: "res.partner",
             views: [[false, "form"]],
         });
     }
