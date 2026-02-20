@@ -23,7 +23,7 @@
                     </div>
                 </div>
                 <div class="ms-header-actions">
-                    <span class="ms-date"><t t-esc="new Date().toLocaleDateString('tr-TR', {weekday:'long', day:'numeric', month:'long'})"/></span>
+                    <span class="ms-date"><t t-esc="state.currentDate"/></span>
                 </div>
             </div>
 

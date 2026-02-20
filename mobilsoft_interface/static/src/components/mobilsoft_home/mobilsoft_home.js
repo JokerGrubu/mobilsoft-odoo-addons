@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState, onMounted } from "@odoo/owl";
+import { Component, useState, onMounted, onWillUnmount } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { session } from "@web/session";
@@ -26,18 +26,43 @@ export class MobilSoftHome extends Component {
         // Kullanıcı ve şirket bilgisi için session kullan (her zaman mevcut)
         this.session = session;
 
+        // Bileşen hâlâ monte mi? (async işlemler için guard)
+        this._mounted = false;
+
         this.state = useState({
             companyName: session.company_name || session.name || "MobilSoft",
             stats: {
-                todaySales: "0,00",
+                todaySales: 0,
                 pendingInvoices: 0,
                 stockAlerts: 0,
             },
             posConfig: null,
             loading: true,
+            currentDate: this._getFormattedDate(),
         });
 
-        onMounted(() => this._loadDashboardData());
+        onMounted(() => {
+            this._mounted = true;
+            this._loadDashboardData().catch((e) => {
+                console.error("MobilSoft onMounted hatası:", e);
+            });
+        });
+
+        onWillUnmount(() => {
+            this._mounted = false;
+        });
+    }
+
+    _getFormattedDate() {
+        try {
+            return new Date().toLocaleDateString("tr-TR", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+            });
+        } catch (e) {
+            return new Date().toLocaleDateString();
+        }
     }
 
     async _loadDashboardData() {
@@ -50,7 +75,7 @@ export class MobilSoftHome extends Component {
                     [companyId],
                     ["name"]
                 );
-                if (companies.length) {
+                if (this._mounted && companies.length) {
                     this.state.companyName = companies[0].name;
                 }
             }
@@ -69,10 +94,12 @@ export class MobilSoftHome extends Component {
                 (s, o) => s + (o.amount_total || 0),
                 0
             );
-            this.state.stats.todaySales = this.formatCurrency(totalSales);
+            if (this._mounted) {
+                this.state.stats.todaySales = totalSales;
+            }
 
             // Bekleyen faturalar
-            this.state.stats.pendingInvoices = await this.orm.searchCount(
+            const pendingCount = await this.orm.searchCount(
                 "account.move",
                 [
                     ["move_type", "in", ["out_invoice", "in_invoice"]],
@@ -80,30 +107,44 @@ export class MobilSoftHome extends Component {
                     ["state", "=", "posted"],
                 ]
             );
+            if (this._mounted) {
+                this.state.stats.pendingInvoices = pendingCount;
+            }
 
             // Kritik stok uyarıları
             try {
-                this.state.stats.stockAlerts = await this.orm.searchCount(
+                const alertCount = await this.orm.searchCount(
                     "product.product",
                     [["qty_available", "<=", 0], ["type", "=", "consu"]]
                 );
+                if (this._mounted) {
+                    this.state.stats.stockAlerts = alertCount;
+                }
             } catch (e) {
-                this.state.stats.stockAlerts = 0;
+                // stok erişim hatası - sessizce geç
             }
 
             // POS konfigürasyonu
-            const posConfigs = await this.orm.searchRead(
-                "pos.config",
-                [["active", "=", true]],
-                ["id", "name", "current_session_id"],
-                { limit: 1 }
-            );
-            this.state.posConfig = posConfigs.length ? posConfigs[0] : null;
+            try {
+                const posConfigs = await this.orm.searchRead(
+                    "pos.config",
+                    [["active", "=", true]],
+                    ["id", "name", "current_session_id"],
+                    { limit: 1 }
+                );
+                if (this._mounted) {
+                    this.state.posConfig = posConfigs.length ? posConfigs[0] : null;
+                }
+            } catch (e) {
+                // POS erişim hatası - sessizce geç
+            }
 
         } catch (e) {
             console.error("MobilSoft dashboard hatası:", e);
         } finally {
-            this.state.loading = false;
+            if (this._mounted) {
+                this.state.loading = false;
+            }
         }
     }
 
