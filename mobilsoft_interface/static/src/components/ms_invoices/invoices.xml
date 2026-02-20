@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+<!-- ═══════════════════════════════════════════════
+     FATURALAR MODÜLÜ WRAPPER
+     ═══════════════════════════════════════════════ -->
+<t t-name="mobilsoft_interface.InvoicesModule">
+    <div>
+        <t t-if="state.view === 'list'">
+            <InvoicesList
+                onOpen="(id) => showEdit(id)"
+                onNew="(type) => showNew(type)"
+            />
+        </t>
+        <t t-elif="state.view === 'form'">
+            <InvoiceForm
+                id="state.editId || undefined"
+                moveType="state.moveType"
+                onBack="() => showList()"
+                onSaved="() => onSaved()"
+            />
+        </t>
+    </div>
+</t>
+
+<!-- ═══════════════════════════════════════════════
+     FATURA LİSTESİ
+     ═══════════════════════════════════════════════ -->
+<t t-name="mobilsoft_interface.InvoicesList">
+    <div class="ms-page">
+
+        <div class="ms-page__header">
+            <div>
+                <h1 class="ms-page__title">🧾 Faturalar</h1>
+                <p class="ms-page__subtitle"><t t-esc="state.total"/> fatura</p>
+            </div>
+            <div class="ms-page__actions">
+                <button class="ms-btn ms-btn--secondary" t-on-click="() => props.onNew('in_invoice')">+ Alış Faturası</button>
+                <button class="ms-btn ms-btn--primary" t-on-click="() => props.onNew('out_invoice')">+ Satış Faturası</button>
+            </div>
+        </div>
+
+        <!-- Fatura tipi seçimi -->
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+            <button
+                t-attf-class="ms-btn ms-btn--sm {{ state.moveType === 'customer' ? 'ms-btn--primary' : 'ms-btn--secondary' }}"
+                t-on-click="() => setMoveType('customer')"
+            >Satış Faturaları</button>
+            <button
+                t-attf-class="ms-btn ms-btn--sm {{ state.moveType === 'supplier' ? 'ms-btn--primary' : 'ms-btn--secondary' }}"
+                t-on-click="() => setMoveType('supplier')"
+            >Alış Faturaları</button>
+        </div>
+
+        <!-- Araç çubuğu -->
+        <div class="ms-toolbar">
+            <div class="ms-search">
+                <span class="ms-search__icon">🔍</span>
+                <input
+                    class="ms-search__input"
+                    type="text"
+                    placeholder="Fatura no, cari veya referans ara..."
+                    t-att-value="state.search"
+                    t-on-input="onSearch"
+                />
+            </div>
+        </div>
+
+        <!-- Durum filtreleri -->
+        <div style="display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap">
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'all' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('all')">Tümü</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'unpaid' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('unpaid')">Ödenmedi</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'partial' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('partial')">Kısmi Ödeme</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'paid' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('paid')">Ödendi</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'overdue' ? 'ms-btn--danger' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('overdue')">Vadesi Geçmiş</button>
+        </div>
+
+        <!-- Tablo -->
+        <div class="ms-table-container">
+            <t t-if="state.loading">
+                <div class="ms-spinner">Faturalar yükleniyor...</div>
+            </t>
+            <t t-elif="state.records.length === 0">
+                <div class="ms-empty">
+                    <div class="ms-empty__icon">🧾</div>
+                    <p class="ms-empty__title">Fatura bulunamadı</p>
+                    <p class="ms-empty__desc">Henüz fatura yok veya filtreyi değiştirin.</p>
+                    <button class="ms-btn ms-btn--primary" t-on-click="() => props.onNew('out_invoice')">+ Yeni Satış Faturası</button>
+                </div>
+            </t>
+            <t t-else="">
+                <table class="ms-table">
+                    <thead>
+                        <tr>
+                            <th>Fatura No</th>
+                            <th>Tarih</th>
+                            <th>Vade</th>
+                            <th>Cari</th>
+                            <th style="text-align:right">Tutar</th>
+                            <th style="text-align:right">Kalan</th>
+                            <th>Durum</th>
+                            <th style="width:50px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="state.records" t-as="rec" t-key="rec.id">
+                            <tr t-on-click="() => props.onOpen(rec.id)" t-attf-class="{{ isOverdue(rec) ? 'ms-row--overdue' : '' }}">
+                                <td style="font-family:monospace; font-weight:600">
+                                    <t t-esc="rec.name || 'Taslak'"/>
+                                </td>
+                                <td><t t-esc="formatDate(rec.invoice_date)"/></td>
+                                <td t-attf-class="{{ isOverdue(rec) ? 'ms-text--danger' : '' }}">
+                                    <t t-esc="formatDate(rec.invoice_date_due)"/>
+                                </td>
+                                <td><t t-esc="rec.partner_id ? rec.partner_id[1] : '—'"/></td>
+                                <td style="text-align:right; font-weight:600">
+                                    <t t-esc="formatCurrency(rec.amount_total)"/>
+                                </td>
+                                <td style="text-align:right; color:#D62828">
+                                    <t t-if="rec.amount_residual > 0">
+                                        <t t-esc="formatCurrency(rec.amount_residual)"/>
+                                    </t>
+                                    <t t-else="">—</t>
+                                </td>
+                                <td>
+                                    <t t-set="badge" t-value="getPaymentBadge(rec)"/>
+                                    <span t-attf-class="ms-badge {{ badge.cls }}">
+                                        <t t-esc="badge.label"/>
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="ms-btn ms-btn--secondary ms-btn--sm" t-on-click.stop="() => props.onOpen(rec.id)">→</button>
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+
+                <div class="ms-pagination">
+                    <span class="ms-pagination__info">
+                        <t t-esc="pageStart"/> – <t t-esc="pageEnd"/> / <t t-esc="state.total"/> kayıt
+                    </span>
+                    <div class="ms-pagination__controls">
+                        <button class="ms-pagination__btn" t-att-disabled="state.offset &lt;= 0" t-on-click="prevPage">◀ Önceki</button>
+                        <span style="padding: 5px 12px; font-size:13px"><t t-esc="currentPage"/> / <t t-esc="totalPages"/></span>
+                        <button class="ms-pagination__btn" t-att-disabled="state.offset + state.limit >= state.total" t-on-click="nextPage">Sonraki ▶</button>
+                    </div>
+                </div>
+            </t>
+        </div>
+    </div>
+</t>
+
+<!-- ═══════════════════════════════════════════════
+     FATURA FORMU
+     ═══════════════════════════════════════════════ -->
+<t t-name="mobilsoft_interface.InvoiceForm">
+    <div class="ms-page">
+
+        <!-- Başlık -->
+        <div class="ms-page__header">
+            <div style="display:flex; align-items:center; gap:12px">
+                <button class="ms-btn ms-btn--secondary ms-btn--sm" t-on-click="() => props.onBack()">← Geri</button>
+                <div>
+                    <h1 class="ms-page__title">
+                        <t t-if="props.id">✏️ Fatura Düzenle</t>
+                        <t t-else="">
+                            <t t-if="state.record.move_type === 'out_invoice'">🧾 Yeni Satış Faturası</t>
+                            <t t-elif="state.record.move_type === 'in_invoice'">📥 Yeni Alış Faturası</t>
+                            <t t-else="">🧾 Yeni Fatura</t>
+                        </t>
+                    </h1>
+                </div>
+            </div>
+            <div class="ms-page__actions">
+                <button class="ms-btn ms-btn--secondary" t-on-click="() => props.onBack()">İptal</button>
+                <button class="ms-btn ms-btn--primary" t-on-click="save" t-att-disabled="state.saving">
+                    <t t-if="state.saving">Kaydediliyor...</t>
+                    <t t-else="">Kaydet (Taslak)</t>
+                </button>
+            </div>
+        </div>
+
+        <t t-if="state.loading">
+            <div class="ms-spinner">Fatura yükleniyor...</div>
+        </t>
+        <t t-else="">
+
+            <!-- Cari ve tarih bilgileri -->
+            <div class="ms-form-card">
+                <div class="ms-form-card__title">Fatura Bilgileri</div>
+                <div class="ms-form-row ms-form-row--2col">
+
+                    <!-- Cari arama -->
+                    <div class="ms-form-group" style="position:relative">
+                        <label class="ms-form-label">Cari <span style="color:#D62828">*</span></label>
+                        <input
+                            class="ms-form-input"
+                            type="text"
+                            placeholder="Cari ara..."
+                            t-att-value="state.record.partner_name"
+                            t-on-input="onPartnerInput"
+                            t-on-blur="() => { state.showPartnerDropdown = false; }"
+                        />
+                        <t t-if="state.errors.partner_id">
+                            <div class="ms-form-error"><t t-esc="state.errors.partner_id"/></div>
+                        </t>
+                        <t t-if="state.showPartnerDropdown">
+                            <div class="ms-dropdown">
+                                <t t-foreach="state.partnerResults" t-as="p" t-key="p.id">
+                                    <div class="ms-dropdown__item" t-on-mousedown="() => selectPartner(p)">
+                                        <strong><t t-esc="p.name"/></strong>
+                                        <t t-if="p.vat">
+                                            <span style="color:#666; font-size:12px; margin-left:6px"><t t-esc="p.vat"/></span>
+                                        </t>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Referans -->
+                    <div class="ms-form-group">
+                        <label class="ms-form-label">Referans / Sipariş No</label>
+                        <input
+                            class="ms-form-input"
+                            type="text"
+                            placeholder="Opsiyonel"
+                            t-att-value="state.record.ref"
+                            t-on-input="(ev) => { state.record.ref = ev.target.value; }"
+                        />
+                    </div>
+
+                    <!-- Fatura tarihi -->
+                    <div class="ms-form-group">
+                        <label class="ms-form-label">Fatura Tarihi <span style="color:#D62828">*</span></label>
+                        <input
+                            class="ms-form-input"
+                            type="date"
+                            t-att-value="state.record.invoice_date"
+                            t-on-input="(ev) => { state.record.invoice_date = ev.target.value; }"
+                        />
+                        <t t-if="state.errors.invoice_date">
+                            <div class="ms-form-error"><t t-esc="state.errors.invoice_date"/></div>
+                        </t>
+                    </div>
+
+                    <!-- Vade tarihi -->
+                    <div class="ms-form-group">
+                        <label class="ms-form-label">Vade Tarihi</label>
+                        <input
+                            class="ms-form-input"
+                            type="date"
+                            t-att-value="state.record.invoice_date_due"
+                            t-on-input="(ev) => { state.record.invoice_date_due = ev.target.value; }"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fatura satırları -->
+            <div class="ms-form-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+                    <div class="ms-form-card__title" style="margin-bottom:0">Fatura Satırları</div>
+                    <button class="ms-btn ms-btn--primary ms-btn--sm" t-on-click="addLine">+ Satır Ekle</button>
+                </div>
+
+                <t t-if="state.errors.lines">
+                    <div class="ms-form-error" style="margin-bottom:12px"><t t-esc="state.errors.lines"/></div>
+                </t>
+
+                <t t-if="state.record.lines.length === 0">
+                    <div style="text-align:center; padding:24px; color:#999; border:2px dashed #ddd; border-radius:8px">
+                        Henüz satır yok. "Satır Ekle" butonuna tıklayın.
+                    </div>
+                </t>
+                <t t-else="">
+                    <div class="ms-invoice-lines">
+                        <table class="ms-table ms-table--lines">
+                            <thead>
+                                <tr>
+                                    <th>Açıklama</th>
+                                    <th style="width:80px; text-align:right">Miktar</th>
+                                    <th style="width:120px; text-align:right">Birim Fiyat ₺</th>
+                                    <th style="width:80px; text-align:right">İndirim %</th>
+                                    <th style="width:120px; text-align:right">Toplam ₺</th>
+                                    <th style="width:40px"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="state.record.lines" t-as="line" t-key="line_index">
+                                    <tr>
+                                        <td>
+                                            <input
+                                                class="ms-form-input ms-form-input--table"
+                                                type="text"
+                                                placeholder="Ürün/Hizmet açıklaması"
+                                                t-att-value="line.name || line.product_name"
+                                                t-on-input="(ev) => updateLine(line_index, 'name', ev.target.value)"
+                                            />
+                                        </td>
+                                        <td>
+                                            <input
+                                                class="ms-form-input ms-form-input--table ms-form-input--num"
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                t-att-value="line.quantity"
+                                                t-on-input="(ev) => updateLine(line_index, 'quantity', ev.target.value)"
+                                            />
+                                        </td>
+                                        <td>
+                                            <input
+                                                class="ms-form-input ms-form-input--table ms-form-input--num"
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                t-att-value="line.price_unit"
+                                                t-on-input="(ev) => updateLine(line_index, 'price_unit', ev.target.value)"
+                                            />
+                                        </td>
+                                        <td>
+                                            <input
+                                                class="ms-form-input ms-form-input--table ms-form-input--num"
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="0.01"
+                                                t-att-value="line.discount"
+                                                t-on-input="(ev) => updateLine(line_index, 'discount', ev.target.value)"
+                                            />
+                                        </td>
+                                        <td style="text-align:right; font-weight:600; padding-right:8px">
+                                            <t t-esc="formatCurrency(
+                                                (Number(line.quantity) || 0) * (Number(line.price_unit) || 0) *
+                                                (1 - (Number(line.discount) || 0) / 100)
+                                            )"/>
+                                        </td>
+                                        <td>
+                                            <button class="ms-btn ms-btn--danger ms-btn--sm" t-on-click="() => removeLine(line_index)">✕</button>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+
+                        <!-- Toplam -->
+                        <div style="display:flex; justify-content:flex-end; margin-top:12px">
+                            <div style="background:#f8f9fa; padding:12px 20px; border-radius:8px; text-align:right">
+                                <div style="font-size:13px; color:#666; margin-bottom:4px">Ara Toplam (KDV Hariç)</div>
+                                <div style="font-size:20px; font-weight:700; color:#2D6A4F">
+                                    <t t-esc="formatCurrency(invoiceTotal)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </t>
+            </div>
+
+            <!-- Notlar -->
+            <div class="ms-form-card">
+                <div class="ms-form-card__title">Notlar</div>
+                <div class="ms-form-group">
+                    <textarea
+                        class="ms-form-input ms-form-input--textarea"
+                        rows="3"
+                        placeholder="İç not veya fatura notu..."
+                        t-att-value="state.record.narration"
+                        t-on-input="(ev) => { state.record.narration = ev.target.value; }"
+                    />
+                </div>
+            </div>
+
+        </t>
+    </div>
+</t>
+
+</templates>

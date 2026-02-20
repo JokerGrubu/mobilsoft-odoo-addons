@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+<!-- ═══════════════════════════════════════════════
+     STOK MODÜLÜ WRAPPER
+     ═══════════════════════════════════════════════ -->
+<t t-name="mobilsoft_interface.StockModule">
+    <div class="ms-page">
+
+        <div class="ms-page__header">
+            <div>
+                <h1 class="ms-page__title">📊 Stok Yönetimi</h1>
+            </div>
+            <div class="ms-page__actions" style="align-items:center">
+                <button
+                    t-attf-class="ms-btn ms-btn--sm {{ state.tab === 'levels' ? 'ms-btn--primary' : 'ms-btn--secondary' }}"
+                    t-on-click="() => { state.tab = 'levels'; }"
+                >📦 Stok Seviyeleri</button>
+                <button
+                    t-attf-class="ms-btn ms-btn--sm {{ state.tab === 'moves' ? 'ms-btn--primary' : 'ms-btn--secondary' }}"
+                    t-on-click="() => { state.tab = 'moves'; }"
+                >🔄 Stok Hareketleri</button>
+            </div>
+        </div>
+
+        <t t-if="state.tab === 'levels'">
+            <StockLevels onAdjust="() => {}"/>
+        </t>
+        <t t-elif="state.tab === 'moves'">
+            <StockMoves onBack="() => { state.tab = 'levels'; }"/>
+        </t>
+
+    </div>
+</t>
+
+<!-- ═══════════════════════════════════════════════
+     STOK SEVİYELERİ
+     ═══════════════════════════════════════════════ -->
+<t t-name="mobilsoft_interface.StockLevels">
+    <div>
+
+        <!-- Özet kartlar -->
+        <t t-if="!state.loading">
+            <div class="ms-kpi-row" style="margin-bottom:20px">
+                <div class="ms-kpi-card">
+                    <div class="ms-kpi-card__icon">📦</div>
+                    <div class="ms-kpi-card__value"><t t-esc="state.summary.totalProducts"/></div>
+                    <div class="ms-kpi-card__label">Toplam Ürün</div>
+                </div>
+                <div class="ms-kpi-card ms-kpi-card--danger">
+                    <div class="ms-kpi-card__icon">⚠️</div>
+                    <div class="ms-kpi-card__value"><t t-esc="state.summary.outOfStock"/></div>
+                    <div class="ms-kpi-card__label">Stok Yok</div>
+                </div>
+                <div class="ms-kpi-card ms-kpi-card--warning">
+                    <div class="ms-kpi-card__icon">📉</div>
+                    <div class="ms-kpi-card__value"><t t-esc="state.summary.lowStock"/></div>
+                    <div class="ms-kpi-card__label">Kritik Stok (≤5)</div>
+                </div>
+            </div>
+        </t>
+
+        <!-- Araç çubuğu -->
+        <div class="ms-toolbar">
+            <div class="ms-search">
+                <span class="ms-search__icon">🔍</span>
+                <input
+                    class="ms-search__input"
+                    type="text"
+                    placeholder="Ürün adı veya barkod ara..."
+                    t-att-value="state.search"
+                    t-on-input="onSearch"
+                />
+            </div>
+        </div>
+
+        <!-- Filtreler -->
+        <div style="display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap">
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'all' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('all')">Tümü</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'out' ? 'ms-btn--danger' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('out')">Stok Yok</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'low' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('low')">Kritik Stok</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'normal' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('normal')">Normal</button>
+        </div>
+
+        <!-- Tablo -->
+        <div class="ms-table-container">
+            <t t-if="state.loading">
+                <div class="ms-spinner">Stok bilgileri yükleniyor...</div>
+            </t>
+            <t t-elif="state.records.length === 0">
+                <div class="ms-empty">
+                    <div class="ms-empty__icon">📦</div>
+                    <p class="ms-empty__title">Ürün bulunamadı</p>
+                    <p class="ms-empty__desc">Arama kriterini değiştirin.</p>
+                </div>
+            </t>
+            <t t-else="">
+                <table class="ms-table">
+                    <thead>
+                        <tr>
+                            <th>Ürün Adı</th>
+                            <th>Barkod</th>
+                            <th>Kategori</th>
+                            <th style="text-align:right">Mevcut Stok</th>
+                            <th style="text-align:right">Tahmini Stok</th>
+                            <th style="text-align:right">Birim Maliyet</th>
+                            <th>Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="state.records" t-as="rec" t-key="rec.id">
+                            <t t-set="status" t-value="getStockStatus(rec)"/>
+                            <tr>
+                                <td style="font-weight:600"><t t-esc="rec.name"/></td>
+                                <td style="font-family:monospace; color:#666; font-size:12px">
+                                    <t t-esc="rec.barcode || '—'"/>
+                                </td>
+                                <td><t t-esc="rec.categ_id ? rec.categ_id[1] : '—'"/></td>
+                                <td t-attf-style="text-align:right; font-weight:700; color:{{ rec.qty_available &lt;= 0 ? '#D62828' : (rec.qty_available &lt;= 5 ? '#E07B00' : '#2D6A4F') }}">
+                                    <t t-esc="formatQty(rec.qty_available)"/>
+                                    <span style="font-size:11px; font-weight:400; color:#999; margin-left:2px">
+                                        <t t-esc="rec.uom_id ? rec.uom_id[1] : ''"/>
+                                    </span>
+                                </td>
+                                <td style="text-align:right; color:#666">
+                                    <t t-esc="formatQty(rec.virtual_available)"/>
+                                </td>
+                                <td style="text-align:right">
+                                    <t t-esc="formatPrice(rec.standard_price)"/>
+                                </td>
+                                <td>
+                                    <span t-attf-class="ms-badge {{ status.cls }}">
+                                        <t t-esc="status.label"/>
+                                    </span>
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+
+                <div class="ms-pagination">
+                    <span class="ms-pagination__info">
+                        <t t-esc="pageStart"/> – <t t-esc="pageEnd"/> / <t t-esc="state.total"/> ürün
+                    </span>
+                    <div class="ms-pagination__controls">
+                        <button class="ms-pagination__btn" t-att-disabled="state.offset &lt;= 0" t-on-click="prevPage">◀ Önceki</button>
+                        <span style="padding: 5px 12px; font-size:13px"><t t-esc="currentPage"/> / <t t-esc="totalPages"/></span>
+                        <button class="ms-pagination__btn" t-att-disabled="state.offset + state.limit >= state.total" t-on-click="nextPage">Sonraki ▶</button>
+                    </div>
+                </div>
+            </t>
+        </div>
+    </div>
+</t>
+
+<!-- ═══════════════════════════════════════════════
+     STOK HAREKETLERİ
+     ═══════════════════════════════════════════════ -->
+<t t-name="mobilsoft_interface.StockMoves">
+    <div>
+        <!-- Araç çubuğu -->
+        <div class="ms-toolbar">
+            <div class="ms-search">
+                <span class="ms-search__icon">🔍</span>
+                <input
+                    class="ms-search__input"
+                    type="text"
+                    placeholder="Transfer no veya kaynak ara..."
+                    t-att-value="state.search"
+                    t-on-input="onSearch"
+                />
+            </div>
+        </div>
+
+        <!-- Filtreler -->
+        <div style="display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap">
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'done' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('done')">Tamamlananlar</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'draft' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('draft')">Bekleyenler</button>
+            <button t-attf-class="ms-btn ms-btn--sm {{ state.filter === 'all' ? 'ms-btn--primary' : 'ms-btn--secondary' }}" t-on-click="() => setFilter('all')">Tümü</button>
+        </div>
+
+        <!-- Tablo -->
+        <div class="ms-table-container">
+            <t t-if="state.loading">
+                <div class="ms-spinner">Stok hareketleri yükleniyor...</div>
+            </t>
+            <t t-elif="state.records.length === 0">
+                <div class="ms-empty">
+                    <div class="ms-empty__icon">🔄</div>
+                    <p class="ms-empty__title">Hareket bulunamadı</p>
+                </div>
+            </t>
+            <t t-else="">
+                <table class="ms-table">
+                    <thead>
+                        <tr>
+                            <th>Transfer No</th>
+                            <th>Tür</th>
+                            <th>Cari / Kaynak</th>
+                            <th>Kaynak Belge</th>
+                            <th>Planlanan Tarih</th>
+                            <th>Tamamlanma</th>
+                            <th>Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="state.records" t-as="rec" t-key="rec.id">
+                            <t t-set="badge" t-value="getStateBadge(rec.state)"/>
+                            <tr>
+                                <td style="font-family:monospace; font-weight:600">
+                                    <t t-esc="rec.name"/>
+                                </td>
+                                <td style="font-size:12px; color:#666">
+                                    <t t-esc="rec.picking_type_id ? rec.picking_type_id[1] : '—'"/>
+                                </td>
+                                <td><t t-esc="rec.partner_id ? rec.partner_id[1] : '—'"/></td>
+                                <td style="font-size:12px; color:#666">
+                                    <t t-esc="rec.origin || '—'"/>
+                                </td>
+                                <td><t t-esc="formatDate(rec.scheduled_date)"/></td>
+                                <td><t t-esc="formatDate(rec.date_done)"/></td>
+                                <td>
+                                    <span t-attf-class="ms-badge {{ badge.cls }}">
+                                        <t t-esc="badge.label"/>
+                                    </span>
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+
+                <div class="ms-pagination">
+                    <span class="ms-pagination__info">
+                        <t t-esc="pageStart"/> – <t t-esc="pageEnd"/> / <t t-esc="state.total"/> kayıt
+                    </span>
+                    <div class="ms-pagination__controls">
+                        <button class="ms-pagination__btn" t-att-disabled="state.offset &lt;= 0" t-on-click="prevPage">◀ Önceki</button>
+                        <span style="padding: 5px 12px; font-size:13px"><t t-esc="currentPage"/> / <t t-esc="totalPages"/></span>
+                        <button class="ms-pagination__btn" t-att-disabled="state.offset + state.limit >= state.total" t-on-click="nextPage">Sonraki ▶</button>
+                    </div>
+                </div>
+            </t>
+        </div>
+    </div>
+</t>
+
+</templates>
