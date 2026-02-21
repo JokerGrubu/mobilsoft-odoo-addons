@@ -15,11 +15,12 @@ import { _t } from "@web/core/l10n/translation";
  */
 export class MobilSoftHome extends Component {
     static template = "mobilsoft_interface.MobilSoftHome";
-    static props = {};
+    static props = {
+        onNavigate: Function,
+    };
 
     setup() {
-        // Odoo 19: action, orm, notification servisleri güvenli
-        this.action = useService("action");
+        // Odoo 19: orm, notification servisleri
         this.orm = useService("orm");
         this.notification = useService("notification");
 
@@ -166,71 +167,31 @@ export class MobilSoftHome extends Component {
     }
 
     openInvoices() {
-        this.action.doAction({
-            type: "ir.actions.act_window",
-            name: _t("Faturalar"),
-            res_model: "account.move",
-            domain: [["move_type", "in", ["out_invoice", "in_invoice"]]],
-            views: [[false, "list"], [false, "form"]],
-            context: { default_move_type: "out_invoice" },
-        });
+        this.props.onNavigate("invoices");
     }
 
     openSales() {
-        this.action.doAction({
-            type: "ir.actions.act_window",
-            name: _t("Satış Siparişleri"),
-            res_model: "sale.order",
-            views: [[false, "list"], [false, "form"]],
-        });
+        this.props.onNavigate("sales");
     }
 
     openStock() {
-        this.action.doAction({
-            type: "ir.actions.act_window",
-            name: _t("Stok"),
-            res_model: "product.product",
-            domain: [["type", "=", "consu"]],
-            views: [[false, "list"], [false, "form"]],
-        });
+        this.props.onNavigate("stock");
     }
 
     openPartners() {
-        this.action.doAction({
-            type: "ir.actions.act_window",
-            name: _t("Cariler"),
-            res_model: "res.partner",
-            domain: ["|", ["customer_rank", ">", 0], ["supplier_rank", ">", 0]],
-            views: [[false, "list"], [false, "form"]],
-        });
+        this.props.onNavigate("customers");
     }
 
     openPurchases() {
-        this.action.doAction({
-            type: "ir.actions.act_window",
-            name: _t("Alış Siparişleri"),
-            res_model: "purchase.order",
-            views: [[false, "list"], [false, "form"]],
-        });
+        this.props.onNavigate("purchases");
     }
 
     openNewSaleInvoice() {
-        this.action.doAction({
-            type: "ir.actions.act_window",
-            name: _t("Yeni Satış Faturası"),
-            res_model: "account.move",
-            views: [[false, "form"]],
-            context: { default_move_type: "out_invoice" },
-        });
+        this.props.onNavigate("invoices");
     }
 
     openNewProduct() {
-        this.action.doAction({
-            type: "ir.actions.act_window",
-            name: _t("Yeni Ürün"),
-            res_model: "product.product",
-            views: [[false, "form"]],
-        });
+        this.props.onNavigate("products");
     }
 
     formatCurrency(val) {

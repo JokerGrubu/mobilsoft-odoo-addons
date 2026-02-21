@@ -60,7 +60,7 @@
             <main class="ms-app__content">
                 <!-- Ana Sayfa -->
                 <t t-if="state.currentPage === 'home'">
-                    <MobilSoftHome/>
+                    <MobilSoftHome onNavigate="(page) => navigate(page)"/>
                 </t>
 
                 <!-- Ürünler -->
