@@ -80,25 +80,12 @@
 
                 <!-- Faturalar -->
                 <t t-elif="state.currentPage === 'invoices'">
-                    <div class="ms-page">
-                        <div class="ms-page__header">
-                            <h1 class="ms-page__title">🧾 Faturalar</h1>
-                            <div class="ms-page__actions">
-                                <button class="ms-btn ms-btn--primary">+ Yeni Fatura</button>
-                            </div>
-                        </div>
-                        <div class="ms-spinner">Faturalar yükleniyor...</div>
-                    </div>
+                    <InvoicesModule/>
                 </t>
 
                 <!-- Stok -->
                 <t t-elif="state.currentPage === 'stock'">
-                    <div class="ms-page">
-                        <div class="ms-page__header">
-                            <h1 class="ms-page__title">📊 Stok Yönetimi</h1>
-                        </div>
-                        <div class="ms-spinner">Stok bilgileri yükleniyor...</div>
-                    </div>
+                    <StockModule/>
                 </t>
 
                 <!-- Alışlar -->

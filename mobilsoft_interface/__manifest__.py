@@ -54,6 +54,14 @@
             'mobilsoft_interface/static/src/components/ms_sales/sales.js',
             'mobilsoft_interface/static/src/components/ms_sales/sales.xml',
 
+            # Faturalar modülü
+            'mobilsoft_interface/static/src/components/ms_invoices/invoices.js',
+            'mobilsoft_interface/static/src/components/ms_invoices/invoices.xml',
+
+            # Stok modülü
+            'mobilsoft_interface/static/src/components/ms_stock/stock.js',
+            'mobilsoft_interface/static/src/components/ms_stock/stock.xml',
+
             # Ana SPA Shell (son yüklenmeli - alt bileşenleri import ediyor)
             'mobilsoft_interface/static/src/app/mobilsoft_app.js',
             'mobilsoft_interface/static/src/app/mobilsoft_app.xml',

@@ -11,6 +11,8 @@ import { MobilSoftHome } from "../components/mobilsoft_home/mobilsoft_home";
 import { ProductsModule } from "../components/ms_products/products";
 import { CustomersModule } from "../components/ms_customers/customers";
 import { SalesModule } from "../components/ms_sales/sales";
+import { InvoicesModule } from "../components/ms_invoices/invoices";
+import { StockModule } from "../components/ms_stock/stock";
 
 /**
  * MobilSoftApp - Ana SPA Shell
@@ -26,6 +28,8 @@ export class MobilSoftApp extends Component {
         ProductsModule,
         CustomersModule,
         SalesModule,
+        InvoicesModule,
+        StockModule,
     };
 
     setup() {
