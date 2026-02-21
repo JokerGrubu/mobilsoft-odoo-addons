@@ -149,7 +149,7 @@
                     <div class="ms-pagination__controls">
                         <button
                             class="ms-pagination__btn"
-                            t-att-disabled="state.offset <= 0"
+                            t-att-disabled="state.offset &lt;= 0"
                             t-on-click="prevPage">◀ Önceki</button>
                         <span style="padding: 5px 12px; font-size:13px">
                             <t t-esc="currentPage"/> / <t t-esc="totalPages"/>
