@@ -20,7 +20,8 @@ export class MobilSoftHome extends Component {
     };
 
     setup() {
-        // Odoo 19: orm, notification servisleri
+        // Odoo 19: action, orm, notification servisleri
+        this.action = useService("action");
         this.orm = useService("orm");
         this.notification = useService("notification");
 
