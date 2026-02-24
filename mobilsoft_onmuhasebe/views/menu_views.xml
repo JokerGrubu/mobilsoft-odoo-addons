@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_onmuhasebe_root"
+              name="Ön Muhasebe"
+              sequence="100"
+              groups="account.group_account_user"/>
+
+    <menuitem id="menu_onmuhasebe_cheque_promissory"
+              name="Çek/Senet"
+              parent="menu_onmuhasebe_root"
+              action="action_cheque_promissory"
+              sequence="10"/>
+
+</odoo>
