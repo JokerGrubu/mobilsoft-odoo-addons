@@ -68,11 +68,10 @@
                 <field name="partner_id"/>
                 <filter name="overdue" string="Vadesi Geçmiş" domain="[('is_overdue','=',True)]"/>
                 <filter name="portfolio" string="Portföyde" domain="[('state','=','portfolio')]"/>
-                <group expand="0" string="Grupla">
-                    <filter name="group_type" string="Tür" context="{'group_by': 'type'}"/>
-                    <filter name="group_direction" string="Yön" context="{'group_by': 'direction'}"/>
-                    <filter name="group_state" string="Durum" context="{'group_by': 'state'}"/>
-                </group>
+                <separator/>
+                <filter name="group_type" string="Tür" context="{'group_by': 'type'}"/>
+                <filter name="group_direction" string="Yön" context="{'group_by': 'direction'}"/>
+                <filter name="group_state" string="Durum" context="{'group_by': 'state'}"/>
             </search>
         </field>
     </record>
