@@ -1878,6 +1878,16 @@ class XmlProductSource(models.Model):
             'is_dropship': True,
         }
 
+        # İsim güncelleme — XML ana veri kaynağı, her zaman güncelle
+        if data.get('name'):
+            vals['name'] = data['name']
+
+        # İç referans (default_code) güncelleme
+        if data.get('sku'):
+            base_sku, _ = self._extract_base_and_variant(str(data['sku']).strip())
+            if base_sku:
+                vals['default_code'] = base_sku
+
         # Fiyat güncelleme - sadece değer varsa güncelle kuralına göre
         if self.update_price:
             if cost_price and cost_price > 0:
@@ -1941,6 +1951,16 @@ class XmlProductSource(models.Model):
             vals['xml_supplier_id'] = self.supplier_id.id
 
         product.write(vals)
+
+        # Barkod güncelleme — product.product varyantı üzerinde
+        if data.get('barcode'):
+            barcode = str(data['barcode']).strip()
+            if barcode:
+                variants = product.product_variant_ids
+                if len(variants) == 1:
+                    # Tek varyanttaki barkodu güncelle (farklıysa)
+                    if variants.barcode != barcode:
+                        variants.write({'barcode': barcode})
 
         # Görsel URL olarak ekle (güncelleme sonrası)
         if self.update_images and data.get('image') and not self.download_images:
