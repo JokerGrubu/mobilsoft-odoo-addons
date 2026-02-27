@@ -1662,6 +1662,17 @@ class XmlProductSource(models.Model):
                     # Aynı SKU prefix var, farklı barkodlu varyant olarak ekle
                     return self._create_variant(existing_by_prefix, data, cost_price)
 
+        # Barkod ve SKU yoksa isimle son bir duplikat kontrolü yap
+        if not data.get('barcode') and not sku:
+            name_check = str(data.get('name', '')).strip()
+            if name_check:
+                existing_by_name = self.env['product.template'].search(
+                    [('name', '=ilike', name_check)], limit=1
+                )
+                if existing_by_name:
+                    _logger.info(f"İsim eşleşmesiyle duplikat engellendi: {name_check} → ID {existing_by_name.id}")
+                    return existing_by_name
+
         sale_price = self._calculate_sale_price(cost_price)
 
         vals = {
