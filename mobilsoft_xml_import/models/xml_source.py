@@ -582,9 +582,11 @@ class XmlProductSource(models.Model):
                 'sticky': bool(category_warning),
                 'next': {
                     'type': 'ir.actions.act_window',
+                    'name': _('XML Kaynağı'),
                     'res_model': 'xml.product.source',
                     'res_id': self.id,
                     'view_mode': 'form',
+                    'views': [(False, 'form')],
                     'target': 'current',
                 },
             }
