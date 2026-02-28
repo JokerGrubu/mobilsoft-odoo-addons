@@ -138,7 +138,7 @@
                                            options="{'no_create': True}"/>
                                     <field name="ecommerce_category_ids" widget="many2many_tags"
                                            placeholder="E-Ticaret Kategorileri"
-                                           options="{'no_create': True, 'color_field': 'color'}"/>
+                                           options="{'no_create': True}"/>
                                     <field name="active" widget="boolean_toggle"/>
                                 </list>
                             </field>

@@ -580,6 +580,13 @@ class XmlProductSource(models.Model):
                 'message': message,
                 'type': 'warning' if category_warning else 'success',
                 'sticky': bool(category_warning),
+                'next': {
+                    'type': 'ir.actions.act_window',
+                    'res_model': 'xml.product.source',
+                    'res_id': self.id,
+                    'view_mode': 'form',
+                    'target': 'current',
+                },
             }
         }
 
