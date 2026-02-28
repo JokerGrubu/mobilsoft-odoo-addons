@@ -557,9 +557,10 @@ class XmlProductSource(models.Model):
             })
 
         category_count = 0
+        auto_matched_count = 0
         category_warning = None
         try:
-            category_count = self._sync_template_category_mappings(mapping_data)
+            category_count, auto_matched_count = self._sync_template_category_mappings(mapping_data)
         except UserError as exc:
             category_warning = str(exc)
         except Exception as exc:
@@ -569,6 +570,8 @@ class XmlProductSource(models.Model):
         message = _('%s alan eşleştirmesi yüklendi.') % len(mapping_data)
         if category_count:
             message += ' ' + _('%s XML kategorisi kategori eşleme sekmesine eklendi.') % category_count
+        if auto_matched_count:
+            message += ' ' + _('%s kategori otomatik eşleştirildi.') % auto_matched_count
         elif category_warning:
             message += ' ' + _('Kategori eşlemeleri yüklenemedi: %s') % category_warning
 
@@ -591,6 +594,124 @@ class XmlProductSource(models.Model):
                 },
             }
         }
+
+    def _normalize_category_name(self, value):
+        """Kategori adlarını kaba eşleştirme için normalize et."""
+        value = (value or '').strip()
+        if not value:
+            return ''
+        translate_map = str.maketrans({
+            'Ç': 'c', 'ç': 'c',
+            'Ğ': 'g', 'ğ': 'g',
+            'I': 'i', 'İ': 'i', 'ı': 'i',
+            'Ö': 'o', 'ö': 'o',
+            'Ş': 's', 'ş': 's',
+            'Ü': 'u', 'ü': 'u',
+        })
+        value = value.translate(translate_map).lower()
+        value = re.sub(r'[^a-z0-9]+', ' ', value)
+        return ' '.join(value.split())
+
+    def _split_xml_category_path(self, xml_category):
+        """XML kategori yolunu segmentlere ayır."""
+        xml_category = (xml_category or '').strip()
+        if not xml_category:
+            return []
+
+        separators = []
+        if self.category_separator:
+            separators.append(re.escape(self.category_separator))
+        separators.extend([r'\s*>\s*', r'\s*/\s*', r'\s*\|\s*'])
+        parts = re.split('|'.join(dict.fromkeys(separators)), xml_category)
+        return [part.strip() for part in parts if part and part.strip()]
+
+    def _category_alias_map(self):
+        """XML kategori isimlerini mevcut kategori ağacına yaklaştır."""
+        return {
+            'akilli teknolojiler': 'Akıllı Teknolojiler',
+            'aparat ceviriciler': 'Dönüştürücüler',
+            'donusturucu aparatlar': 'Dönüştürücüler',
+            'mini aparat ceviriciler': 'Dönüştürücüler',
+            'arac aksesuarlari': 'Araç Aksesuarları',
+            'arac sarjlari': 'Araç Şarjları',
+            'hizli arac sarjlari': 'Araç Şarjları',
+            'super hizli arac sarjlari': 'Süper Hızlı Şarjlar',
+            'bluetooth kulakliklar': 'Kulaklıklar',
+            'bt kulakliklar kulak ustu': 'Bluetooth Kulak Üstü',
+            'bt kulakliklar kulak ici': 'Bluetooth Kulak İçi',
+            'bluetooth speakerlar': 'Hoparlörler',
+            'speakerlar': 'Hoparlörler',
+            'kablosuz hoparloler': 'Taşınabilir Hoparlörler',
+            'ses bombalari': 'Taşınabilir Hoparlörler',
+            'ses sistemleri': 'Ses Sistemleri',
+            'depolama aygitlari': 'Depolama',
+            'micro': 'Hafıza Kartları',
+            'micro elt': 'Hafıza Kartları',
+            'micro prm': 'Hafıza Kartları',
+            'otg iphone': 'Dönüştürücüler',
+            'otg type c': 'Dönüştürücüler',
+            'usb': 'USB Flash Bellek',
+            'usb mini': 'USB Flash Bellek',
+            'usb prm': 'USB Flash Bellek',
+            'ev sarjlari': 'Şarj Cihazları',
+            'duvar sarjlari': 'Duvar Şarjları',
+            'hizli sarjlar': 'Süper Hızlı Şarjlar',
+            'super hizli sarjlar': 'Süper Hızlı Şarjlar',
+            'kablolar': 'Kablolar',
+            'guc ve veri aktarim kablolari': 'Güç ve Veri Kabloları',
+            'guc ve veri aktarim kablolari 2 m': 'Güç ve Veri Kabloları',
+            'ses aktarim kablolari': 'Ses Kabloları',
+            'yuksek hizli kablolar': 'Hızlı Şarj Kabloları',
+            'kablolu kulakliklar': 'Kablolu Kulaklıklar',
+            'kablolu kulakliklar 3 5 mm': 'Kablolu Kulaklıklar',
+            'powerbanklar': 'Powerbanklar',
+            'super hizli powerbanklar': 'Süper Hızlı Powerbanklar',
+            'tablet aksesuarlari': 'Tablet Aksesuarları',
+            'tabletler': 'Tabletler',
+            'telefon aksesuarlari': 'Telefon Aksesuarları',
+            'masa ustu standlar': 'Telefon Aksesuarları',
+            'mobil cihaz aksesuarlari': 'Mobil Cihaz Aksesuarları',
+        }
+
+    def _find_matching_category_records(self, xml_category):
+        """XML kategori adına göre en uygun iç ve website kategorilerini bul."""
+        alias_map = self._category_alias_map()
+        parts = self._split_xml_category_path(xml_category)
+        normalized_parts = [self._normalize_category_name(part) for part in parts]
+
+        candidates = []
+        if xml_category:
+            candidates.append(xml_category.strip())
+        for normalized in reversed(normalized_parts):
+            if normalized in alias_map:
+                candidates.append(alias_map[normalized])
+        for part in reversed(parts):
+            candidates.append(part)
+
+        seen = set()
+        ordered_candidates = []
+        for candidate in candidates:
+            norm = self._normalize_category_name(candidate)
+            if not norm or norm in seen:
+                continue
+            seen.add(norm)
+            ordered_candidates.append(candidate)
+
+        ProductCategory = self.env['product.category']
+        PublicCategory = self.env['product.public.category']
+
+        product_category = False
+        ecommerce_categories = PublicCategory.browse()
+
+        for candidate in ordered_candidates:
+            if not product_category:
+                product_category = ProductCategory.search([('name', '=ilike', candidate)], limit=1)
+            if not ecommerce_categories:
+                ecommerce_categories = PublicCategory.search([('name', '=ilike', candidate)], limit=1)
+            if product_category and ecommerce_categories:
+                break
+
+        return product_category, ecommerce_categories
 
     def _sync_template_category_mappings(self, mapping_data):
         """Şablon yüklendikten sonra XML içindeki kategorileri kategori eşleme sekmesine taşı."""
@@ -626,27 +747,52 @@ class XmlProductSource(models.Model):
             category_values.add(full_path)
 
         if not category_values:
-            return 0
+            return 0, 0
 
         Mapping = self.env['xml.category.mapping']
         existing_rows = Mapping.search_read(
             [('source_id', '=', self.id), ('xml_category', 'in', list(category_values))],
-            ['xml_category'],
+            ['xml_category', 'odoo_category_id', 'ecommerce_category_ids'],
         )
-        existing = {row['xml_category'] for row in existing_rows if row.get('xml_category')}
+        existing_by_category = {
+            row['xml_category']: row for row in existing_rows if row.get('xml_category')
+        }
 
-        to_create = sorted(category_values - existing)
+        to_create = sorted(category_values - set(existing_by_category))
         start_sequence = 10 * (len(existing_rows) + 1)
+        auto_matched_count = 0
+
         for index, xml_category in enumerate(to_create):
+            product_category, ecommerce_categories = self._find_matching_category_records(xml_category)
             Mapping.create({
                 'source_id': self.id,
                 'sequence': start_sequence + (index * 10),
                 'xml_category': xml_category,
                 'match_type': 'exact',
+                'odoo_category_id': product_category.id if product_category else False,
+                'ecommerce_category_ids': [(6, 0, ecommerce_categories.ids)] if ecommerce_categories else False,
                 'active': True,
             })
+            if product_category or ecommerce_categories:
+                auto_matched_count += 1
 
-        return len(to_create)
+        existing_mappings = Mapping.search([
+            ('source_id', '=', self.id),
+            ('xml_category', 'in', list(category_values)),
+        ])
+        for mapping in existing_mappings:
+            vals = {}
+            if not mapping.odoo_category_id or not mapping.ecommerce_category_ids:
+                product_category, ecommerce_categories = self._find_matching_category_records(mapping.xml_category)
+                if not mapping.odoo_category_id and product_category:
+                    vals['odoo_category_id'] = product_category.id
+                if not mapping.ecommerce_category_ids and ecommerce_categories:
+                    vals['ecommerce_category_ids'] = [(6, 0, ecommerce_categories.ids)]
+            if vals:
+                mapping.write(vals)
+                auto_matched_count += 1
+
+        return len(to_create), auto_matched_count
 
     # ══════════════════════════════════════════════════════════════════════════
     # XML PARSING
