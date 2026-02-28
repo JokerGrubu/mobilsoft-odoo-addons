@@ -556,16 +556,88 @@ class XmlProductSource(models.Model):
                 'xml_path': xml_path,
             })
 
+        category_count = 0
+        category_warning = None
+        try:
+            category_count = self._sync_template_category_mappings(mapping_data)
+        except UserError as exc:
+            category_warning = str(exc)
+        except Exception as exc:
+            _logger.warning("Şablon kategori eşlemeleri yüklenemedi (%s): %s", self.name, exc)
+            category_warning = str(exc)
+
+        message = _('%s alan eşleştirmesi yüklendi.') % len(mapping_data)
+        if category_count:
+            message += ' ' + _('%s XML kategorisi kategori eşleme sekmesine eklendi.') % category_count
+        elif category_warning:
+            message += ' ' + _('Kategori eşlemeleri yüklenemedi: %s') % category_warning
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': _('Başarılı'),
-                'message': _('%s alan eşleştirmesi yüklendi.') % len(mapping_data),
-                'type': 'success',
-                'sticky': False,
+                'message': message,
+                'type': 'warning' if category_warning else 'success',
+                'sticky': bool(category_warning),
             }
         }
+
+    def _sync_template_category_mappings(self, mapping_data):
+        """Şablon yüklendikten sonra XML içindeki kategorileri kategori eşleme sekmesine taşı."""
+        self.ensure_one()
+
+        category_path = mapping_data.get('category')
+        if not category_path or not self.xml_url:
+            return 0
+
+        subcategory_path = mapping_data.get('extra1')
+        xml_content = self._fetch_xml()
+        products = self._parse_xml(xml_content)
+        if not products:
+            return 0
+
+        separator = self.category_separator or ' > '
+        category_values = set()
+        for element in products:
+            category_name = self._get_element_value(element, category_path)
+            subcategory_name = self._get_element_value(element, subcategory_path) if subcategory_path else None
+
+            if not category_name:
+                continue
+
+            category_name = str(category_name).strip()
+            subcategory_name = str(subcategory_name).strip() if subcategory_name else ''
+            if not category_name:
+                continue
+
+            full_path = category_name
+            if subcategory_name:
+                full_path = f"{category_name}{separator}{subcategory_name}"
+            category_values.add(full_path)
+
+        if not category_values:
+            return 0
+
+        Mapping = self.env['xml.category.mapping']
+        existing_rows = Mapping.search_read(
+            [('source_id', '=', self.id), ('xml_category', 'in', list(category_values))],
+            ['xml_category'],
+        )
+        existing = {row['xml_category'] for row in existing_rows if row.get('xml_category')}
+
+        to_create = sorted(category_values - existing)
+        start_sequence = 10 * (len(existing_rows) + 1)
+        for index, xml_category in enumerate(to_create):
+            Mapping.create({
+                'source_id': self.id,
+                'sequence': start_sequence + (index * 10),
+                'xml_category': xml_category,
+                'match_type': 'exact',
+                'active': True,
+            })
+
+        return len(to_create)
 
     # ══════════════════════════════════════════════════════════════════════════
     # XML PARSING
