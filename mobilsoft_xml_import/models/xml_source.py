@@ -990,6 +990,7 @@ class XmlProductSource(models.Model):
         self.ensure_one()
 
         data = {}
+        image_values = []
 
         for mapping in self.field_mapping_ids:
             value = self._get_element_value(element, mapping.xml_path)
@@ -999,16 +1000,65 @@ class XmlProductSource(models.Model):
                 if mapping.transform:
                     value = mapping.apply_transform(value)
 
-                data[mapping.odoo_field] = value
+                if mapping.odoo_field in ('image', 'image2', 'image3', 'image4'):
+                    # Tekli görsel alanlarını topla
+                    if isinstance(value, str):
+                        for candidate in value.split(','):
+                            candidate = candidate.strip()
+                            if candidate and candidate.startswith('http'):
+                                image_values.append(candidate)
+                    continue
 
-        # Çoklu görsel URL'lerini topla (T-Soft formatı: images/img_item)
-        image_mapping = self.field_mapping_ids.filtered(lambda m: m.odoo_field == 'image')
-        if image_mapping:
-            all_images = self._get_element_values(element, image_mapping.xml_path)
-            if all_images:
-                data['image'] = all_images[0]  # İlk görsel ana görsel
-                if len(all_images) > 1:
-                    data['extra_images'] = all_images[1:]  # Ek görseller
+                elif mapping.odoo_field == 'images':
+                    # Tek path ile çoklu görsel alımını destekle
+                    all_images = self._get_element_values(element, mapping.xml_path)
+                    for candidate in all_images:
+                        if candidate and str(candidate).startswith('http'):
+                            image_values.append(str(candidate).strip())
+
+                else:
+                    data[mapping.odoo_field] = value
+
+        # Görselleri birleştir: ana görsel ve ek görseller
+        if image_values:
+            # Tekrarlı URL'leri temizle ve bozukları at
+            cleaned_images = []
+            for img in image_values:
+                if img and img.startswith('http') and img not in cleaned_images:
+                    cleaned_images.append(img)
+            if cleaned_images:
+                data['image'] = cleaned_images[0]
+                if len(cleaned_images) > 1:
+                    data['extra_images'] = cleaned_images[1:]
+
+        # Tahtakale/Google benzeri feedlerde ek görselleri de topla
+        # (xml templateinde farklı alanlarla gelebilir)
+        extra_image_paths = [
+            'additional_image_link1',
+            'additional_image_link2',
+            'additional_image_link3',
+            'additional_image_link4',
+            'extra_image_1',
+            'extra_image_2',
+        ]
+        current_image_list = []
+        if data.get('image'):
+            current_image_list.append(data['image'])
+        if data.get('extra_images'):
+            current_image_list.extend(data['extra_images'])
+
+        for img_path in extra_image_paths:
+            extra_img = self._get_element_value(element, img_path)
+            if extra_img:
+                extra_img = extra_img.strip()
+                if extra_img and extra_img.startswith('http') and extra_img not in current_image_list:
+                    current_image_list.append(extra_img)
+
+        if current_image_list:
+            # Ana görsel + ek görselleri tekilleştirilmiş olarak güncelle
+            data['image'] = current_image_list[0]
+            if len(current_image_list) > 1:
+                data['extra_images'] = current_image_list[1:]
 
         # Eğer image hala boşsa alternatif yolları dene
         if not data.get('image'):
