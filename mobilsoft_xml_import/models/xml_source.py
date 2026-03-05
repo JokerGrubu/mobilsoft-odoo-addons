@@ -1025,6 +1025,14 @@ class XmlProductSource(models.Model):
                     xml_text = content.decode('utf-8', errors='ignore')
                     _logger.warning("XML decode hatası - bazı karakterler kaybolabilir")
 
+            stripped = (xml_text or '').lstrip()
+            content_type = (response.headers.get('Content-Type') or '').lower()
+            if not stripped.startswith('<') or content_type.startswith('text/html'):
+                preview = stripped[:200].replace('\n', ' ').strip()
+                raise UserError(
+                    _('XML yerine HTML/metin yaniti dondu. Icerik: %s') % (preview or _('Bos yanit'))
+                )
+
             return xml_text
 
         except requests.exceptions.RequestException as e:
