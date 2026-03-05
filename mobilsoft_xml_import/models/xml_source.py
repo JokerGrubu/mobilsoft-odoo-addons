@@ -1202,6 +1202,8 @@ class XmlProductSource(models.Model):
             'extra_image_1',
             'extra_image_2',
         ]
+        if self.xml_template == 'akinsoft':
+            extra_image_paths.extend([f'GORSEL{i}' for i in range(1, 11)])
         current_image_list = []
         if data.get('image'):
             current_image_list.append(data['image'])
@@ -1230,6 +1232,8 @@ class XmlProductSource(models.Model):
                 'picture1', 'picture', 'photo', 'img', 'ImageUrl', 'imageUrl',
                 'MainImage', 'mainimage', 'PrimaryImage', 'ProductImage',
             ]
+            if self.xml_template == 'akinsoft':
+                image_paths.extend([f'GORSEL{i}' for i in range(1, 11)])
             for path in image_paths:
                 # Önce tekli, sonra çoklu dene
                 img_val = self._get_element_value(element, path)
@@ -1361,6 +1365,8 @@ class XmlProductSource(models.Model):
             './/image', './/Image', './/img', './/Img',
             './picture1', './picture2', './picture3', './picture4', './picture5',
         ]
+        if self.xml_template == 'akinsoft':
+            image_paths.extend([f'./GORSEL{i}' for i in range(1, 11)])
 
         for path in image_paths:
             found = element.findall(path)
