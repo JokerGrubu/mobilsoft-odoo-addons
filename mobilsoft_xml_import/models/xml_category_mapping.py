@@ -78,6 +78,7 @@ class XmlCategoryMapping(models.Model):
         # Önce tam eşleşme ara
         mapping = self.search([
             ('source_id', '=', source_id),
+            ('active', '=', True),
             ('xml_category', '=', xml_category_name),
             ('match_type', '=', 'exact'),
         ], limit=1)
@@ -88,6 +89,7 @@ class XmlCategoryMapping(models.Model):
         # Sonra diğer eşleşme türlerini dene
         mappings = self.search([
             ('source_id', '=', source_id),
+            ('active', '=', True),
             ('match_type', '!=', 'exact'),
         ])
 
