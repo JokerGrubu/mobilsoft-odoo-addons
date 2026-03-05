@@ -40,6 +40,11 @@
                             class="btn-secondary"
                             icon="fa-user"
                             invisible="not supplier_id or product_count == 0"/>
+                    <button name="action_sync_ecommerce_categories" type="object"
+                            string="E-Ticaret Kategorilerini Oluştur"
+                            class="btn-secondary"
+                            icon="fa-tags"
+                            invisible="not category_mapping_ids"/>
                     <button name="action_activate" type="object"
                             string="Aktifleştir"
                             class="btn-success"

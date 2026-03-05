@@ -625,6 +625,156 @@ class XmlProductSource(models.Model):
         parts = re.split('|'.join(dict.fromkeys(separators)), xml_category)
         return [part.strip() for part in parts if part and part.strip()]
 
+    def _normalized_category_key(self, category_name):
+        """Kategori adını karşılaştırma için normalize eder."""
+        return self._normalize_category_name(category_name)
+
+    def _public_category_path_from_xml(self, xml_category):
+        """TV Shop kurallarına göre XML kategorisini e-ticaret kategorisi yoluna çevir."""
+        parts = self._split_xml_category_path(xml_category)
+        if not parts:
+            return []
+
+        def _normalize_label(label):
+            return self._normalized_category_key(label or '')
+
+        if len(parts) > 3:
+            parts = parts[:3]
+
+        root_map = {
+            _normalize_label('Ev ve Yaşam'): 'Ev & Yaşam',
+            _normalize_label('Evcil Hayvan Ürünleri'): 'Evcil Hayvan Ürünleri',
+            _normalize_label('Kozmetik'): 'Kozmetik & Kişisel Bakım',
+            _normalize_label('Oto Aksesuar Ürünleri'): 'Oto Aksesuarları',
+            _normalize_label('Outdoor Ürünleri'): 'Outdoor & Kamp',
+            _normalize_label('Hırdavat Malzemeleri'): 'Hırdavat',
+            _normalize_label('Oyuncak & Kırtasiye'): 'Oyuncak & Kırtasiye',
+            _normalize_label('Parti & Organizasyon'): 'Parti & Organizasyon',
+            _normalize_label('Hediyelik Eşya Ürünleri'): 'Hediyelik Eşya',
+            _normalize_label('Promosyon Ürünleri'): 'Promosyon Ürünleri',
+            _normalize_label('Spor ve Sağlık Ürünleri'): 'Spor & Sağlık',
+            _normalize_label('Takı ve Aksesuar Ürünleri'): 'Takı & Moda Aksesuar',
+            _normalize_label('Telefon - Tablet Aksesuar'): 'Telefon & Tablet Aksesuarları',
+            _normalize_label('Özel Ürünler'): 'Özel Ürünler',
+            _normalize_label('Tv Shop Ürünleri'): 'TV SHOP',
+        }
+
+        normalized_root = _normalize_label(parts[0])
+        public_root = root_map.get(normalized_root)
+        if not public_root:
+            public_root = parts[0].strip()
+
+        if public_root == 'TV SHOP':
+            if len(parts) < 2:
+                return [public_root]
+            tv_sub = _normalize_label(parts[1])
+            tv_shop_map = {
+                _normalize_label('Elektronik Malzeme'): ('Elektronik & Hobi', 'Elektronik Malzeme'),
+                _normalize_label('Hobi'): ('Elektronik & Hobi', 'Hobi'),
+                _normalize_label('Kişisel Bakım Ürünleri'): ('Kozmetik & Kişisel Bakım', 'Kişisel Bakım Ürünleri'),
+                _normalize_label('Masaj Aletleri'): ('Kozmetik & Kişisel Bakım', 'Masaj Aletleri'),
+                _normalize_label('Pratik Ev Aletleri'): ('Ev & Yaşam', 'Pratik Ev Aletleri'),
+                _normalize_label('Pratik Mutfak Aletleri'): ('Ev & Yaşam', 'Mutfak'),
+                _normalize_label('Sağlık Bakım Kozmetik'): ('Spor & Sağlık', 'Sağlık Bakım Kozmetik'),
+                _normalize_label('Spor Ürünleri'): ('Spor & Sağlık', 'Spor Ürünleri'),
+                _normalize_label('Temizlik Aletleri'): ('Ev & Yaşam', 'Temizlik Aletleri'),
+                _normalize_label('Tv Shop Oto'): ('Oto Aksesuarları',),
+            }
+            mapped_path = tv_shop_map.get(tv_sub, ())
+            if not mapped_path:
+                return []
+            return list(mapped_path)
+
+        cleaned = [p for p in [public_root] + parts[1:] if p]
+        return cleaned[:3]
+
+    def _find_or_create_public_category_path(self, parts):
+        """E-ticaret kategori yolunu var ise al, yoksa oluştur."""
+        self.ensure_one()
+        if not parts:
+            return self.env['product.public.category'].browse()
+
+        PublicCategory = self.env['product.public.category']
+        parent = False
+        current_path = []
+
+        for name in parts:
+            name = (name or '').strip()
+            if not name:
+                continue
+            current_path.append(name)
+            domain = [('name', '=', name)]
+            if parent:
+                domain.append(('parent_id', '=', parent.id))
+            else:
+                domain.append(('parent_id', '=', False))
+
+            category = PublicCategory.search(domain, limit=1)
+            if not category:
+                category = PublicCategory.create({
+                    'name': name,
+                    'parent_id': parent.id if parent else False,
+                })
+                _logger.info(
+                    'Yeni e-ticaret kategorisi oluşturuldu: %s',
+                    ' > '.join(current_path),
+                )
+            parent = category
+
+        return parent
+
+    def action_sync_ecommerce_categories(self):
+        """XML kategori maplerinden e-ticaret kategorilerini oluştur ve eşleştir."""
+        self.ensure_one()
+        force_sync = bool(self.env.context.get('force_ecommerce_sync', True))
+
+        mappings = self.env['xml.category.mapping'].search([
+            ('source_id', '=', self.id),
+        ], order='xml_category')
+
+        if not mappings:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Eşleme Kaydı Yok'),
+                    'message': _('Önce "Şablon Yükle" ile kategori eşleştirmeleri oluşturun.'),
+                    'type': 'warning',
+                    'sticky': True,
+                }
+            }
+
+        created_count = 0
+        assigned_count = 0
+        for mapping in mappings:
+            public_path = self._public_category_path_from_xml(mapping.xml_category)
+            if not public_path:
+                continue
+            public_category = self._find_or_create_public_category_path(public_path)
+            if public_category and (force_sync or not mapping.ecommerce_category_ids):
+                mapping.ecommerce_category_ids = [(6, 0, public_category.ids)]
+                assigned_count += 1
+
+            if public_category:
+                created_count += 1
+
+        message = _('%s kategori kaydı işlendi, %s ürün eşleşmesine e-ticaret kategorisi atandı.') % (
+            len(mappings), assigned_count,
+        )
+        if created_count == 0 and assigned_count == 0:
+            message = _('E-ticaret kategorisi için yeni bir eşleme bulunamadı.')
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('E-Ticaret Kategorileri'),
+                'message': message,
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
     def _category_alias_map(self):
         """XML kategori isimlerini mevcut kategori ağacına yaklaştır."""
         return {
@@ -764,6 +914,11 @@ class XmlProductSource(models.Model):
 
         for index, xml_category in enumerate(to_create):
             product_category, ecommerce_categories = self._find_matching_category_records(xml_category)
+            ecommerce_path = self._public_category_path_from_xml(xml_category)
+            if ecommerce_path:
+                ecommerce_category = self._find_or_create_public_category_path(ecommerce_path)
+                if ecommerce_category:
+                    ecommerce_categories = ecommerce_category
             Mapping.create({
                 'source_id': self.id,
                 'sequence': start_sequence + (index * 10),
@@ -784,6 +939,12 @@ class XmlProductSource(models.Model):
             vals = {}
             if not mapping.odoo_category_id or not mapping.ecommerce_category_ids:
                 product_category, ecommerce_categories = self._find_matching_category_records(mapping.xml_category)
+                if not ecommerce_categories:
+                    ecommerce_path = self._public_category_path_from_xml(mapping.xml_category)
+                    if ecommerce_path:
+                        ecommerce_category = self._find_or_create_public_category_path(ecommerce_path)
+                        if ecommerce_category:
+                            ecommerce_categories = ecommerce_category
                 if not mapping.odoo_category_id and product_category:
                     vals['odoo_category_id'] = product_category.id
                 if not mapping.ecommerce_category_ids and ecommerce_categories:
