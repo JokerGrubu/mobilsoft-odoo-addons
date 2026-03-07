@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        
+        <!-- Form View -->
+        <record id="view_joker_veri_merkezi_form" model="ir.ui.view">
+            <field name="name">joker.veri.merkezi.form</field>
+            <field name="model">joker.veri.merkezi</field>
+            <field name="arch" type="xml">
+                <form string="Joker Veri Merkezi Aktarım">
+                    <header>
+                        <button name="action_aktarimi_baslat" type="object" string="Aktarımı Başlat Yükle" 
+                                states="taslak,hata" class="oe_highlight"/>
+                        <field name="durum" widget="statusbar" statusbar_visible="taslak,basladi,tamamlandi,hata"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1><field name="name" readonly="1"/></h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="dosya_yolu" attrs="{'readonly': [('durum', '=', 'tamamlandi')]}"/>
+                                <field name="islenen_kayit_sayisi" readonly="1"/>
+                                <field name="olusturulan_kayit_sayisi" readonly="1"/>
+                            </group>
+                            <group>
+                                <p colspan="2" class="text-muted">
+                                    Bu araç Joker Veri Merkezindeki Mükerrer Kontrollü (Şube/Kontak Hiyerarşili) konsolide CSV'yi okur
+                                    ve Odoo Kişiler/Bayiler kayıtlarınızı tam otomatik olarak senkronize eder.
+                                </p>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Aktarım Logları">
+                                <field name="aktarim_logu" readonly="1" widget="text"/>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Tree View -->
+        <record id="view_joker_veri_merkezi_tree" model="ir.ui.view">
+            <field name="name">joker.veri.merkezi.tree</field>
+            <field name="model">joker.veri.merkezi</field>
+            <field name="arch" type="xml">
+                <tree string="Veri Merkezi Aktarımları">
+                    <field name="name"/>
+                    <field name="islenen_kayit_sayisi"/>
+                    <field name="olusturulan_kayit_sayisi"/>
+                    <field name="durum" decoration-success="durum == 'tamamlandi'" decoration-danger="durum == 'hata'"/>
+                </tree>
+            </field>
+        </record>
+
+        <!-- Action -->
+        <record id="action_joker_veri_merkezi" model="ir.actions.act_window">
+            <field name="name">Veri Merkezi İçe Aktarım</field>
+            <field name="res_model">joker.veri.merkezi</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+              <p class="o_view_nocontent_smiling_face">
+                İlk Konsolide Veri Aktarım Görevinizi Oluşturun
+              </p>
+            </field>
+        </record>
+
+        <!-- Menus -->
+        <menuitem id="menu_joker_veri_merkezi_root" name="Joker Veri Aktarımı" sequence="100"/>
+        <menuitem id="menu_joker_veri_aktarim" name="Konsolide CSV Yükle" parent="menu_joker_veri_merkezi_root" action="action_joker_veri_merkezi" sequence="10"/>
+
+    </data>
+</odoo>
