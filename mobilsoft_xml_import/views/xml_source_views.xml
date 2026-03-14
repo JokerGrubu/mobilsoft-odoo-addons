@@ -96,6 +96,12 @@
                             <field name="xml_username" placeholder="Opsiyonel"/>
                             <field name="xml_password" password="True" placeholder="Opsiyonel"/>
                             <field name="supplier_id" options="{'no_create': True}"/>
+                            <field name="xml_stock_url" widget="url"
+                                   placeholder="Stok XML URL (Index Grup/Netex)"
+                                   invisible="xml_template not in ('indexgrup', 'netex')"/>
+                            <field name="xml_price_url" widget="url"
+                                   placeholder="Fiyat XML URL (Index Grup/Netex)"
+                                   invisible="xml_template not in ('indexgrup', 'netex')"/>
                         </group>
                         <group string="Durum Bilgisi">
                             <field name="active" widget="boolean_toggle"/>

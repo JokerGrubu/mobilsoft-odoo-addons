@@ -56,12 +56,24 @@ class XmlProductSource(models.Model):
         help='HTTP Basic Auth şifresi (opsiyonel)',
     )
 
+    # Index Grup / Netex ayrı feed URL'leri
+    xml_stock_url = fields.Char(
+        string='Stok XML URL',
+        help='Ayrı stok feed URL (Index Grup/Netex için)',
+    )
+    xml_price_url = fields.Char(
+        string='Fiyat XML URL',
+        help='Ayrı fiyat feed URL (Index Grup/Netex için)',
+    )
+
     # XML Yapısı
     xml_template = fields.Selection([
         ('tsoft', 'T-Soft'),
         ('ticimax', 'Ticimax'),
         ('ideasoft', 'IdeaSoft'),
         ('akinsoft', 'Akinsoft (Wolvox)'),
+        ('eminonu', 'Eminonu XML'),
+        ('google_rss', 'Google RSS / Merchant Feed'),
         ('opencart', 'OpenCart'),
         ('woocommerce', 'WooCommerce'),
         ('prestashop', 'PrestaShop'),
@@ -73,6 +85,8 @@ class XmlProductSource(models.Model):
         ('hepsiburada', 'Hepsiburada'),
         ('cimri', 'Cimri'),
         ('akakce', 'Akakçe'),
+        ('indexgrup', 'Index Grup'),
+        ('netex', 'Netex'),
         ('custom', 'Özel (Custom)'),
     ], string='XML Şablonu', default='custom', required=True)
 
@@ -346,6 +360,8 @@ class XmlProductSource(models.Model):
             'ticimax': '//Products/Product',
             'ideasoft': '//ProductList/Product',
             'akinsoft': '//urun',
+            'eminonu': '//products/product',
+            'google_rss': '//rss/channel/item',
             'opencart': '//products/product',
             'woocommerce': '//rss/channel/item',
             'prestashop': '//products/product',
@@ -357,6 +373,8 @@ class XmlProductSource(models.Model):
             'hepsiburada': '//products/product',
             'cimri': '//products/product',
             'akakce': '//Products/Product',
+            'indexgrup': './/URUN',
+            'netex': './/URUN',
         }
         if self.xml_template and self.xml_template != 'custom':
             self.root_element = template_roots.get(self.xml_template, '//Product')
@@ -426,6 +444,37 @@ class XmlProductSource(models.Model):
                 'image3': 'GORSEL3',
                 'image4': 'GORSEL4',
                 'extra1': 'ALTKATEGORI',
+            },
+            'eminonu': {
+                'sku': 'Urun_Kodu',
+                'barcode': 'Urun_Kodu',
+                'name': 'Urun_Adi',
+                'description': 'Aciklama',
+                'price': 'Fiyat',
+                'cost_price': 'Fiyat',
+                'stock': 'Stok',
+                'category': 'Kategori',
+                'brand': 'Marka',
+                'image': 'resim1',
+                'image2': 'resim2',
+                'image3': 'resim3',
+                'image4': 'resim4',
+            },
+            'google_rss': {
+                'sku': 'model_number',
+                'barcode': 'barcode',
+                'name': 'title',
+                'description': 'description',
+                'price': 'price',
+                'cost_price': 'price',
+                'stock': 'quantity',
+                'category': 'category',
+                'brand': 'brand',
+                'image': 'image_link',
+                'image2': 'additional_image_link1',
+                'image3': 'additional_image_link2',
+                'image4': 'additional_image_link3',
+                'extra1': 'product_type',
             },
             'opencart': {
                 'sku': 'model',
@@ -544,6 +593,26 @@ class XmlProductSource(models.Model):
                 'category': 'Category',
                 'brand': 'Brand',
                 'image': 'Image',
+            },
+            'indexgrup': {
+                'sku': '@GLOBALKOD',
+                'barcode': '@BARCODE',
+                'name': '@AD',
+                'brand': '@MARKA',
+                'category': '@_KATEGORI',
+                'extra1': '@_GRUP',
+                'tax': 'VERGI',
+                'image': 'RESIM',
+            },
+            'netex': {
+                'sku': '@GLOBALKOD',
+                'barcode': '@BARCODE',
+                'name': '@AD',
+                'brand': '@MARKA',
+                'category': '@_KATEGORI',
+                'extra1': '@_GRUP',
+                'tax': 'VERGI',
+                'image': 'RESIM',
             },
         }
 
@@ -869,7 +938,7 @@ class XmlProductSource(models.Model):
 
         category_path = mapping_data.get('category')
         if not category_path or not self.xml_url:
-            return 0
+            return 0, 0
 
         subcategory_path = mapping_data.get('extra1')
         xml_content = self._fetch_xml()
@@ -965,8 +1034,15 @@ class XmlProductSource(models.Model):
 
         try:
             headers = {
-                'User-Agent': 'Mozilla/5.0 (compatible; OdooBot/1.0)',
-                'Accept': 'application/xml, text/xml, */*',
+                'User-Agent': (
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                    'AppleWebKit/537.36 (KHTML, like Gecko) '
+                    'Chrome/133.0.0.0 Safari/537.36'
+                ),
+                'Accept': 'application/xml, text/xml, application/xhtml+xml, text/html;q=0.9, */*;q=0.8',
+                'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
             }
 
             auth = None
@@ -977,15 +1053,30 @@ class XmlProductSource(models.Model):
             # timeout=(connect, read)
             last_exc = None
             response = None
+            session = requests.Session()
+            last_text = None
             for attempt in range(1, 4):
                 try:
-                    response = requests.get(
+                    # Bazı OpenCart tabanlı feedlerde session/referer beklenebiliyor.
+                    if 'tahtakale' in (self.xml_url or '').lower():
+                        try:
+                            home_url = 'https://www.tahtakaletoptanticaret.com/'
+                            session.get(home_url, headers=headers, timeout=(15, 60))
+                        except Exception:
+                            pass
+
+                    response = session.get(
                         self.xml_url,
                         headers=headers,
                         auth=auth,
+                        allow_redirects=True,
                         timeout=(15, 600),
                     )
                     response.raise_for_status()
+                    last_text = response.text or ''
+                    if 'Maximum sınıra ulaştınız' in last_text and attempt < 3:
+                        time.sleep(5 * attempt)
+                        continue
                     break
                 except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
                     last_exc = e
@@ -1063,6 +1154,19 @@ class XmlProductSource(models.Model):
 
             root = ET.fromstring(xml_content)
 
+            # ═══════════════════════════════════════════════════════════════
+            # INDEX GRUP / NETEX: İç içe yapıyı düzleştir
+            # INDEXGRUP > KATEGORI > GRUP > URUN → düz URUN listesi
+            # Her URUN elementine _KATEGORI ve _GRUP bilgisini attribute olarak enjekte et
+            # ═══════════════════════════════════════════════════════════════
+            if self.xml_template in ('indexgrup', 'netex'):
+                products = self._parse_indexgrup_xml(root)
+                _logger.info(
+                    "Index Grup/Netex XML Parse: %d ürün bulundu (iç içe yapıdan düzleştirildi)",
+                    len(products),
+                )
+                return products
+
             # XPath ile ürünleri bul
             xpath = self.root_element
             if xpath.startswith('//'):
@@ -1086,6 +1190,118 @@ class XmlProductSource(models.Model):
 
         except ET.ParseError as e:
             raise UserError(_('XML parse hatası: %s') % str(e))
+
+    # ══════════════════════════════════════════════════════════════════════
+    # INDEX GRUP / NETEX — Özel XML parse yöntemleri
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _parse_indexgrup_xml(self, root):
+        """Index Grup / Netex iç içe Katalog XML'ini düzleştir.
+
+        Yapı:
+            <INDEXGRUP>
+              <KATEGORI KOD="IDX1" TANIM="Bilgisayar">
+                <GRUP KOD="1" TANIM="Masaüstü PC">
+                  <URUN KOD=".." AD=".." MARKA=".." GLOBALKOD=".." BARCODE="..">
+                    <VERGI>KDV18</VERGI>
+                    <RESIM>http://...</RESIM>
+                    <OZELLIK><OZL TANIM=".." DEGER=".."/></OZELLIK>
+                  </URUN>
+
+        Her URUN elementine _KATEGORI ve _GRUP sanal attribute'ları enjekte edilir,
+        böylece standart field-mapping mekanizması (@_KATEGORI, @_GRUP) ile okunabilir.
+        """
+        products = []
+
+        for kategori in root.iter('KATEGORI'):
+            kat_tanim = kategori.get('TANIM', '')
+            for grup in kategori.iter('GRUP'):
+                grup_tanim = grup.get('TANIM', '')
+                for urun in grup.iter('URUN'):
+                    # Sanal attribute'lar ekle (parent bilgisi)
+                    urun.set('_KATEGORI', kat_tanim)
+                    urun.set('_GRUP', grup_tanim)
+                    products.append(urun)
+
+        # Kategorisiz ürünleri de yakala (düzensiz XML'ler için)
+        if not products:
+            products = list(root.iter('URUN'))
+
+        return products
+
+    def _fetch_indexgrup_stock_map(self):
+        """Index Grup / Netex Stok XML'ini çekip GLOBALKOD → stok miktarı map'i döndürür.
+
+        Stok XML yapısı:
+            <INDEXGRUP>
+              <URUN KOD="DT.VQEEM.027" STOK="1+" YOL=""/>
+        """
+        if not self.xml_stock_url:
+            return {}
+
+        try:
+            original_url = self.xml_url
+            self.xml_url = self.xml_stock_url
+            xml_content = self._fetch_xml()
+            self.xml_url = original_url
+
+            xml_content = re.sub(r'\sxmlns[^"]*"[^"]*"', '', xml_content)
+            root = ET.fromstring(xml_content)
+            stock_map = {}
+            for urun in root.iter('URUN'):
+                kod = urun.get('KOD', '').strip()
+                stok_raw = urun.get('STOK', '0').strip()
+                # "1+", "5+", "10+", "50+", "100+" — sayısal kısmı al
+                stok_num = re.sub(r'[^\d]', '', stok_raw)
+                try:
+                    stock_map[kod] = int(stok_num) if stok_num else 0
+                except ValueError:
+                    stock_map[kod] = 0
+            _logger.info("Index Grup Stok XML: %d ürün stok bilgisi okundu", len(stock_map))
+            return stock_map
+        except Exception as e:
+            _logger.warning("Index Grup Stok XML okunamadı: %s", e)
+            return {}
+
+    def _fetch_indexgrup_price_map(self):
+        """Index Grup / Netex Fiyat XML'ini çekip GLOBALKOD → fiyat bilgisi map'i döndürür.
+
+        Fiyat XML yapısı:
+            <INDEXGRUP>
+              <URUN KOD="DT.VQEEM.027" OZEL="123.45" BAYI="130.00" MUSTERI="150.00" PB="TL"/>
+        """
+        if not self.xml_price_url:
+            return {}
+
+        try:
+            original_url = self.xml_url
+            self.xml_url = self.xml_price_url
+            xml_content = self._fetch_xml()
+            self.xml_url = original_url
+
+            xml_content = re.sub(r'\sxmlns[^"]*"[^"]*"', '', xml_content)
+            root = ET.fromstring(xml_content)
+            price_map = {}
+            for urun in root.iter('URUN'):
+                kod = urun.get('KOD', '').strip()
+                ozel = urun.get('OZEL', '').strip()
+                bayi = urun.get('BAYI', '').strip()
+                musteri = urun.get('MUSTERI', '').strip()
+                pb = urun.get('PB', 'TL').strip()
+                try:
+                    price_map[kod] = {
+                        'cost_price': float(ozel.replace(',', '.')) if ozel else 0.0,
+                        'dealer_price': float(bayi.replace(',', '.')) if bayi else 0.0,
+                        'customer_price': float(musteri.replace(',', '.')) if musteri else 0.0,
+                        'currency': pb,
+                    }
+                except (ValueError, TypeError):
+                    pass
+            _logger.info("Index Grup Fiyat XML: %d ürün fiyat bilgisi okundu", len(price_map))
+            return price_map
+        except Exception as e:
+            _logger.warning("Index Grup Fiyat XML okunamadı: %s", e)
+            return {}
 
     def _get_element_value(self, element, path):
         """Element içinden değer al (nested path desteği)"""
@@ -1270,6 +1486,80 @@ class XmlProductSource(models.Model):
                     data['description'] = desc_val
                     break
 
+        if self.xml_template == 'google_rss':
+            # Google RSS kaynaklarında SKU bazen model_number yerine id/barcode'da gelir.
+            if not data.get('sku'):
+                for path in ('model_number', 'id', 'barcode'):
+                    value = self._get_element_value(element, path)
+                    if value:
+                        data['sku'] = value.strip()
+                        break
+
+            # Tekrarlanan category/product_type alanlarından en detaylı olanı seç.
+            category_values = []
+            for path in ('category', 'product_type'):
+                category_values.extend(self._get_element_values(element, path))
+                value = self._get_element_value(element, path)
+                if value:
+                    category_values.append(value)
+            cleaned_categories = []
+            for value in category_values:
+                value = (value or '').strip()
+                if value and value not in cleaned_categories:
+                    cleaned_categories.append(value)
+            if cleaned_categories:
+                cleaned_categories.sort(key=lambda item: ('>' not in item, -len(item)))
+                data['category'] = cleaned_categories[0]
+                if len(cleaned_categories) > 1 and not data.get('extra1'):
+                    data['extra1'] = cleaned_categories[1]
+
+            # quantity boşsa availability bilgisinden kaba stok üret.
+            if not data.get('stock'):
+                availability = (self._get_element_value(element, 'availability') or '').strip().lower()
+                if availability:
+                    data['stock'] = '0' if 'out' in availability else '1'
+
+        # ═══════════════════════════════════════════════════════════
+        # INDEX GRUP / NETEX — Özel veri çıkarma
+        # ═══════════════════════════════════════════════════════════
+        if self.xml_template in ('indexgrup', 'netex'):
+            # KDV oranını VERGi etiketinden çıkar: "KDV18" → "18"
+            tax_raw = data.get('tax', '')
+            if tax_raw:
+                tax_num = re.sub(r'[^\d]', '', tax_raw)
+                if tax_num:
+                    data['tax'] = tax_num
+
+            # Kategori yolunu "Kategori > Grup" olarak birleştir
+            kat = data.get('category', '')
+            grp = data.pop('extra1', '') if data.get('extra1') else ''
+            if kat and grp:
+                data['category'] = '%s > %s' % (kat, grp)
+            elif grp:
+                data['category'] = grp
+
+            # OZELLIK/OZL etiketlerinden ek bilgileri çıkar
+            ozellik_el = element.find('OZELLIK')
+            if ozellik_el is not None:
+                specs = []
+                for ozl in ozellik_el.findall('OZL'):
+                    tanim = ozl.get('TANIM', '').strip()
+                    deger = ozl.get('DEGER', '').strip()
+                    if tanim and deger:
+                        specs.append('%s: %s' % (tanim, deger))
+                if specs and not data.get('description'):
+                    data['description'] = '\n'.join(specs)
+
+            # RESIM_DETAY varsa ek görsel olarak ekle
+            resim_detay = element.find('RESIM_DETAY')
+            if resim_detay is not None and resim_detay.text:
+                detail_url = resim_detay.text.strip()
+                if detail_url.startswith('http'):
+                    if 'extra_images' not in data:
+                        data['extra_images'] = []
+                    if detail_url not in data.get('extra_images', []):
+                        data['extra_images'].append(detail_url)
+
         return data
 
     def _download_image(self, url):
@@ -1416,6 +1706,31 @@ class XmlProductSource(models.Model):
                 sale_price = round(sale_price)
 
         return sale_price
+
+    def _find_tax_by_value(self, tax_value):
+        """XML'den gelen KDV değerinden Odoo satış vergisini bul.
+        '18', '18%', '%18', 'KDV 18', '0.18' gibi formatları destekler.
+        """
+        if not tax_value:
+            return False
+        tax_str = str(tax_value).strip()
+        match = re.search(r'\d+(?:[.,]\d+)?', tax_str)
+        if not match:
+            return False
+        rate = float(match.group().replace(',', '.'))
+        # '0.18' gibi ondalık format → yüzdeye çevir
+        if rate < 1:
+            rate = rate * 100
+        tax = self.env['account.tax'].search([
+            ('type_tax_use', '=', 'sale'),
+            ('amount', '=', rate),
+            ('active', '=', True),
+        ], limit=1)
+        if tax:
+            _logger.debug("KDV eşleşti: %s → %s (%%%.0f)", tax_value, tax.name, rate)
+        else:
+            _logger.debug("KDV bulunamadı: %s (oran: %.0f)", tax_value, rate)
+        return tax
 
     # ══════════════════════════════════════════════════════════════════════════
     # CATEGORY MATCHING
@@ -1910,12 +2225,20 @@ class XmlProductSource(models.Model):
         })
 
         created = updated = skipped = failed = 0
+        processed_since_commit = 0
         errors = []
 
         try:
             # XML çek ve parse et
             xml_content = self._fetch_xml()
             products = self._parse_xml(xml_content)
+
+            # Index Grup / Netex: Ayrı stok ve fiyat feedlerini önceden çek
+            _ig_stock_map = {}
+            _ig_price_map = {}
+            if self.xml_template in ('indexgrup', 'netex'):
+                _ig_stock_map = self._fetch_indexgrup_stock_map()
+                _ig_price_map = self._fetch_indexgrup_price_map()
 
             log.total_products = len(products)
 
@@ -1927,6 +2250,19 @@ class XmlProductSource(models.Model):
                     # (Aksi halde bir ürün hatasından sonra self.write/log.write InFailedSqlTransaction'a düşer.)
                     with self.env.cr.savepoint():
                         # Ürün verilerini çıkar
+                        data = self._extract_product_data(element)
+
+                        # Index Grup / Netex: Stok ve fiyat bilgilerini birleştir
+                        if self.xml_template in ('indexgrup', 'netex'):
+                            globalkod = data.get('sku', '')
+                            if globalkod and globalkod in _ig_stock_map:
+                                data['stock'] = str(_ig_stock_map[globalkod])
+                            if globalkod and globalkod in _ig_price_map:
+                                pinfo = _ig_price_map[globalkod]
+                                data['cost_price'] = str(pinfo.get('cost_price', 0))
+                                data['price'] = str(pinfo.get('dealer_price', 0) or pinfo.get('cost_price', 0))
+                                if pinfo.get('currency'):
+                                    data['currency'] = pinfo['currency']
                         data = self._extract_product_data(element)
 
                         if not data.get('name'):
@@ -2017,7 +2353,14 @@ class XmlProductSource(models.Model):
                     errors.append(f"{data.get('name', 'Bilinmiyor')}: {str(e)}")
                     _logger.error(f"Ürün import hatası: {e}")
 
+                processed_since_commit += 1
+                if processed_since_commit >= 50:
+                    self.env.cr.commit()
+                    processed_since_commit = 0
+
             # Sonuçları kaydet
+            if processed_since_commit:
+                self.env.cr.commit()
             self.write({
                 'last_sync': fields.Datetime.now(),
                 'state': 'active',
@@ -2163,6 +2506,10 @@ class XmlProductSource(models.Model):
             vals['description_sale'] = description
             vals['description'] = description
 
+        # Kısa açıklama → teslim notu alanı
+        if data.get('description_short'):
+            vals['description_picking'] = self._clean_html(data['description_short'])
+
         # Tedarikçi stok
         if data.get('stock'):
             try:
@@ -2193,6 +2540,34 @@ class XmlProductSource(models.Model):
                 vals['deci'] = float(data['deci'])
             except:
                 pass
+
+        # Marka
+        if data.get('brand'):
+            vals['xml_brand'] = str(data['brand']).strip()
+
+        # Garanti
+        if data.get('warranty'):
+            vals['xml_warranty'] = str(data['warranty']).strip()
+
+        # Model
+        if data.get('model'):
+            vals['xml_model'] = str(data['model']).strip()
+
+        # Menşei
+        if data.get('origin'):
+            vals['xml_origin'] = str(data['origin']).strip()
+
+        # Ekstra alanlar
+        if data.get('extra2'):
+            vals['xml_extra2'] = str(data['extra2']).strip()
+        if data.get('extra3'):
+            vals['xml_extra3'] = str(data['extra3']).strip()
+
+        # KDV (taxes_id)
+        if data.get('tax'):
+            tax = self._find_tax_by_value(data['tax'])
+            if tax:
+                vals['taxes_id'] = [(6, 0, [tax.id])]
 
         product = self.env['product.template'].create(vals)
 
@@ -2412,6 +2787,38 @@ class XmlProductSource(models.Model):
 
         if self.supplier_id:
             vals['xml_supplier_id'] = self.supplier_id.id
+
+        # Marka
+        if data.get('brand'):
+            vals['xml_brand'] = str(data['brand']).strip()
+
+        # Garanti
+        if data.get('warranty'):
+            vals['xml_warranty'] = str(data['warranty']).strip()
+
+        # Model
+        if data.get('model'):
+            vals['xml_model'] = str(data['model']).strip()
+
+        # Menşei
+        if data.get('origin'):
+            vals['xml_origin'] = str(data['origin']).strip()
+
+        # Kısa açıklama → teslim notu alanı
+        if data.get('description_short'):
+            vals['description_picking'] = self._clean_html(data['description_short'])
+
+        # Ekstra alanlar
+        if data.get('extra2'):
+            vals['xml_extra2'] = str(data['extra2']).strip()
+        if data.get('extra3'):
+            vals['xml_extra3'] = str(data['extra3']).strip()
+
+        # KDV (taxes_id) — sadece mevcut yoksa ekle, üzerine yazma
+        if data.get('tax') and not product.taxes_id:
+            tax = self._find_tax_by_value(data['tax'])
+            if tax:
+                vals['taxes_id'] = [(6, 0, [tax.id])]
 
         product.write(vals)
 
