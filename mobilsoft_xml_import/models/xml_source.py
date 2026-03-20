@@ -1404,6 +1404,22 @@ class XmlProductSource(models.Model):
                 else:
                     data[mapping.odoo_field] = value
 
+        # Mapping'e eklenmemiş olsa bile standart harici kimlik alanlarını otomatik oku.
+        fallback_fields = {
+            'external_product_id': ['ExternalProductId', 'ProductId'],
+            'source_stock_id': ['SourceStockId', 'StockId'],
+            'usage_class': ['UsageClass', 'ProductUsageClass'],
+            'variant_group': ['VariantGroup', 'VariantKey'],
+        }
+        for key, paths in fallback_fields.items():
+            if data.get(key):
+                continue
+            for path in paths:
+                value = self._get_element_value(element, path)
+                if value:
+                    data[key] = value
+                    break
+
         # Görselleri birleştir: ana görsel ve ek görseller
         if image_values:
             # Tekrarlı URL'leri temizle ve bozukları at
@@ -1561,6 +1577,128 @@ class XmlProductSource(models.Model):
                         data['extra_images'].append(detail_url)
 
         return data
+
+    def _classify_usage(self, data):
+        """XML ürününü ticari / iç kullanım / hizmet sınıfına ayır."""
+        explicit_value = (data.get('usage_class') or '').strip().lower()
+        explicit_map = {
+            'commercial': 'commercial',
+            'ticari': 'commercial',
+            'operational': 'operational',
+            'operasyon': 'operational',
+            'sarf': 'operational',
+            'internal': 'internal',
+            'company_internal': 'internal',
+            'ic_kullanim': 'internal',
+            'service': 'service',
+            'expense': 'service',
+            'gider': 'service',
+        }
+        if explicit_value in explicit_map:
+            return explicit_map[explicit_value]
+
+        haystack = ' '.join([
+            str(data.get('name') or ''),
+            str(data.get('category') or ''),
+            str(data.get('extra1') or ''),
+            str(data.get('description') or ''),
+        ]).lower()
+
+        service_keywords = (
+            ' hizmet', 'gider', 'masraf', 'nakliye', 'kargo', 'akaryakit',
+            'telekom', 'seyahat', 'abonelik', 'komisyon', 'premium', 'kep',
+        )
+        operational_keywords = (
+            'ambalaj', 'karton', 'bant', 'etiket', 'paketleme', 'koli',
+        )
+        internal_keywords = (
+            'demirbas', 'demirbaş', 'ofis', 'raf', 'ates olcer', 'ateş ölçer',
+        )
+
+        if any(token in haystack for token in service_keywords):
+            return 'service'
+        if any(token in haystack for token in operational_keywords):
+            return 'operational'
+        if any(token in haystack for token in internal_keywords):
+            return 'internal'
+        return 'commercial'
+
+    def _normalized_product_defaults(self, data, protect_core=False):
+        """Online Odoo ürün modeline yakın temel ürün ayarlarını üret."""
+        usage_class = self._classify_usage(data)
+        vals = {
+            'xml_usage_class': usage_class,
+        }
+
+        if data.get('external_product_id'):
+            vals['xml_external_id'] = str(data['external_product_id']).strip()
+        if data.get('source_stock_id'):
+            vals['xml_stock_id'] = str(data['source_stock_id']).strip()
+        if data.get('variant_group'):
+            vals['xml_variant_group'] = str(data['variant_group']).strip()
+
+        if protect_core:
+            return vals
+
+        if usage_class == 'commercial':
+            vals.update({
+                'type': 'consu',
+                'sale_ok': True,
+                'purchase_ok': True,
+                'invoice_policy': 'order',
+                'purchase_method': 'receive',
+            })
+        elif usage_class == 'operational':
+            vals.update({
+                'type': 'consu',
+                'sale_ok': False,
+                'purchase_ok': True,
+                'invoice_policy': 'order',
+                'purchase_method': 'receive',
+            })
+        elif usage_class == 'internal':
+            vals.update({
+                'type': 'consu',
+                'sale_ok': False,
+                'purchase_ok': True,
+                'invoice_policy': 'order',
+                'purchase_method': 'receive',
+            })
+        else:
+            vals.update({
+                'type': 'service',
+                'sale_ok': False,
+                'purchase_ok': True,
+                'invoice_policy': 'order',
+                'purchase_method': 'purchase',
+                'service_type': 'manual',
+            })
+
+        return vals
+
+    def _product_has_invoice_links(self, product):
+        """Muhasebe kayıtlarına bağlı ürünlerde kimlik alanlarını yerinden oynatma."""
+        self.ensure_one()
+        if not product or not product.exists():
+            return False
+        return bool(self.env['account.move.line'].search_count([
+            ('product_id.product_tmpl_id', '=', product.id),
+            ('parent_state', '=', 'posted'),
+        ]))
+
+    def _product_has_operational_links(self, product):
+        """Stok hareketi olan ürünleri de yıkıcı işlemlerden koru."""
+        self.ensure_one()
+        if not product or not product.exists():
+            return False
+        return bool(self.env['stock.move'].search_count([
+            ('product_id.product_tmpl_id', '=', product.id),
+            ('state', '=', 'done'),
+        ]))
+
+    def _is_reference_locked_product(self, product):
+        self.ensure_one()
+        return self._product_has_invoice_links(product) or self._product_has_operational_links(product)
 
     def _download_image(self, url):
         """URL'den görsel indir ve base64 olarak döndür"""
@@ -1896,6 +2034,18 @@ class XmlProductSource(models.Model):
         sku = str(data.get('sku', '')).strip() if data.get('sku') else ''
         sku_prefix = sku.split()[0] if sku else ''
 
+        external_product_id = str(data.get('external_product_id', '')).strip() if data.get('external_product_id') else ''
+        if external_product_id:
+            product = ProductT.search([('xml_external_id', '=', external_product_id)], limit=1)
+            if product:
+                return product, 'external_product_id'
+
+        source_stock_id = str(data.get('source_stock_id', '')).strip() if data.get('source_stock_id') else ''
+        if source_stock_id:
+            product = ProductT.search([('xml_stock_id', '=', source_stock_id)], limit=1)
+            if product:
+                return product, 'source_stock_id'
+
         # 0. Odoo standart _retrieve_product (Nilvera/UBL ile aynı mantık) — öncelikli
         product_vals = {}
         if data.get('barcode'):
@@ -2058,15 +2208,13 @@ class XmlProductSource(models.Model):
             'description_sale': data.get('description'),
             'list_price': sale_price,
             'standard_price': cost_price or 0,
-            'type': self.default_product_type,
-            'sale_ok': True,
-            'purchase_ok': True,
             'xml_source_id': self.id,
             'xml_supplier_price': cost_price,
             'xml_supplier_sku': data.get('sku'),
             'xml_last_sync': fields.Datetime.now(),
             'is_dropship': True,
         }
+        vals.update(self._normalized_product_defaults(data))
 
         # Kategori (manuel eşleştirme + otomatik)
         category_result = self._apply_category_mapping(data.get('category'), data.get('extra1'))
@@ -2477,9 +2625,6 @@ class XmlProductSource(models.Model):
             'description_sale': data.get('description'),
             'list_price': sale_price,
             'standard_price': cost_price,
-            'type': self.default_product_type,
-            'sale_ok': True,
-            'purchase_ok': True,
             # Dropshipping alanları
             'xml_source_id': self.id,
             'xml_supplier_price': cost_price,
@@ -2487,6 +2632,7 @@ class XmlProductSource(models.Model):
             'xml_last_sync': fields.Datetime.now(),
             'is_dropship': True,
         }
+        vals.update(self._normalized_product_defaults(data))
 
         # Görsel
         if data.get('image'):
@@ -2708,6 +2854,7 @@ class XmlProductSource(models.Model):
     def _update_product(self, product, data, cost_price, xml_price):
         """Mevcut ürünü güncelle"""
         self.ensure_one()
+        protect_core = self._is_reference_locked_product(product)
 
         vals = {
             'xml_source_id': self.id,
@@ -2715,13 +2862,14 @@ class XmlProductSource(models.Model):
             'xml_last_sync': fields.Datetime.now(),
             'is_dropship': True,
         }
+        vals.update(self._normalized_product_defaults(data, protect_core=protect_core))
 
-        # İsim güncelleme — XML ana veri kaynağı, her zaman güncelle
-        if data.get('name'):
+        # Muhasebeye bağlanmış ürünlerde ad/kod gibi çekirdek kimlikleri oynatma.
+        if data.get('name') and not protect_core:
             vals['name'] = data['name']
 
         # İç referans (default_code) güncelleme
-        if data.get('sku'):
+        if data.get('sku') and not protect_core:
             base_sku, _ = self._extract_base_and_variant(str(data['sku']).strip())
             if base_sku:
                 vals['default_code'] = base_sku
@@ -2852,6 +3000,15 @@ class XmlProductSource(models.Model):
         self.ensure_one()
 
         if not product:
+            return
+
+        if self._is_reference_locked_product(product):
+            if product.exists():
+                product.write({'sale_ok': False})
+                _logger.info(
+                    "Stok 0 - iliskili urun sadece satisa kapatildi: %s",
+                    product.name,
+                )
             return
 
         # Ürünün satış geçmişi var mı kontrol et

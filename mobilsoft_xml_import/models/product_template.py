@@ -7,6 +7,35 @@ class ProductTemplate(models.Model):
     """Ürün Şablonu - Dropshipping Alanları"""
     _inherit = 'product.template'
 
+    xml_external_id = fields.Char(
+        string='XML Harici Ürün ID',
+        index=True,
+        help='Kaynak XML sistemindeki kalıcı ürün kimliği.',
+    )
+
+    xml_stock_id = fields.Char(
+        string='XML Stok ID',
+        index=True,
+        help='Kaynak XML sistemindeki stok satırı veya stok kartı kimliği.',
+    )
+
+    xml_variant_group = fields.Char(
+        string='XML Varyant Grubu',
+        help='Aynı ana ürün altında toplanacak harici varyant grup anahtarı.',
+    )
+
+    xml_usage_class = fields.Selection(
+        [
+            ('commercial', 'Ticari Ürün'),
+            ('operational', 'Operasyon Sarf'),
+            ('internal', 'Şirket İçi Kullanım'),
+            ('service', 'Hizmet / Gider'),
+        ],
+        string='XML Kullanım Sınıfı',
+        default='commercial',
+        help='Ürünün ticari mi yoksa iç kullanım / gider amaçlı mı olduğunu belirtir.',
+    )
+
     # Dropshipping Bilgileri
     is_dropship = fields.Boolean(
         string='Dropship Ürünü',
