@@ -1676,6 +1676,19 @@ class XmlProductSource(models.Model):
 
         return vals
 
+    def _default_category_for_usage(self, usage_class):
+        """Online Odoo'daki ürün düzenine göre varsayılan kategori döndür."""
+        self.ensure_one()
+        category_names = {
+            'service': 'Services / Masraf Kalemleri',
+            'operational': 'Ambalj',
+            'internal': 'Services / Masraf Kalemleri',
+            'commercial': 'Özel Ürünler',
+        }
+        target_name = category_names.get(usage_class or 'commercial', 'Özel Ürünler')
+        Category = self.env['product.category'].with_context(active_test=False)
+        return Category.search([('complete_name', '=', target_name)], limit=1) or Category.search([('name', '=', target_name)], limit=1)
+
     def _product_has_invoice_links(self, product):
         """Muhasebe kayıtlarına bağlı ürünlerde kimlik alanlarını yerinden oynatma."""
         self.ensure_one()
@@ -1699,6 +1712,42 @@ class XmlProductSource(models.Model):
     def _is_reference_locked_product(self, product):
         self.ensure_one()
         return self._product_has_invoice_links(product) or self._product_has_operational_links(product)
+
+    def _can_rebind_product_identity(self, product, data):
+        """Yanlis urun eslesmesinde ad/kod/xml kimligini bozmamaya calis."""
+        self.ensure_one()
+        if not product or not product.exists():
+            return False
+
+        incoming_external = str(data.get('external_product_id') or '').strip()
+        incoming_stock = str(data.get('source_stock_id') or '').strip()
+        incoming_sku = str(data.get('sku') or '').strip()
+        incoming_name = str(data.get('name') or '').strip()
+        incoming_barcode = str(data.get('barcode') or '').strip()
+        base_sku, _variant = self._extract_base_and_variant(incoming_sku)
+
+        if incoming_external and product.xml_external_id and product.xml_external_id != incoming_external:
+            return False
+        if incoming_stock and product.xml_stock_id and product.xml_stock_id != incoming_stock:
+            return False
+
+        if self._is_reference_locked_product(product):
+            return False
+
+        if product.default_code and base_sku and product.default_code != base_sku:
+            return False
+
+        if incoming_barcode and len(product.product_variant_ids) == 1:
+            local_barcode = (product.product_variant_ids.barcode or '').strip()
+            if local_barcode and local_barcode != incoming_barcode:
+                return False
+
+        if incoming_name and product.name:
+            name_ratio = SequenceMatcher(None, incoming_name.lower(), product.name.lower()).ratio() * 100
+            if name_ratio < 80 and not (base_sku and product.default_code == base_sku):
+                return False
+
+        return True
 
     def _download_image(self, url):
         """URL'den görsel indir ve base64 olarak döndür"""
@@ -2060,7 +2109,8 @@ class XmlProductSource(models.Model):
                 **product_vals
             )
             if product and product.product_tmpl_id:
-                return product.product_tmpl_id, 'odoo_standard'
+                if self._can_rebind_product_identity(product.product_tmpl_id, data):
+                    return product.product_tmpl_id, 'odoo_standard'
 
         # 1. SKU Prefix (ilk kelime) ile eşleştir
         if self.match_by_sku_prefix and sku_prefix:
@@ -2068,7 +2118,7 @@ class XmlProductSource(models.Model):
             product = ProductT.search([
                 ('default_code', '=like', sku_prefix + '%')
             ], limit=1)
-            if product:
+            if product and self._can_rebind_product_identity(product, data):
                 return product, 'sku_prefix'
 
         # 2. Barkod ile eşleştir
@@ -2082,18 +2132,18 @@ class XmlProductSource(models.Model):
 
                 # 2b. Barkod ürün adında olabilir (örn: "8699931326048-PROPODS3")
                 product = ProductT.search([('name', 'ilike', barcode)], limit=1)
-                if product:
+                if product and self._can_rebind_product_identity(product, data):
                     return product, 'barcode_in_name'
 
                 # 2c. Barkod SKU'da olabilir
                 product = ProductT.search([('default_code', '=', barcode)], limit=1)
-                if product:
+                if product and self._can_rebind_product_identity(product, data):
                     return product, 'barcode_as_sku'
 
         # 3. SKU/Ürün kodu ile tam eşleştir
         if self.match_by_sku and sku:
             product = ProductT.search([('default_code', '=', sku)], limit=1)
-            if product:
+            if product and self._can_rebind_product_identity(product, data):
                 return product, 'sku_exact'
 
         # 4. Açıklama ile eşleştir
@@ -2108,12 +2158,14 @@ class XmlProductSource(models.Model):
 
                     # 4a. Açıklamada ürün kodu var mı?
                     if sku_prefix and sku_prefix.lower() in prod_desc:
-                        return prod, 'description_has_sku'
+                        if self._can_rebind_product_identity(prod, data):
+                            return prod, 'description_has_sku'
 
                     # 4b. Açıklama benzerliği kontrolü
                     ratio = SequenceMatcher(None, description[:200], prod_desc[:200]).ratio() * 100
                     if ratio >= self.description_match_ratio:
-                        return prod, f'description_similar_{int(ratio)}%'
+                        if self._can_rebind_product_identity(prod, data):
+                            return prod, f'description_similar_{int(ratio)}%'
 
         # 5. İsim benzerliği ile eşleştir
         if self.match_by_name and data.get('name'):
@@ -2121,7 +2173,7 @@ class XmlProductSource(models.Model):
             if name:
                 # Önce tam eşleşme
                 product = ProductT.search([('name', '=ilike', name)], limit=1)
-                if product:
+                if product and self._can_rebind_product_identity(product, data):
                     return product, 'name_exact'
 
                 # 5a. Parantezden varyant modu - ana isim ile ara
@@ -2130,7 +2182,7 @@ class XmlProductSource(models.Model):
                     if base_name and variant_name:
                         # Ana isim ile tam eşleşme ara
                         product = ProductT.search([('name', '=ilike', base_name)], limit=1)
-                        if product:
+                        if product and self._can_rebind_product_identity(product, data):
                             return product, 'base_name_exact'
 
                         # Ana isim ile benzerlik ara
@@ -2138,14 +2190,16 @@ class XmlProductSource(models.Model):
                         for prod in all_products:
                             ratio = SequenceMatcher(None, base_name.lower(), prod.name.lower()).ratio() * 100
                             if ratio >= 90:  # Ana isim için yüksek benzerlik
-                                return prod, f'base_name_similar_{int(ratio)}%'
+                                if self._can_rebind_product_identity(prod, data):
+                                    return prod, f'base_name_similar_{int(ratio)}%'
 
                 # 5b. Normal benzerlik kontrolü
                 all_products = ProductT.search([])
                 for prod in all_products:
                     ratio = SequenceMatcher(None, name.lower(), prod.name.lower()).ratio() * 100
                     if ratio >= self.name_match_ratio:
-                        return prod, f'name_similar_{int(ratio)}%'
+                        if self._can_rebind_product_identity(prod, data):
+                            return prod, f'name_similar_{int(ratio)}%'
 
         return None, None
 
@@ -2222,6 +2276,10 @@ class XmlProductSource(models.Model):
             vals['categ_id'] = category_result['categ_id']
         if category_result.get('public_categ_ids'):
             vals['public_categ_ids'] = category_result['public_categ_ids']
+        if not vals.get('categ_id'):
+            default_category = self._default_category_for_usage(vals.get('xml_usage_class'))
+            if default_category:
+                vals['categ_id'] = default_category.id
 
         # Tedarikçi
         if self.supplier_id:
@@ -2451,6 +2509,7 @@ class XmlProductSource(models.Model):
 
                         # Mevcut ürün ara
                         existing, match_type = self._find_existing_product(data)
+                        usage_class = self._classify_usage(data)
 
                         # Parantezden varyant kontrolü
                         name = str(data.get('name', '')).strip()
@@ -2459,14 +2518,17 @@ class XmlProductSource(models.Model):
                         if existing:
                             # Arşivlenmiş ürün eşleştiyse aktif hale getir (tekilleştirme için)
                             if hasattr(existing, 'active') and not existing.active:
-                                existing.write({'active': True, 'sale_ok': True, 'purchase_ok': True})
+                                reactivate_vals = {'active': True, 'purchase_ok': True}
+                                if usage_class == 'commercial':
+                                    reactivate_vals['sale_ok'] = True
+                                existing.write(reactivate_vals)
                                 # Şablon aktif olurken varyantları da aktif et (aksi halde barkod eşleşmesi zorlaşır)
                                 variants = existing.with_context(active_test=False).product_variant_ids
                                 if variants:
                                     variants.write({'active': True})
 
                             # Eğer varyant modu aktif ve bu ürün varyantlı ise
-                            if self.variant_from_parentheses and self.create_variants and variant_name:
+                            if usage_class == 'commercial' and self.variant_from_parentheses and self.create_variants and variant_name:
                                 # Bu varyant zaten var mı kontrol et (barkod ile)
                                 barcode = data.get('barcode')
                                 existing_variant = self.env['product.product'].with_context(active_test=False).search([
@@ -2561,7 +2623,9 @@ class XmlProductSource(models.Model):
         # PARANTEZDEN VARYANT MODU
         # Örnek: "BOLD SPEAKER (KIRMIZI)" → Ana ürün: BOLD SPEAKER, Varyant: KIRMIZI
         # ═══════════════════════════════════════════════════════════════
-        if self.variant_from_parentheses and self.create_variants:
+        usage_class = self._classify_usage(data)
+
+        if usage_class == 'commercial' and self.variant_from_parentheses and self.create_variants:
             base_name, variant_name = self._extract_base_and_variant(name)
 
             if variant_name:
@@ -2589,7 +2653,7 @@ class XmlProductSource(models.Model):
         # ═══════════════════════════════════════════════════════════════
         sku_prefix = self._get_sku_prefix(sku)
 
-        if self.create_variants and sku_prefix and data.get('barcode'):
+        if usage_class == 'commercial' and self.create_variants and sku_prefix and data.get('barcode'):
             # SKU prefix ile eşleşen ürün ara
             existing_by_prefix = self.env['product.template'].search([
                 ('default_code', '=like', sku_prefix + '%'),
@@ -2669,6 +2733,10 @@ class XmlProductSource(models.Model):
             vals['categ_id'] = category_result['categ_id']
         if category_result.get('public_categ_ids'):
             vals['public_categ_ids'] = category_result['public_categ_ids']
+        if not vals.get('categ_id'):
+            default_category = self._default_category_for_usage(vals.get('xml_usage_class'))
+            if default_category:
+                vals['categ_id'] = default_category.id
 
         if self.supplier_id:
             vals['xml_supplier_id'] = self.supplier_id.id
@@ -2854,7 +2922,8 @@ class XmlProductSource(models.Model):
     def _update_product(self, product, data, cost_price, xml_price):
         """Mevcut ürünü güncelle"""
         self.ensure_one()
-        protect_core = self._is_reference_locked_product(product)
+        protect_core = self._is_reference_locked_product(product) or not self._can_rebind_product_identity(product, data)
+        usage_class = self._classify_usage(data)
 
         vals = {
             'xml_source_id': self.id,
@@ -2899,7 +2968,7 @@ class XmlProductSource(models.Model):
                     stock_qty = int(stock_val)
                     vals['xml_supplier_stock'] = stock_qty
                     # Stok yeterli, daha önce kapatıldıysa tekrar aç
-                    if stock_qty >= self.min_stock and not product.sale_ok:
+                    if usage_class == 'commercial' and stock_qty >= self.min_stock and not product.sale_ok:
                         vals['sale_ok'] = True
                         _logger.info(f"Stok yeterli ({stock_qty}) - ürün satışa tekrar açıldı: {product.name}")
                 except:
@@ -2932,6 +3001,10 @@ class XmlProductSource(models.Model):
                 vals['categ_id'] = category_result['categ_id']
             if category_result.get('public_categ_ids'):
                 vals['public_categ_ids'] = category_result['public_categ_ids']
+        if not vals.get('categ_id'):
+            default_category = self._default_category_for_usage(usage_class)
+            if default_category:
+                vals['categ_id'] = default_category.id
 
         if self.supplier_id:
             vals['xml_supplier_id'] = self.supplier_id.id
@@ -2977,7 +3050,7 @@ class XmlProductSource(models.Model):
                 variants = product.product_variant_ids
                 if len(variants) == 1:
                     # Tek varyanttaki barkodu güncelle (farklıysa)
-                    if variants.barcode != barcode:
+                    if variants.barcode != barcode and self._can_rebind_product_identity(product, data):
                         variants.write({'barcode': barcode})
 
         # Görsel URL olarak ekle (güncelleme sonrası)
