@@ -55,6 +55,10 @@ class XmlProductSource(models.Model):
         string='Şifre',
         help='HTTP Basic Auth şifresi (opsiyonel)',
     )
+    xml_token = fields.Char(
+        string='Token',
+        help='API Token (Tesan SOAP servisi için)',
+    )
 
     # Index Grup / Netex ayrı feed URL'leri
     xml_stock_url = fields.Char(
@@ -87,6 +91,7 @@ class XmlProductSource(models.Model):
         ('akakce', 'Akakçe'),
         ('indexgrup', 'Index Grup'),
         ('netex', 'Netex'),
+        ('tesan', 'Tesan (SOAP)'),
         ('custom', 'Özel (Custom)'),
     ], string='XML Şablonu', default='custom', required=True)
 
@@ -375,9 +380,13 @@ class XmlProductSource(models.Model):
             'akakce': '//Products/Product',
             'indexgrup': './/URUN',
             'netex': './/URUN',
+            'tesan': './/ProductList',
         }
         if self.xml_template and self.xml_template != 'custom':
             self.root_element = template_roots.get(self.xml_template, '//Product')
+            # Tesan SOAP: varsayılan URL'yi ayarla
+            if self.xml_template == 'tesan' and not self.xml_url:
+                self.xml_url = 'http://www.tesaniletisim.com/webservice/ProductServices.asmx'
 
     def action_load_template_mappings(self):
         """Şablona göre varsayılan alan eşleştirmelerini yükle"""
@@ -593,6 +602,15 @@ class XmlProductSource(models.Model):
                 'category': 'Category',
                 'brand': 'Brand',
                 'image': 'Image',
+            },
+            'tesan': {
+                'sku': 'StockCode',
+                'barcode': 'Barcode',
+                'name': 'Product',
+                'tax': 'Tax',
+                'external_product_id': 'ProductId',
+                'source_stock_id': 'StockId',
+                'extra1': 'SpecialCode',
             },
             'indexgrup': {
                 'sku': '@GLOBALKOD',
@@ -1302,6 +1320,286 @@ class XmlProductSource(models.Model):
         except Exception as e:
             _logger.warning("Index Grup Fiyat XML okunamadı: %s", e)
             return {}
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TESAN — SOAP Web Servisi Entegrasyonu
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def _fetch_tesan_soap(self, method, body_content=''):
+        """Tesan SOAP servisine tek bir çağrı yapar.
+
+        Args:
+            method: SOAP method adı (örn: GetProductLists)
+            body_content: <soap:Body> içine eklenecek ek parametreler
+
+        Returns:
+            xml.etree.ElementTree.Element: SOAP response root elementi
+        """
+        self.ensure_one()
+
+        endpoint = self.xml_url or 'http://www.tesaniletisim.com/webservice/ProductServices.asmx'
+        username = self.xml_username or ''
+        password = self.xml_password or ''
+        token = self.xml_token or ''
+
+        envelope = '''<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Header>
+    <AuthUsers xmlns="http://tempuri.org/">
+      <userName>%s</userName>
+      <password>%s</password>
+      <token>%s</token>
+    </AuthUsers>
+  </soap:Header>
+  <soap:Body>
+    <%s xmlns="http://tempuri.org/">
+      %s
+    </%s>
+  </soap:Body>
+</soap:Envelope>''' % (username, password, token, method, body_content, method)
+
+        headers = {
+            'Content-Type': 'text/xml; charset=utf-8',
+            'SOAPAction': 'http://tempuri.org/%s' % method,
+        }
+
+        try:
+            response = requests.post(
+                endpoint,
+                data=envelope.encode('utf-8'),
+                headers=headers,
+                timeout=(15, 120),
+                verify=False,
+            )
+            response.raise_for_status()
+
+            # Namespace'leri temizle
+            text = response.text
+            text = re.sub(r'\sxmlns[^"]*"[^"]*"', '', text)
+            text = re.sub(r'\sxmlns="[^"]*"', '', text)
+
+            root = ET.fromstring(text)
+            return root
+
+        except requests.exceptions.RequestException as e:
+            raise UserError(_('Tesan SOAP bağlantı hatası (%s): %s') % (method, str(e)))
+        except ET.ParseError as e:
+            raise UserError(_('Tesan SOAP yanıt parse hatası (%s): %s') % (method, str(e)))
+
+    def _fetch_tesan_all_data(self):
+        """Tesan SOAP servislerinin tamamını çağırıp StockId bazında birleştirir.
+
+        Returns:
+            tuple: (products_xml, price_map, stock_map, image_map, feature_map, barcode_map)
+        """
+        self.ensure_one()
+
+        def _find_all(root, tag):
+            """Root içindeki tüm elemanları (namespace temizlenmiş) bulur."""
+            result = []
+            for elem in root.iter():
+                etag = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+                if etag == tag:
+                    result.append(elem)
+            return result
+
+        def _child_text(elem, tag):
+            """Element'in child'ından metin al (namespace agnostic)."""
+            for child in elem:
+                ctag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+                if ctag == tag:
+                    return (child.text or '').strip()
+            return ''
+
+        # 1. GetProductLists — ana ürün listesi
+        _logger.info("Tesan SOAP: GetProductLists çağrılıyor...")
+        products_root = self._fetch_tesan_soap('GetProductLists', '<_departman>0</_departman>')
+        product_elements = _find_all(products_root, 'ProductList')
+        _logger.info("Tesan SOAP: %d ürün bulundu", len(product_elements))
+
+        # 2. GetStockPrices — fiyat bilgileri
+        price_map = {}  # StockId → {price, standart_price, ...}
+        try:
+            _logger.info("Tesan SOAP: GetStockPrices çağrılıyor...")
+            prices_root = self._fetch_tesan_soap('GetStockPrices')
+            for sp in _find_all(prices_root, 'StockPrice'):
+                stock_id = _child_text(sp, 'StockId')
+                if stock_id:
+                    price_map[stock_id] = {
+                        'price': _child_text(sp, 'Price'),
+                        'standart_price': _child_text(sp, 'StandartPrice'),
+                        'price_list_name': _child_text(sp, 'PriceListName'),
+                        'currency': _child_text(sp, 'Currency') or 'TL',
+                    }
+            _logger.info("Tesan SOAP: %d fiyat kaydı alındı", len(price_map))
+        except Exception as e:
+            _logger.warning("Tesan SOAP: GetStockPrices hatası: %s", e)
+
+        # 3. GetWareHouseStocks — stok bilgileri
+        stock_map = {}  # StockId → quantity
+        try:
+            _logger.info("Tesan SOAP: GetWareHouseStocks çağrılıyor...")
+            stocks_root = self._fetch_tesan_soap('GetWareHouseStocks')
+            for ws in _find_all(stocks_root, 'WareHouseStock'):
+                stock_id = _child_text(ws, 'StockId')
+                quantity = _child_text(ws, 'Quantity') or _child_text(ws, 'Stock') or '0'
+                if stock_id:
+                    try:
+                        qty = int(float(quantity))
+                    except (ValueError, TypeError):
+                        qty = 0
+                    # Aynı StockId birden fazla depoda olabilir, toplam al
+                    stock_map[stock_id] = stock_map.get(stock_id, 0) + qty
+            _logger.info("Tesan SOAP: %d stok kaydı alındı", len(stock_map))
+        except Exception as e:
+            _logger.warning("Tesan SOAP: GetWareHouseStocks hatası: %s", e)
+
+        # 4. GetProductImages — görseller
+        image_map = {}  # StockId → [image_urls]
+        try:
+            _logger.info("Tesan SOAP: GetProductImages çağrılıyor...")
+            images_root = self._fetch_tesan_soap('GetProductImages')
+            for pi in _find_all(images_root, 'ProductImages'):
+                stock_id = _child_text(pi, 'StockId')
+                image_url = _child_text(pi, 'Image')
+                if stock_id and image_url and image_url.startswith('http'):
+                    if stock_id not in image_map:
+                        image_map[stock_id] = []
+                    if image_url not in image_map[stock_id]:
+                        image_map[stock_id].append(image_url)
+            _logger.info("Tesan SOAP: %d ürün için görsel alındı", len(image_map))
+        except Exception as e:
+            _logger.warning("Tesan SOAP: GetProductImages hatası: %s", e)
+
+        # 5. GetProductFeatures — ürün özellikleri
+        feature_map = {}  # ProductId → description_html
+        try:
+            _logger.info("Tesan SOAP: GetProductFeatures çağrılıyor...")
+            features_root = self._fetch_tesan_soap('GetProductFeatures')
+            for pf in _find_all(features_root, 'ProductFeatures'):
+                product_id = _child_text(pf, 'ProductId')
+                features = _child_text(pf, 'Features')
+                feature_type = _child_text(pf, 'FeaturesType')
+                if product_id and features:
+                    existing = feature_map.get(product_id, '')
+                    if feature_type:
+                        features = '<strong>%s</strong><br/>%s' % (feature_type, features)
+                    feature_map[product_id] = existing + features + '<br/>' if existing else features
+            _logger.info("Tesan SOAP: %d ürün için özellik alındı", len(feature_map))
+        except Exception as e:
+            _logger.warning("Tesan SOAP: GetProductFeatures hatası: %s", e)
+
+        # 6. GetProductCategories — kategori bilgileri
+        category_map = {}  # ProductCatId → CategoryName, BrandId → BrandName
+        try:
+            _logger.info("Tesan SOAP: GetProductCategories çağrılıyor...")
+            categories_root = self._fetch_tesan_soap('GetProductCategories')
+            for cat in _find_all(categories_root, 'ProductCategories'):
+                cat_id = _child_text(cat, 'ProductCatId')
+                cat_name = _child_text(cat, 'ProductCat')
+                brand_id = _child_text(cat, 'BrandId')
+                brand_name = _child_text(cat, 'Brand')
+                dept = _child_text(cat, 'Departman')
+                prod_type = _child_text(cat, 'ProductType')
+                if cat_id and cat_name:
+                    category_map['cat_%s' % cat_id] = cat_name
+                if brand_id and brand_name:
+                    category_map['brand_%s' % brand_id] = brand_name
+                if cat_id and dept:
+                    category_map['dept_%s' % cat_id] = dept
+                if cat_id and prod_type:
+                    category_map['type_%s' % cat_id] = prod_type
+            _logger.info("Tesan SOAP: %d kategori/marka kaydı alındı", len(category_map))
+        except Exception as e:
+            _logger.warning("Tesan SOAP: GetProductCategories hatası: %s", e)
+
+        return product_elements, price_map, stock_map, image_map, feature_map, category_map
+
+    def _tesan_build_product_xml(self, product_elements, price_map, stock_map, image_map, feature_map, category_map):
+        """Tesan SOAP verilerini birleştirip standart XML elementleri oluşturur.
+
+        Her ProductList elementine fiyat, stok, görsel, özellik ve kategori
+        bilgilerini child element olarak enjekte eder. Böylece standart
+        _extract_product_data() akışı çalışabilir.
+
+        Returns:
+            list: Zenginleştirilmiş ProductList element listesi
+        """
+
+        def _child_text(elem, tag):
+            for child in elem:
+                ctag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+                if ctag == tag:
+                    return (child.text or '').strip()
+            return ''
+
+        enriched = []
+        for pl in product_elements:
+            stock_id = _child_text(pl, 'StockId')
+            product_id = _child_text(pl, 'ProductId')
+            product_cat_id = _child_text(pl, 'ProductCatId')
+            brand_id = _child_text(pl, 'BrandId')
+
+            # Fiyat bilgisi ekle
+            if stock_id and stock_id in price_map:
+                pinfo = price_map[stock_id]
+                price_el = ET.SubElement(pl, 'Price')
+                price_el.text = pinfo.get('price') or pinfo.get('standart_price') or '0'
+                cost_el = ET.SubElement(pl, 'CostPrice')
+                cost_el.text = pinfo.get('standart_price') or pinfo.get('price') or '0'
+                currency_el = ET.SubElement(pl, 'Currency')
+                currency_el.text = pinfo.get('currency', 'TL')
+
+            # Stok bilgisi ekle
+            if stock_id and stock_id in stock_map:
+                stock_el = ET.SubElement(pl, 'Stock')
+                stock_el.text = str(stock_map[stock_id])
+
+            # Görsel ekle
+            if stock_id and stock_id in image_map:
+                images = image_map[stock_id]
+                if images:
+                    img_el = ET.SubElement(pl, 'ImageUrl')
+                    img_el.text = images[0]
+                    for idx, extra_img in enumerate(images[1:], 2):
+                        extra_el = ET.SubElement(pl, 'ImageUrl%d' % idx)
+                        extra_el.text = extra_img
+
+            # Özellikler (açıklama) ekle
+            if product_id and product_id in feature_map:
+                desc_el = ET.SubElement(pl, 'Description')
+                desc_el.text = feature_map[product_id]
+
+            # Kategori ve marka adı ekle
+            cat_name = category_map.get('cat_%s' % product_cat_id, '')
+            brand_name = category_map.get('brand_%s' % brand_id, '')
+            dept_name = category_map.get('dept_%s' % product_cat_id, '')
+            type_name = category_map.get('type_%s' % product_cat_id, '')
+
+            if cat_name:
+                cat_el = ET.SubElement(pl, 'CategoryName')
+                cat_el.text = cat_name
+            if brand_name:
+                brand_el = ET.SubElement(pl, 'BrandName')
+                brand_el.text = brand_name
+            if dept_name:
+                dept_el = ET.SubElement(pl, 'DepartmentName')
+                dept_el.text = dept_name
+            if type_name:
+                type_el = ET.SubElement(pl, 'ProductTypeName')
+                type_el.text = type_name
+
+            # Kategori yolu oluştur: Departman > Tip > Kategori
+            category_path_parts = [p for p in [dept_name, type_name, cat_name] if p]
+            if category_path_parts:
+                full_cat = ET.SubElement(pl, 'FullCategory')
+                full_cat.text = ' > '.join(category_path_parts)
+
+            enriched.append(pl)
+
+        return enriched
 
     def _get_element_value(self, element, path):
         """Element içinden değer al (nested path desteği)"""
