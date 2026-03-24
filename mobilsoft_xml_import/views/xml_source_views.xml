@@ -284,6 +284,47 @@
                             </group>
                         </page>
 
+                        <!-- SOAP Servisi Ayarları -->
+                        <page string="SOAP Ayarları" name="soap_settings" icon="fa-cloud"
+                              invisible="xml_template not in ('tesan', 'soap')">
+                            <group col="4">
+                                <group colspan="2" string="SOAP Servisi">
+                                    <field name="soap_namespace"
+                                           placeholder="http://tempuri.org/"/>
+                                    <field name="soap_product_element"
+                                           placeholder="ProductList"/>
+                                    <field name="soap_extra_body"
+                                           placeholder="&lt;_departman&gt;0&lt;/_departman&gt;"/>
+                                </group>
+                                <group colspan="2" string="SOAP Metod Adları">
+                                    <field name="soap_method_products"
+                                           placeholder="GetProductLists"/>
+                                    <field name="soap_method_prices"
+                                           placeholder="GetStockPrices"/>
+                                    <field name="soap_method_stock"
+                                           placeholder="GetWareHouseStocks"/>
+                                    <field name="soap_method_images"
+                                           placeholder="GetProductImages"/>
+                                    <field name="soap_method_features"
+                                           placeholder="GetProductFeatures"/>
+                                    <field name="soap_method_categories"
+                                           placeholder="GetProductCategories"/>
+                                </group>
+                            </group>
+                            <div class="card bg-light mt-3">
+                                <div class="card-body py-2">
+                                    <h6 class="card-title">SOAP Servisi Kullanımı</h6>
+                                    <ul class="mb-0 small">
+                                        <li><strong>Tesan şablonu:</strong> Tüm alanlar otomatik doldurulur</li>
+                                        <li><strong>Genel SOAP:</strong> Ürün metodu zorunlu, diğerleri opsiyonel</li>
+                                        <li><strong>Namespace:</strong> SOAP Header ve Body'deki xmlns değeri</li>
+                                        <li><strong>Ürün Elementi:</strong> SOAP yanıtındaki ürün XML element adı</li>
+                                        <li><strong>Ek Body:</strong> Ürün metodu çağrılırken gönderilecek ek parametreler</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </page>
+
                         <!-- İçe Aktarım Logları -->
                         <page string="İçe Aktarım Logları" name="logs" icon="fa-history">
                             <field name="import_log_ids" readonly="1">
