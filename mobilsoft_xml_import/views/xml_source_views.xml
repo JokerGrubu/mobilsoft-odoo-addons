@@ -95,6 +95,8 @@
                             <field name="root_element" placeholder="//Products/Product"/>
                             <field name="xml_username" placeholder="Opsiyonel"/>
                             <field name="xml_password" password="True" placeholder="Opsiyonel"/>
+                            <field name="xml_token" password="True" placeholder="API Token"
+                                   invisible="xml_template not in ('tesan', 'soap')"/>
                             <field name="supplier_id" options="{'no_create': True}"/>
                             <field name="xml_stock_url" widget="url"
                                    placeholder="Stok XML URL (Index Grup/Netex)"
