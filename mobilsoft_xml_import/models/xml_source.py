@@ -57,7 +57,7 @@ class XmlProductSource(models.Model):
     )
     xml_token = fields.Char(
         string='Token',
-        help='API Token (Tesan SOAP servisi için)',
+        help='API Token (SOAP servisleri için)',
     )
 
     # Index Grup / Netex ayrı feed URL'leri
@@ -68,6 +68,45 @@ class XmlProductSource(models.Model):
     xml_price_url = fields.Char(
         string='Fiyat XML URL',
         help='Ayrı fiyat feed URL (Index Grup/Netex için)',
+    )
+
+    # SOAP Servis Ayarları
+    soap_namespace = fields.Char(
+        string='SOAP Namespace',
+        default='http://tempuri.org/',
+        help='SOAP servis namespace URI (varsayılan: http://tempuri.org/)',
+    )
+    soap_method_products = fields.Char(
+        string='SOAP Ürün Metodu',
+        help='Ürün listesi için SOAP metod adı (örn: GetProductLists)',
+    )
+    soap_method_prices = fields.Char(
+        string='SOAP Fiyat Metodu',
+        help='Fiyat bilgileri için SOAP metod adı (örn: GetStockPrices)',
+    )
+    soap_method_stock = fields.Char(
+        string='SOAP Stok Metodu',
+        help='Stok bilgileri için SOAP metod adı (örn: GetWareHouseStocks)',
+    )
+    soap_method_images = fields.Char(
+        string='SOAP Görsel Metodu',
+        help='Görseller için SOAP metod adı (örn: GetProductImages)',
+    )
+    soap_method_features = fields.Char(
+        string='SOAP Özellik Metodu',
+        help='Ürün özellikleri için SOAP metod adı (örn: GetProductFeatures)',
+    )
+    soap_method_categories = fields.Char(
+        string='SOAP Kategori Metodu',
+        help='Kategoriler için SOAP metod adı (örn: GetProductCategories)',
+    )
+    soap_product_element = fields.Char(
+        string='SOAP Ürün Elementi',
+        help='SOAP yanıtındaki ürün element adı (örn: ProductList)',
+    )
+    soap_extra_body = fields.Char(
+        string='SOAP Ek Body',
+        help='Ürün metodu için ekstra SOAP body içeriği (örn: <_departman>0</_departman>)',
     )
 
     # XML Yapısı
@@ -92,6 +131,7 @@ class XmlProductSource(models.Model):
         ('indexgrup', 'Index Grup'),
         ('netex', 'Netex'),
         ('tesan', 'Tesan (SOAP)'),
+        ('soap', 'Genel SOAP Servisi'),
         ('custom', 'Özel (Custom)'),
     ], string='XML Şablonu', default='custom', required=True)
 
@@ -381,12 +421,23 @@ class XmlProductSource(models.Model):
             'indexgrup': './/URUN',
             'netex': './/URUN',
             'tesan': './/ProductList',
+            'soap': './/Product',
         }
         if self.xml_template and self.xml_template != 'custom':
             self.root_element = template_roots.get(self.xml_template, '//Product')
-            # Tesan SOAP: varsayılan URL'yi ayarla
-            if self.xml_template == 'tesan' and not self.xml_url:
-                self.xml_url = 'http://www.tesaniletisim.com/webservice/ProductServices.asmx'
+            # SOAP preset'leri: varsayılan alanları ayarla
+            if self.xml_template == 'tesan':
+                if not self.xml_url:
+                    self.xml_url = 'http://www.tesaniletisim.com/webservice/ProductServices.asmx'
+                self.soap_namespace = 'http://tempuri.org/'
+                self.soap_method_products = 'GetProductLists'
+                self.soap_method_prices = 'GetStockPrices'
+                self.soap_method_stock = 'GetWareHouseStocks'
+                self.soap_method_images = 'GetProductImages'
+                self.soap_method_features = 'GetProductFeatures'
+                self.soap_method_categories = 'GetProductCategories'
+                self.soap_product_element = 'ProductList'
+                self.soap_extra_body = '<_departman>0</_departman>'
 
     def action_load_template_mappings(self):
         """Şablona göre varsayılan alan eşleştirmelerini yükle"""
@@ -1322,15 +1373,289 @@ class XmlProductSource(models.Model):
             return {}
 
     # ══════════════════════════════════════════════════════════════════════════
-    # TESAN — SOAP Web Servisi Entegrasyonu
+    # SOAP — Genel SOAP Web Servisi Entegrasyonu
     # ══════════════════════════════════════════════════════════════════════════
 
-    def _fetch_tesan_soap(self, method, body_content=''):
-        """Tesan SOAP servisine tek bir çağrı yapar.
+    def _is_soap_source(self):
+        """Bu kaynak SOAP tabanlı mı kontrol et."""
+        return self.xml_template in ('tesan', 'soap')
+
+    def _fetch_soap(self, method, body_content=''):
+        """SOAP servisine tek bir çağrı yapar.
 
         Args:
             method: SOAP method adı (örn: GetProductLists)
             body_content: <soap:Body> içine eklenecek ek parametreler
+
+        Returns:
+            xml.etree.ElementTree.Element: SOAP response root elementi
+        """
+        self.ensure_one()
+
+        endpoint = self.xml_url
+        if not endpoint:
+            raise UserError(_('SOAP servisi için URL tanımlı değil.'))
+
+        username = self.xml_username or ''
+        password = self.xml_password or ''
+        token = self.xml_token or ''
+        namespace = self.soap_namespace or 'http://tempuri.org/'
+
+        envelope = '''<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Header>
+    <AuthUsers xmlns="%s">
+      <userName>%s</userName>
+      <password>%s</password>
+      <token>%s</token>
+    </AuthUsers>
+  </soap:Header>
+  <soap:Body>
+    <%s xmlns="%s">
+      %s
+    </%s>
+  </soap:Body>
+</soap:Envelope>''' % (namespace, username, password, token,
+                       method, namespace, body_content, method)
+
+        headers = {
+            'Content-Type': 'text/xml; charset=utf-8',
+            'SOAPAction': '%s%s' % (namespace, method),
+        }
+
+        try:
+            response = requests.post(
+                endpoint,
+                data=envelope.encode('utf-8'),
+                headers=headers,
+                timeout=(15, 120),
+                verify=False,
+            )
+            response.raise_for_status()
+
+            text = response.text
+            text = re.sub(r'\sxmlns[^"]*"[^"]*"', '', text)
+            text = re.sub(r'\sxmlns="[^"]*"', '', text)
+
+            root = ET.fromstring(text)
+            return root
+
+        except requests.exceptions.RequestException as e:
+            raise UserError(_('SOAP bağlantı hatası (%s): %s') % (method, str(e)))
+        except ET.ParseError as e:
+            raise UserError(_('SOAP yanıt parse hatası (%s): %s') % (method, str(e)))
+
+    def _soap_find_all(self, root, tag):
+        """Root içindeki tüm elemanları (namespace temizlenmiş) bulur."""
+        result = []
+        for elem in root.iter():
+            etag = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+            if etag == tag:
+                result.append(elem)
+        return result
+
+    def _soap_child_text(self, elem, tag):
+        """Element'in child'ından metin al (namespace agnostic)."""
+        for child in elem:
+            ctag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+            if ctag == tag:
+                return (child.text or '').strip()
+        return ''
+
+    def _fetch_soap_all_data(self):
+        """SOAP servislerinin tamamını çağırıp birleştirir.
+
+        Yapılandırılmış soap_method_* alanlarını kullanır. Tanımlı
+        olmayan metodlar atlanır. Herhangi bir SOAP servisi için çalışır.
+
+        Returns:
+            tuple: (products, price_map, stock_map, image_map, feature_map, category_map)
+        """
+        self.ensure_one()
+
+        method_products = self.soap_method_products
+        method_prices = self.soap_method_prices
+        method_stock = self.soap_method_stock
+        method_images = self.soap_method_images
+        method_features = self.soap_method_features
+        method_categories = self.soap_method_categories
+        product_element = self.soap_product_element or 'ProductList'
+        extra_body = self.soap_extra_body or ''
+
+        if not method_products:
+            raise UserError(_('SOAP ürün metodu tanımlı değil. Şablon ayarlarını kontrol edin.'))
+
+        # 1. Ürün Listesi
+        _logger.info("SOAP: %s çağrılıyor...", method_products)
+        products_root = self._fetch_soap(method_products, extra_body)
+        product_elements = self._soap_find_all(products_root, product_element)
+        _logger.info("SOAP: %d ürün bulundu", len(product_elements))
+
+        # 2. Fiyat bilgileri
+        price_map = {}
+        if method_prices:
+            try:
+                _logger.info("SOAP: %s çağrılıyor...", method_prices)
+                prices_root = self._fetch_soap(method_prices)
+                for sp in prices_root.iter():
+                    stock_id = self._soap_child_text(sp, 'StockId')
+                    if stock_id:
+                        price = self._soap_child_text(sp, 'Price')
+                        standart = self._soap_child_text(sp, 'StandartPrice')
+                        if price or standart:
+                            price_map[stock_id] = {
+                                'price': price,
+                                'standart_price': standart,
+                                'price_list_name': self._soap_child_text(sp, 'PriceListName'),
+                                'currency': self._soap_child_text(sp, 'Currency') or 'TL',
+                            }
+                _logger.info("SOAP: %d fiyat kaydı alındı", len(price_map))
+            except Exception as e:
+                _logger.warning("SOAP: %s hatası: %s", method_prices, e)
+
+        # 3. Stok bilgileri
+        stock_map = {}
+        if method_stock:
+            try:
+                _logger.info("SOAP: %s çağrılıyor...", method_stock)
+                stocks_root = self._fetch_soap(method_stock)
+                for ws in stocks_root.iter():
+                    stock_id = self._soap_child_text(ws, 'StockId')
+                    quantity = (self._soap_child_text(ws, 'Quantity')
+                                or self._soap_child_text(ws, 'Stock')
+                                or self._soap_child_text(ws, 'Count')
+                                or '0')
+                    if stock_id and quantity != '0':
+                        try:
+                            qty = int(float(quantity))
+                        except (ValueError, TypeError):
+                            qty = 0
+                        stock_map[stock_id] = stock_map.get(stock_id, 0) + qty
+                _logger.info("SOAP: %d stok kaydı alındı", len(stock_map))
+            except Exception as e:
+                _logger.warning("SOAP: %s hatası: %s", method_stock, e)
+
+        # 4. Görseller
+        image_map = {}
+        if method_images:
+            try:
+                _logger.info("SOAP: %s çağrılıyor...", method_images)
+                images_root = self._fetch_soap(method_images)
+                for pi in images_root.iter():
+                    stock_id = self._soap_child_text(pi, 'StockId')
+                    image_url = (self._soap_child_text(pi, 'Image')
+                                 or self._soap_child_text(pi, 'ImageUrl')
+                                 or self._soap_child_text(pi, 'Url'))
+                    if stock_id and image_url and image_url.startswith('http'):
+                        if stock_id not in image_map:
+                            image_map[stock_id] = []
+                        if image_url not in image_map[stock_id]:
+                            image_map[stock_id].append(image_url)
+                _logger.info("SOAP: %d ürün için görsel alındı", len(image_map))
+            except Exception as e:
+                _logger.warning("SOAP: %s hatası: %s", method_images, e)
+
+        # 5. Ürün özellikleri
+        feature_map = {}
+        if method_features:
+            try:
+                _logger.info("SOAP: %s çağrılıyor...", method_features)
+                features_root = self._fetch_soap(method_features)
+                for pf in features_root.iter():
+                    product_id = self._soap_child_text(pf, 'ProductId')
+                    features = (self._soap_child_text(pf, 'Features')
+                                or self._soap_child_text(pf, 'Description')
+                                or self._soap_child_text(pf, 'Detail'))
+                    feature_type = self._soap_child_text(pf, 'FeaturesType')
+                    if product_id and features:
+                        existing = feature_map.get(product_id, '')
+                        if feature_type:
+                            features = '<strong>%s</strong><br/>%s' % (feature_type, features)
+                        feature_map[product_id] = existing + features + '<br/>' if existing else features
+                _logger.info("SOAP: %d ürün için özellik alındı", len(feature_map))
+            except Exception as e:
+                _logger.warning("SOAP: %s hatası: %s", method_features, e)
+
+        # 6. Kategori bilgileri
+        category_map = {}
+        if method_categories:
+            try:
+                _logger.info("SOAP: %s çağrılıyor...", method_categories)
+                categories_root = self._fetch_soap(method_categories)
+                for cat in categories_root.iter():
+                    cat_id = self._soap_child_text(cat, 'ProductCatId') or self._soap_child_text(cat, 'CategoryId')
+                    cat_name = (self._soap_child_text(cat, 'ProductCat')
+                                or self._soap_child_text(cat, 'CategoryName')
+                                or self._soap_child_text(cat, 'Category'))
+                    brand_id = self._soap_child_text(cat, 'BrandId')
+                    brand_name = self._soap_child_text(cat, 'Brand') or self._soap_child_text(cat, 'BrandName')
+                    dept = self._soap_child_text(cat, 'Departman') or self._soap_child_text(cat, 'Department')
+                    prod_type = self._soap_child_text(cat, 'ProductType')
+                    if cat_id and cat_name:
+                        category_map['cat_%s' % cat_id] = cat_name
+                    if brand_id and brand_name:
+                        category_map['brand_%s' % brand_id] = brand_name
+                    if cat_id and dept:
+                        category_map['dept_%s' % cat_id] = dept
+                    if cat_id and prod_type:
+                        category_map['type_%s' % cat_id] = prod_type
+                _logger.info("SOAP: %d kategori/marka kaydı alındı", len(category_map))
+            except Exception as e:
+                _logger.warning("SOAP: %s hatası: %s", method_categories, e)
+
+        return product_elements, price_map, stock_map, image_map, feature_map, category_map
+
+    def _soap_build_product_xml(self, product_elements, price_map, stock_map, image_map, feature_map, category_map):
+        """SOAP verilerini birleştirip standart XML elementleri oluşturur."""
+        enriched = []
+        for pl in product_elements:
+            stock_id = self._soap_child_text(pl, 'StockId')
+            product_id = self._soap_child_text(pl, 'ProductId')
+            product_cat_id = self._soap_child_text(pl, 'ProductCatId') or self._soap_child_text(pl, 'CategoryId')
+            brand_id = self._soap_child_text(pl, 'BrandId')
+
+            if stock_id and stock_id in price_map:
+                pinfo = price_map[stock_id]
+                ET.SubElement(pl, 'Price').text = pinfo.get('price') or pinfo.get('standart_price') or '0'
+                ET.SubElement(pl, 'CostPrice').text = pinfo.get('standart_price') or pinfo.get('price') or '0'
+                ET.SubElement(pl, 'Currency').text = pinfo.get('currency', 'TL')
+
+            if stock_id and stock_id in stock_map:
+                ET.SubElement(pl, 'Stock').text = str(stock_map[stock_id])
+
+            if stock_id and stock_id in image_map:
+                images = image_map[stock_id]
+                if images:
+                    ET.SubElement(pl, 'ImageUrl').text = images[0]
+                    for idx, extra_img in enumerate(images[1:], 2):
+                        ET.SubElement(pl, 'ImageUrl%d' % idx).text = extra_img
+
+            if product_id and product_id in feature_map:
+                ET.SubElement(pl, 'Description').text = feature_map[product_id]
+
+            cat_name = category_map.get('cat_%s' % product_cat_id, '')
+            brand_name = category_map.get('brand_%s' % brand_id, '')
+            dept_name = category_map.get('dept_%s' % product_cat_id, '')
+            type_name = category_map.get('type_%s' % product_cat_id, '')
+            if cat_name:
+                ET.SubElement(pl, 'CategoryName').text = cat_name
+            if brand_name:
+                ET.SubElement(pl, 'BrandName').text = brand_name
+            if dept_name:
+                ET.SubElement(pl, 'DepartmentName').text = dept_name
+            if type_name:
+                ET.SubElement(pl, 'ProductTypeName').text = type_name
+
+            category_path_parts = [p for p in [dept_name, type_name, cat_name] if p]
+            if category_path_parts:
+                ET.SubElement(pl, 'FullCategory').text = ' > '.join(category_path_parts)
+
+            enriched.append(pl)
+        return enriched
+
+
 
         Returns:
             xml.etree.ElementTree.Element: SOAP response root elementi
