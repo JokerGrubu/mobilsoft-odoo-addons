@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="register_page" name="MobilSoft Register">
+        <t t-call="website.layout">
+            <t t-set="no_header" t-value="True"/>
+            <t t-set="no_footer" t-value="True"/>
+
+            <div class="ms-auth">
+                <!-- Sol: Branding -->
+                <div class="ms-auth__brand d-none d-lg-flex">
+                    <div class="ms-auth__brand-content">
+                        <div class="mb-4">
+                            <i class="fa fa-rocket" style="font-size:48px; opacity:0.9;"/>
+                        </div>
+                        <h1 class="fw-bold mb-3" style="font-size:2.2rem;">Hemen Başlayın</h1>
+                        <p class="mb-4" style="font-size:1.1rem; opacity:0.85; line-height:1.6;">
+                            Dakikalar içinde şirketinizi kurun. Hesap planı,
+                            kasa, depo ve POS otomatik hazırlanır.
+                        </p>
+                        <div class="d-flex flex-column gap-2" style="opacity:0.75; font-size:0.9rem;">
+                            <div><i class="fa fa-magic me-2"/>Otomatik Türk Hesap Planı</div>
+                            <div><i class="fa fa-archive me-2"/>Depo + Kasa Anında Hazır</div>
+                            <div><i class="fa fa-desktop me-2"/>POS Kasa Kurulumu</div>
+                            <div><i class="fa fa-shopping-bag me-2"/>CepteTedarik Erişimi</div>
+                            <div><i class="fa fa-credit-card me-2"/>Ücretsiz Deneme</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sağ: Register Formu -->
+                <div class="ms-auth__form-area">
+                    <div class="ms-auth__card">
+                        <!-- Mobil logo -->
+                        <div class="text-center mb-3 d-lg-none">
+                            <i class="fa fa-building-o" style="font-size:36px; color:var(--ms-brand);"/>
+                        </div>
+
+                        <h3 class="fw-bold mb-1">Ücretsiz Kayıt</h3>
+                        <p class="text-muted small mb-4">Şirketinizi dakikalar içinde kurun</p>
+
+                        <t t-if="error">
+                            <div class="alert alert-danger d-flex align-items-center py-2 small" role="alert">
+                                <i class="fa fa-exclamation-circle me-2"/>
+                                <t t-esc="error"/>
+                            </div>
+                        </t>
+
+                        <t t-if="success">
+                            <div class="alert alert-success d-flex align-items-center py-2 small" role="alert">
+                                <i class="fa fa-check-circle me-2"/>
+                                <t t-esc="success"/>
+                            </div>
+                        </t>
+
+                        <form action="/mobilsoft/register/submit" method="post">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                            <!-- Şirket Bilgileri -->
+                            <div class="mb-3 pb-2 border-bottom">
+                                <small class="text-uppercase fw-bold text-muted" style="letter-spacing:0.5px;">
+                                    <i class="fa fa-building me-1"/>Şirket Bilgileri
+                                </small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Şirket Adı *</label>
+                                <input type="text" name="company_name" class="form-control"
+                                       placeholder="Örn: ABC Ticaret Ltd. Şti."
+                                       required="required" t-att-value="form_data.get('company_name', '') if form_data else ''"/>
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Vergi No (Opsiyonel)</label>
+                                    <input type="text" name="vat" class="form-control"
+                                           placeholder="1234567890" t-att-value="form_data.get('vat', '') if form_data else ''"/>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Telefon (Opsiyonel)</label>
+                                    <input type="tel" name="phone" class="form-control"
+                                           placeholder="0212 123 45 67" t-att-value="form_data.get('phone', '') if form_data else ''"/>
+                                </div>
+                            </div>
+
+                            <!-- Kullanıcı Bilgileri -->
+                            <div class="mb-3 pb-2 border-bottom mt-4">
+                                <small class="text-uppercase fw-bold text-muted" style="letter-spacing:0.5px;">
+                                    <i class="fa fa-user me-1"/>Kullanıcı Bilgileri
+                                </small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Ad Soyad *</label>
+                                <input type="text" name="user_name" class="form-control"
+                                       placeholder="Adınız Soyadınız"
+                                       required="required" t-att-value="form_data.get('user_name', '') if form_data else ''"/>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">E-posta *</label>
+                                <input type="email" name="email" class="form-control"
+                                       placeholder="ornek@sirket.com"
+                                       required="required" t-att-value="form_data.get('email', '') if form_data else ''"/>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label small fw-semibold">Şifre *</label>
+                                <input type="password" name="password" class="form-control"
+                                       placeholder="En az 8 karakter" required="required" minlength="8"/>
+                            </div>
+
+                            <button type="submit" class="btn ms-btn-brand w-100 fw-semibold py-2 mb-3">
+                                <i class="fa fa-rocket me-1"/>Şirketi Kur ve Başla
+                            </button>
+                        </form>
+
+                        <div class="text-center">
+                            <span class="text-muted small">Zaten hesabınız var mı?</span>
+                            <a href="/mobilsoft/login" class="small fw-semibold ms-link">Giriş Yapın</a>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <small class="text-muted">© 2026 MobilSoft — Joker Grubu</small>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

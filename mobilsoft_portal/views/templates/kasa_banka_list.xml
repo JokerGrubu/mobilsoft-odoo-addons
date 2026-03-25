@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="kasa_banka_list" name="MobilSoft Kasa Banka Liste">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'kasa_banka'"/>
+
+            <div class="p-3 p-md-4">
+                <h4 class="mb-1 fw-bold"><i class="fa fa-university me-2 text-muted"/>Kasa &amp; Banka</h4>
+                <small class="text-muted d-block mb-4">Nakit ve banka hesaplarınız</small>
+
+                <!-- Toplam Kartları -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--success">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small"><i class="fa fa-money me-1"/>Kasa Toplam</div>
+                                <div t-attf-class="fw-bold fs-5 #{('text-success' if total_cash >= 0 else 'text-danger')}">
+                                    ₺ <t t-esc="'{:,.2f}'.format(total_cash)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--teal">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small"><i class="fa fa-university me-1"/>Banka Toplam</div>
+                                <div t-attf-class="fw-bold fs-5 #{('text-success' if total_bank >= 0 else 'text-danger')}">
+                                    ₺ <t t-esc="'{:,.2f}'.format(total_bank)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--warning">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small"><i class="fa fa-calculator me-1"/>Genel Toplam</div>
+                                <div t-attf-class="fw-bold fs-4 #{('text-success' if total_all >= 0 else 'text-danger')}">
+                                    ₺ <t t-esc="'{:,.2f}'.format(total_all)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hesap Kartları -->
+                <div class="row g-3">
+                    <t t-if="not journal_data">
+                        <div class="col-12 text-center text-muted py-5">
+                            <i class="fa fa-inbox fa-3x d-block mb-3"/>
+                            <p>Henüz kasa veya banka hesabı tanımlı değil.</p>
+                        </div>
+                    </t>
+                    <t t-foreach="journal_data" t-as="jd" t-key="jd['journal'].id">
+                        <div class="col-md-6 col-lg-4">
+                            <a t-attf-href="/mobilsoft/kasa-banka/#{jd['journal'].id}" class="text-decoration-none">
+                                <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                    <div class="card-body py-4">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div t-attf-class="ms-quick-icon #{('bg-success-subtle text-success' if jd['journal'].type == 'cash' else 'bg-primary-subtle text-primary')}">
+                                                <i t-attf-class="fa #{jd['icon']}"/>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <div class="fw-bold text-dark"><t t-esc="jd['journal'].name"/></div>
+                                                <div class="text-muted small"><t t-esc="jd['type_label']"/></div>
+                                            </div>
+                                            <div class="text-end">
+                                                <div t-attf-class="fw-bold fs-5 #{('text-success' if jd['balance'] >= 0 else 'text-danger')}">
+                                                    ₺ <t t-esc="'{:,.2f}'.format(jd['balance'])"/>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

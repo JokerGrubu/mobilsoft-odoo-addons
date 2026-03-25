@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="ayarlar_index" name="MobilSoft Ayarlar">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'ayarlar'"/>
+
+            <div class="p-3 p-md-4">
+                <h4 class="mb-1 fw-bold"><i class="fa fa-cog me-2 text-muted"/>Ayarlar</h4>
+                <small class="text-muted d-block mb-4">Şirket ve hesap ayarlarınız</small>
+
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <a href="/mobilsoft/ayarlar/sirket" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-primary-subtle text-primary mx-auto mb-3">
+                                        <i class="fa fa-building"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">Şirket Bilgileri</h6>
+                                    <p class="text-muted small mb-0">Unvan, VKN, adres, iletişim, logo</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="/mobilsoft/ayarlar/profil" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-success-subtle text-success mx-auto mb-3">
+                                        <i class="fa fa-user"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">Profil</h6>
+                                    <p class="text-muted small mb-0">İsim, telefon, avatar, şifre değiştirme</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="/mobilsoft/ayarlar/gelismis" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-warning-subtle text-warning mx-auto mb-3">
+                                        <i class="fa fa-wrench"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">Gelişmiş Ayarlar</h6>
+                                    <p class="text-muted small mb-0">Para birimi, vergi, hesap planı ayarları</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="/mobilsoft/ayarlar/entegrasyonlar" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-info-subtle text-info mx-auto mb-3">
+                                        <i class="fa fa-plug"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">Entegrasyonlar</h6>
+                                    <p class="text-muted small mb-0">Banka, e-Fatura, pazaryeri entegrasyonları</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-3">
+                        <a href="/mobilsoft/ayarlar/kullanicilar" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-danger-subtle text-danger mx-auto mb-3">
+                                        <i class="fa fa-users"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">Kullanıcılar</h6>
+                                    <p class="text-muted small mb-0">Portal kullanıcı ve rol yönetimi</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="/mobilsoft/veri-aktarimi" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-secondary-subtle text-secondary mx-auto mb-3">
+                                        <i class="fa fa-upload"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">Veri İçe Aktarma</h6>
+                                    <p class="text-muted small mb-0">Excel/XML ile ürün ve cari aktarımı</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

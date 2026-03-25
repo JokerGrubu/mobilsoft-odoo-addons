@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="odemeler_list" name="MobilSoft Ödemeler Listesi">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'odemeler'"/>
+
+            <div class="p-3 p-md-4">
+                <!-- Başlık -->
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-0 fw-bold"><i class="fa fa-money me-2 text-muted"/>Ödemeler / Tahsilat</h4>
+                        <span class="text-muted small"><t t-esc="total"/> kayıt</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/mobilsoft/export/odemeler" class="btn btn-sm btn-outline-success">
+                            <i class="fa fa-file-excel-o me-1"/>Excel
+                        </a>
+                        <a href="/mobilsoft/odemeler/yeni?payment_type=inbound" class="btn btn-sm btn-success">
+                            <i class="fa fa-plus me-1"/>Tahsilat
+                        </a>
+                        <a href="/mobilsoft/odemeler/yeni?payment_type=outbound" class="btn btn-sm btn-primary">
+                            <i class="fa fa-plus me-1"/>Ödeme
+                        </a>
+                    </div>
+                </div>
+
+                <!-- KPI Kartları -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--success">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Bu Ay Tahsilat</div>
+                                <div class="fw-bold fs-5">₺ <t t-esc="'{:,.2f}'.format(buay_tahsilat)"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--danger">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Bu Ay Ödeme</div>
+                                <div class="fw-bold fs-5">₺ <t t-esc="'{:,.2f}'.format(buay_odeme)"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Toplam Tahsilat</div>
+                                <div class="fw-bold fs-5"><t t-esc="tahsilat_count"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Toplam Ödeme</div>
+                                <div class="fw-bold fs-5"><t t-esc="odeme_count"/></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs + Filtre -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom py-0 d-flex justify-content-between align-items-center flex-wrap">
+                        <ul class="nav nav-tabs border-0">
+                            <li class="nav-item">
+                                <a t-attf-class="nav-link border-0 py-3 #{'active fw-bold' if tab == 'tahsilat' else 'text-muted'}"
+                                   href="/mobilsoft/odemeler?tab=tahsilat">
+                                    Tahsilat <span class="badge bg-success-subtle text-success ms-1"><t t-esc="tahsilat_count"/></span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a t-attf-class="nav-link border-0 py-3 #{'active fw-bold' if tab == 'odeme' else 'text-muted'}"
+                                   href="/mobilsoft/odemeler?tab=odeme">
+                                    Ödeme <span class="badge bg-danger-subtle text-danger ms-1"><t t-esc="odeme_count"/></span>
+                                </a>
+                            </li>
+                        </ul>
+                        <form method="get" action="/mobilsoft/odemeler" class="d-flex gap-2 py-2">
+                            <input type="hidden" name="tab" t-att-value="tab"/>
+                            <input type="text" name="q" t-att-value="q" class="form-control form-control-sm" placeholder="Ara..." style="width:160px;"/>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="fa fa-search"/></button>
+                        </form>
+                    </div>
+
+                    <!-- Tablo -->
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>No</th>
+                                    <th>Cari</th>
+                                    <th>Tarih</th>
+                                    <th>Hesap</th>
+                                    <th class="text-end">Tutar</th>
+                                    <th class="text-center">Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="payments" t-as="p" t-key="p.id">
+                                    <tr class="ms-table-row">
+                                        <td class="small fw-semibold"><t t-esc="p.name or 'Taslak'"/></td>
+                                        <td class="small">
+                                            <a t-if="p.partner_id" t-attf-href="/mobilsoft/cariler/#{p.partner_id.id}" class="ms-link">
+                                                <t t-esc="p.partner_id.name"/>
+                                            </a>
+                                        </td>
+                                        <td class="small text-muted"><t t-esc="p.date or '-'"/></td>
+                                        <td class="small text-muted"><t t-esc="p.journal_id.name"/></td>
+                                        <td class="text-end fw-bold small">
+                                            <span t-if="p.payment_type == 'inbound'" class="text-success">
+                                                + ₺ <t t-esc="'{:,.2f}'.format(p.amount)"/>
+                                            </span>
+                                            <span t-if="p.payment_type == 'outbound'" class="text-danger">
+                                                - ₺ <t t-esc="'{:,.2f}'.format(p.amount)"/>
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span t-if="p.state == 'draft'" class="badge bg-secondary">Taslak</span>
+                                            <span t-if="p.state == 'posted'" class="badge bg-success">Onaylandı</span>
+                                            <span t-if="p.state == 'cancel'" class="badge bg-dark">İptal</span>
+                                        </td>
+                                    </tr>
+                                </t>
+                                <tr t-if="not payments">
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fa fa-inbox fa-2x d-block mb-2 opacity-50"/>
+                                        Kayıt bulunamadı
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <t t-if="page_count > 1">
+                        <div class="card-footer bg-white d-flex justify-content-center">
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0">
+                                    <li t-attf-class="page-item #{'disabled' if page_num == 1 else ''}">
+                                        <a class="page-link" t-attf-href="/mobilsoft/odemeler?tab=#{tab}&amp;q=#{q}&amp;state=#{state_filter}&amp;page=#{page_num - 1}">‹</a>
+                                    </li>
+                                    <t t-foreach="page_range" t-as="pg" t-key="pg">
+                                        <li t-attf-class="page-item #{'active' if pg == page_num else ''}">
+                                            <a class="page-link" t-attf-href="/mobilsoft/odemeler?tab=#{tab}&amp;q=#{q}&amp;state=#{state_filter}&amp;page=#{pg}"><t t-esc="pg"/></a>
+                                        </li>
+                                    </t>
+                                    <li t-attf-class="page-item #{'disabled' if page_num == page_count else ''}">
+                                        <a class="page-link" t-attf-href="/mobilsoft/odemeler?tab=#{tab}&amp;q=#{q}&amp;state=#{state_filter}&amp;page=#{page_num + 1}">›</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

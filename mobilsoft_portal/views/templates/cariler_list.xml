@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="cariler_list" name="MobilSoft Cariler Liste">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'cariler'"/>
+
+            <div class="p-3 p-md-4">
+                <!-- Başlık + Aksiyon -->
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-0 fw-bold"><i class="fa fa-users me-2 text-muted"/>Cariler</h4>
+                        <small class="text-muted">
+                            <t t-esc="musteri_count"/> müşteri, <t t-esc="tedarikci_count"/> tedarikçi
+                        </small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/mobilsoft/export/cariler" class="btn btn-sm btn-outline-success">
+                            <i class="fa fa-file-excel-o me-1"/>Excel
+                        </a>
+                        <a href="/mobilsoft/veri-aktarimi?tab=cariler" class="btn btn-sm btn-outline-primary">
+                            <i class="fa fa-upload me-1"/>İçe Aktar
+                        </a>
+                        <a href="/mobilsoft/cariler/yeni" class="btn btn-sm ms-btn-brand">
+                            <i class="fa fa-plus me-1"/>Yeni Cari
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Sekmeler -->
+                <ul class="nav nav-tabs mb-3">
+                    <li class="nav-item">
+                        <a t-attf-class="nav-link #{'active' if tab == 'musteri' else ''}"
+                           t-attf-href="/mobilsoft/cariler?tab=musteri&amp;q=#{q}">
+                            <i class="fa fa-user me-1"/>Müşteriler
+                            <span class="badge bg-secondary ms-1"><t t-esc="musteri_count"/></span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a t-attf-class="nav-link #{'active' if tab == 'tedarikci' else ''}"
+                           t-attf-href="/mobilsoft/cariler?tab=tedarikci&amp;q=#{q}">
+                            <i class="fa fa-truck me-1"/>Tedarikçiler
+                            <span class="badge bg-secondary ms-1"><t t-esc="tedarikci_count"/></span>
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Arama -->
+                <form method="get" action="/mobilsoft/cariler" class="mb-3">
+                    <input type="hidden" name="tab" t-att-value="tab"/>
+                    <div class="input-group" style="max-width:400px;">
+                        <span class="input-group-text bg-white"><i class="fa fa-search text-muted"/></span>
+                        <input type="text" name="q" class="form-control" placeholder="İsim veya VKN ile ara..."
+                               t-att-value="q"/>
+                        <button type="submit" class="btn btn-outline-secondary">Ara</button>
+                    </div>
+                </form>
+
+                <!-- Tablo -->
+                <div class="card border-0 shadow-sm">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>İsim</th>
+                                    <th class="d-none d-md-table-cell">VKN / TCKN</th>
+                                    <th class="d-none d-md-table-cell">Telefon</th>
+                                    <th class="text-end">Alacak</th>
+                                    <th class="text-end">Borç</th>
+                                    <th class="text-end">Bakiye</th>
+                                    <th style="width:80px;"/>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-if="not partners">
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-5">
+                                            <i class="fa fa-inbox fa-2x d-block mb-2"/>
+                                            Kayıt bulunamadı.
+                                        </td>
+                                    </tr>
+                                </t>
+                                <t t-foreach="partners" t-as="p" t-key="p.id">
+                                    <t t-set="bal" t-value="partner_balances.get(p.id, {})"/>
+                                    <tr class="ms-table-row" style="cursor:pointer;"
+                                        t-attf-onclick="window.location='/mobilsoft/cariler/#{p.id}'">
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="ms-avatar">
+                                                    <t t-esc="(p.name or '?')[0].upper()"/>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-semibold"><t t-esc="p.name"/></div>
+                                                    <small class="text-muted d-md-none"><t t-esc="p.phone or ''"/></small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="d-none d-md-table-cell text-muted small">
+                                            <t t-esc="p.vat or '-'"/>
+                                        </td>
+                                        <td class="d-none d-md-table-cell text-muted small">
+                                            <t t-esc="p.phone or '-'"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <span t-if="bal.get('receivable', 0) > 0" class="text-success fw-semibold small">
+                                                ₺ <t t-esc="'{:,.2f}'.format(bal.get('receivable', 0))"/>
+                                            </span>
+                                            <span t-else="" class="text-muted small">-</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <span t-if="bal.get('payable', 0) > 0" class="text-danger fw-semibold small">
+                                                ₺ <t t-esc="'{:,.2f}'.format(bal.get('payable', 0))"/>
+                                            </span>
+                                            <span t-else="" class="text-muted small">-</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <t t-set="net" t-value="bal.get('net', 0)"/>
+                                            <span t-attf-class="fw-bold small #{('text-success' if net &gt;= 0 else 'text-danger')}">
+                                                ₺ <t t-esc="'{:,.2f}'.format(net)"/>
+                                            </span>
+                                        </td>
+                                        <td class="text-end">
+                                            <a t-attf-href="/mobilsoft/cariler/#{p.id}" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                               onclick="event.stopPropagation();">
+                                                <i class="fa fa-chevron-right"/>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sayfalama -->
+                <t t-if="page_count > 1">
+                    <nav class="mt-3 d-flex justify-content-center">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li t-attf-class="page-item #{'disabled' if page_num == 1 else ''}">
+                                <a class="page-link" t-attf-href="/mobilsoft/cariler?tab=#{tab}&amp;q=#{q}&amp;page=#{page_num - 1}">
+                                    <i class="fa fa-chevron-left"/>
+                                </a>
+                            </li>
+                            <t t-foreach="page_range" t-as="pg" t-key="pg">
+                                <li t-attf-class="page-item #{'active' if pg == page_num else ''}">
+                                    <a class="page-link" t-attf-href="/mobilsoft/cariler?tab=#{tab}&amp;q=#{q}&amp;page=#{pg}">
+                                        <t t-esc="pg"/>
+                                    </a>
+                                </li>
+                            </t>
+                            <li t-attf-class="page-item #{'disabled' if page_num == page_count else ''}">
+                                <a class="page-link" t-attf-href="/mobilsoft/cariler?tab=#{tab}&amp;q=#{q}&amp;page=#{page_num + 1}">
+                                    <i class="fa fa-chevron-right"/>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </t>
+
+                <!-- Sonuç bilgisi -->
+                <div class="text-center mt-2">
+                    <small class="text-muted">
+                        Toplam <t t-esc="total"/> kayıt — Sayfa <t t-esc="page_num"/> / <t t-esc="page_count"/>
+                    </small>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

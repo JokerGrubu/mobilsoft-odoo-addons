@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="ayarlar_entegrasyonlar" name="MobilSoft Entegrasyonlar">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'ayarlar'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/ayarlar" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Ayarlar
+                </a>
+                <h4 class="fw-bold mt-1 mb-4"><i class="fa fa-plug me-2 text-muted"/>Entegrasyonlar</h4>
+
+                <t t-if="success">
+                    <div class="alert alert-success d-flex align-items-center py-2 small"><i class="fa fa-check-circle me-2"/><t t-esc="success"/></div>
+                </t>
+                <t t-if="error">
+                    <div class="alert alert-danger d-flex align-items-center py-2 small"><i class="fa fa-exclamation-circle me-2"/><t t-esc="error"/></div>
+                </t>
+
+                <div class="row g-3">
+                    <!-- Banka Entegrasyonu -->
+                    <div class="col-md-4">
+                        <a href="/mobilsoft/ayarlar/banka-entegrasyon" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-primary-subtle text-primary mx-auto mb-3">
+                                        <i class="fa fa-university"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">Banka Entegrasyonu</h6>
+                                    <p class="text-muted small mb-0">
+                                        <t t-if="bank_connectors">
+                                            <t t-esc="len(bank_connectors)"/> banka bağlantısı tanımlı
+                                        </t>
+                                        <t t-else="">
+                                            Banka API bağlantılarını yönetin
+                                        </t>
+                                    </p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <!-- e-Fatura / e-Arsiv -->
+                    <div class="col-md-4">
+                        <a href="/mobilsoft/ayarlar/efatura" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-success-subtle text-success mx-auto mb-3">
+                                        <i class="fa fa-file-text"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">e-Fatura / e-Arsiv</h6>
+                                    <p class="text-muted small mb-0">GIB, QNB entegrator ayarlari</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <!-- Pazaryeri Kanallari -->
+                    <div class="col-md-4">
+                        <a href="/mobilsoft/pazaryeri?tab=kanallar" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-warning-subtle text-warning mx-auto mb-3">
+                                        <i class="fa fa-shopping-bag"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">Pazaryeri Kanallari</h6>
+                                    <p class="text-muted small mb-0">Trendyol, Hepsiburada, N11, Ciceksepeti</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <!-- XML Urun Import -->
+                    <div class="col-md-4">
+                        <a href="/web#action=xml_product_source_action" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-info-subtle text-info mx-auto mb-3">
+                                        <i class="fa fa-download"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">XML Ürün Import</h6>
+                                    <p class="text-muted small mb-0">Dış tedarikçi XML kaynakları</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <a href="/mobilsoft/ayarlar" class="btn btn-outline-secondary">
+                        <i class="fa fa-arrow-left me-1"/>Ayarlar'a Don
+                    </a>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- Banka Entegrasyon Sayfasi -->
+    <template id="ayarlar_banka_entegrasyon" name="Banka Entegrasyonu">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'ayarlar'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/ayarlar/entegrasyonlar" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Entegrasyonlar
+                </a>
+                <h4 class="fw-bold mt-1 mb-4"><i class="fa fa-university me-2 text-muted"/>Banka Entegrasyonu</h4>
+
+                <t t-if="success">
+                    <div class="alert alert-success d-flex align-items-center py-2 small"><i class="fa fa-check-circle me-2"/><t t-esc="success"/></div>
+                </t>
+                <t t-if="error">
+                    <div class="alert alert-danger d-flex align-items-center py-2 small"><i class="fa fa-exclamation-circle me-2"/><t t-esc="error"/></div>
+                </t>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold">Banka Baglantilari</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <t t-if="connectors">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="small">Ad</th>
+                                        <th class="small">Banka</th>
+                                        <th class="small text-center">Durum</th>
+                                        <th class="small text-end">Islem</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="connectors" t-as="conn" t-key="conn.id">
+                                        <tr>
+                                            <td class="small fw-semibold"><t t-esc="conn.name"/></td>
+                                            <td class="small text-capitalize"><t t-esc="conn.bank_type or '-'"/></td>
+                                            <td class="small text-center">
+                                                <t t-if="conn.active">
+                                                    <span class="badge bg-success-subtle text-success">Aktif</span>
+                                                </t>
+                                                <t t-else="">
+                                                    <span class="badge bg-secondary-subtle text-secondary">Pasif</span>
+                                                </t>
+                                            </td>
+                                            <td class="small text-end">
+                                                <a t-attf-href="/mobilsoft/ayarlar/banka-entegrasyon?edit=#{conn.id}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fa fa-pencil"/>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+                        <t t-else="">
+                            <div class="p-4 text-center text-muted">
+                                <i class="fa fa-university fa-2x mb-2 d-block"/>
+                                <p class="small">Henuz banka baglantisi tanimlanmadi.</p>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- Form -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h6 class="mb-0 fw-bold">
+                            <t t-if="edit_connector">Baglanti Duzenle</t>
+                            <t t-else="">Yeni Banka Baglantisi</t>
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info py-2 small">
+                            <i class="fa fa-info-circle me-1"/>
+                            Banka entegrasyonu modulu (mobilsoft_bank_connector) henuz kurulu degil. Modul kuruldugunda bu sayfadan banka API baglantilari yonetilebilecektir.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <a href="/mobilsoft/ayarlar/entegrasyonlar" class="btn btn-outline-secondary">
+                        <i class="fa fa-arrow-left me-1"/>Entegrasyonlar'a Don
+                    </a>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- e-Fatura Ayarlari -->
+    <template id="ayarlar_efatura" name="e-Fatura Ayarlari">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'ayarlar'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/ayarlar/entegrasyonlar" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Entegrasyonlar
+                </a>
+                <h4 class="fw-bold mt-1 mb-4"><i class="fa fa-file-text me-2 text-muted"/>e-Fatura / e-Arsiv Ayarlari</h4>
+
+                <t t-if="success">
+                    <div class="alert alert-success d-flex align-items-center py-2 small"><i class="fa fa-check-circle me-2"/><t t-esc="success"/></div>
+                </t>
+                <t t-if="error">
+                    <div class="alert alert-danger d-flex align-items-center py-2 small"><i class="fa fa-exclamation-circle me-2"/><t t-esc="error"/></div>
+                </t>
+
+                <form action="/mobilsoft/ayarlar/efatura/kaydet" method="post">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                    <div class="row g-4">
+                        <div class="col-lg-6">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold">GIB Bilgileri</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">GIB Kullanici Adi</label>
+                                        <input type="text" name="gib_username" class="form-control"
+                                               t-att-value="efatura_settings.get('gib_username', '')"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">GIB Sifre</label>
+                                        <input type="password" name="gib_password" class="form-control"
+                                               t-att-value="efatura_settings.get('gib_password', '')"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">VKN / TCKN</label>
+                                        <input type="text" name="gib_vkn" class="form-control"
+                                               t-att-value="efatura_settings.get('gib_vkn', '')"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold">Entegrator Bilgileri (QNB)</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Entegrator</label>
+                                        <select name="entegrator" class="form-select">
+                                            <option value="qnb" t-att-selected="'selected' if efatura_settings.get('entegrator') == 'qnb' else None">QNB e-Fatura</option>
+                                            <option value="foriba" t-att-selected="'selected' if efatura_settings.get('entegrator') == 'foriba' else None">Foriba</option>
+                                            <option value="edm" t-att-selected="'selected' if efatura_settings.get('entegrator') == 'edm' else None">EDM</option>
+                                            <option value="diger" t-att-selected="'selected' if efatura_settings.get('entegrator') == 'diger' else None">Diger</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">API URL</label>
+                                        <input type="text" name="efatura_api_url" class="form-control"
+                                               t-att-value="efatura_settings.get('efatura_api_url', '')"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">API Kullanici</label>
+                                        <input type="text" name="efatura_api_user" class="form-control"
+                                               t-att-value="efatura_settings.get('efatura_api_user', '')"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">API Sifre</label>
+                                        <input type="password" name="efatura_api_password" class="form-control"
+                                               t-att-value="efatura_settings.get('efatura_api_password', '')"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn ms-btn-brand px-4">
+                            <i class="fa fa-check me-1"/>Kaydet
+                        </button>
+                        <a href="/mobilsoft/ayarlar/entegrasyonlar" class="btn btn-outline-secondary">
+                            <i class="fa fa-arrow-left me-1"/>Geri
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </t>
+    </template>
+
+</odoo>

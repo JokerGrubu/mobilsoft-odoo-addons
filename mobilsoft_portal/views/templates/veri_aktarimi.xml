@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="veri_aktarimi" name="MobilSoft Veri İçe Aktarma">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'ayarlar'"/>
+
+            <div class="p-3 p-md-4">
+                <h4 class="mb-1 fw-bold"><i class="fa fa-upload me-2 text-muted"/>Veri İçe Aktarma</h4>
+                <small class="text-muted d-block mb-4">Excel veya XML dosyasından ürün ve cari aktarın (Paraşüt, BizimHesap, Logo vb.)</small>
+
+                <!-- Success/Error -->
+                <t t-if="success">
+                    <div class="alert alert-success alert-dismissible fade show">
+                        <i class="fa fa-check-circle me-2"/>
+                        <t t-if="success == 'urunler'"><strong><t t-esc="imported_count"/></strong> ürün başarıyla aktarıldı.</t>
+                        <t t-if="success == 'cariler'"><strong><t t-esc="imported_count"/></strong> cari başarıyla aktarıldı.</t>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"/>
+                    </div>
+                </t>
+                <t t-if="error and not success">
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="fa fa-exclamation-triangle me-2"/><t t-esc="error"/>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"/>
+                    </div>
+                </t>
+                <t t-if="error_lines">
+                    <div class="alert alert-warning">
+                        <i class="fa fa-warning me-2"/>Bazı satırlarda hata oluştu:
+                        <ul class="mb-0 mt-1">
+                            <t t-foreach="(error_lines or '').split('|')" t-as="el" t-key="el_index">
+                                <li t-if="el"><t t-esc="el"/></li>
+                            </t>
+                        </ul>
+                    </div>
+                </t>
+
+                <!-- Tabs -->
+                <ul class="nav nav-tabs mb-4" role="tablist">
+                    <li class="nav-item">
+                        <a t-attf-class="nav-link #{active_tab == 'urunler' and 'active' or ''}" data-bs-toggle="tab" href="#tab-urunler">
+                            <i class="fa fa-cube me-1"/>Ürün İçe Aktarma
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a t-attf-class="nav-link #{active_tab == 'cariler' and 'active' or ''}" data-bs-toggle="tab" href="#tab-cariler">
+                            <i class="fa fa-address-book me-1"/>Cari İçe Aktarma
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- ÜRÜN TAB -->
+                    <div t-attf-class="tab-pane fade #{active_tab == 'urunler' and 'show active' or ''}" id="tab-urunler">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <h6 class="fw-bold mb-3">Ürün İçe Aktarma</h6>
+                                <div class="alert alert-info small">
+                                    <i class="fa fa-info-circle me-1"/>Beklenen sütunlar: <strong>Ad, Barkod, Fiyat, Kategori</strong>
+                                    <br/>Desteklenen formatlar: .xlsx, .xml
+                                </div>
+                                <div class="mb-3">
+                                    <a href="/mobilsoft/veri-aktarimi/sablon/urunler" class="btn btn-sm btn-outline-primary">
+                                        <i class="fa fa-download me-1"/>Şablon İndir (Excel)
+                                    </a>
+                                </div>
+                                <form action="/mobilsoft/veri-aktarimi/urunler" method="post" enctype="multipart/form-data">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Dosya Seçin (.xlsx veya .xml)</label>
+                                        <input type="file" name="file" class="form-control" accept=".xlsx,.xml" required="required"/>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fa fa-upload me-1"/>Ürünleri İçe Aktar
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CARİ TAB -->
+                    <div t-attf-class="tab-pane fade #{active_tab == 'cariler' and 'show active' or ''}" id="tab-cariler">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <h6 class="fw-bold mb-3">Cari İçe Aktarma</h6>
+                                <div class="alert alert-info small">
+                                    <i class="fa fa-info-circle me-1"/>Beklenen sütunlar: <strong>Ad, VKN, Telefon, E-posta, Adres</strong>
+                                    <br/>Desteklenen formatlar: .xlsx, .xml
+                                </div>
+                                <div class="mb-3">
+                                    <a href="/mobilsoft/veri-aktarimi/sablon/cariler" class="btn btn-sm btn-outline-primary">
+                                        <i class="fa fa-download me-1"/>Şablon İndir (Excel)
+                                    </a>
+                                </div>
+                                <form action="/mobilsoft/veri-aktarimi/cariler" method="post" enctype="multipart/form-data">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Dosya Seçin (.xlsx veya .xml)</label>
+                                        <input type="file" name="file" class="form-control" accept=".xlsx,.xml" required="required"/>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fa fa-upload me-1"/>Carileri İçe Aktar
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

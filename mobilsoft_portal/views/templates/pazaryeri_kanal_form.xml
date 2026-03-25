@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="pazaryeri_kanal_form" name="Pazaryeri Kanal Formu">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'pazaryeri'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/pazaryeri" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>CepteTedarik
+                </a>
+                <h4 class="fw-bold mt-1 mb-4">
+                    <i class="fa fa-plug me-2 text-muted"/>
+                    <t t-if="channel">Kanalı Düzenle</t>
+                    <t t-else="">Yeni Kanal Ekle</t>
+                </h4>
+
+                <t t-if="success">
+                    <div class="alert alert-success d-flex align-items-center py-2 small"><i class="fa fa-check-circle me-2"/><t t-esc="success"/></div>
+                </t>
+                <t t-if="error">
+                    <div class="alert alert-danger d-flex align-items-center py-2 small"><i class="fa fa-exclamation-circle me-2"/><t t-esc="error"/></div>
+                </t>
+
+                <form action="/mobilsoft/pazaryeri/kanal/kaydet" method="post">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <t t-if="channel">
+                        <input type="hidden" name="channel_id" t-att-value="channel.id"/>
+                    </t>
+
+                    <div class="row g-4">
+                        <!-- Sol: Temel Bilgiler -->
+                        <div class="col-lg-6">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold">Kanal Bilgileri</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Kanal Adı <span class="text-danger">*</span></label>
+                                        <input type="text" name="name" class="form-control" required=""
+                                               t-att-value="channel.name if channel else ''"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Kanal Türü</label>
+                                        <select name="channel_type" class="form-select">
+                                            <option value="">Seçiniz</option>
+                                            <option value="trendyol" t-att-selected="'selected' if channel and channel.channel_type == 'trendyol' else None">Trendyol</option>
+                                            <option value="hepsiburada" t-att-selected="'selected' if channel and channel.channel_type == 'hepsiburada' else None">Hepsiburada</option>
+                                            <option value="n11" t-att-selected="'selected' if channel and channel.channel_type == 'n11' else None">N11</option>
+                                            <option value="ciceksepeti" t-att-selected="'selected' if channel and channel.channel_type == 'ciceksepeti' else None">Ciceksepeti</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Depo</label>
+                                        <select name="warehouse_id" class="form-select">
+                                            <option value="">Seçiniz</option>
+                                            <t t-foreach="warehouses" t-as="wh" t-key="wh.id">
+                                                <option t-att-value="wh.id"
+                                                        t-att-selected="'selected' if channel and channel.warehouse_id.id == wh.id else None">
+                                                    <t t-esc="wh.name"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+
+                                    <hr class="my-3"/>
+
+                                    <div class="form-check mb-2">
+                                        <input type="checkbox" name="active" class="form-check-input" id="chk_active"
+                                               t-att-checked="'checked' if (channel and channel.active) or not channel else None"/>
+                                        <label class="form-check-label small" for="chk_active">Aktif</label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input type="checkbox" name="auto_confirm_orders" class="form-check-input" id="chk_auto_confirm"
+                                               t-att-checked="'checked' if channel and channel.auto_confirm_orders else None"/>
+                                        <label class="form-check-label small" for="chk_auto_confirm">Siparişleri otomatik onayla</label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input type="checkbox" name="auto_create_picking" class="form-check-input" id="chk_auto_picking"
+                                               t-att-checked="'checked' if channel and channel.auto_create_picking else None"/>
+                                        <label class="form-check-label small" for="chk_auto_picking">Otomatik sevkiyat oluştur</label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input type="checkbox" name="auto_create_invoice" class="form-check-input" id="chk_auto_invoice"
+                                               t-att-checked="'checked' if channel and channel.auto_create_invoice else None"/>
+                                        <label class="form-check-label small" for="chk_auto_invoice">Otomatik fatura oluştur</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sag: API Bilgileri -->
+                        <div class="col-lg-6">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold"><i class="fa fa-key me-2 text-warning"/>API Bilgileri</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">API Key</label>
+                                        <input type="text" name="api_key" class="form-control"
+                                               t-att-value="channel.api_key if channel else ''"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">API Secret</label>
+                                        <input type="text" name="api_secret" class="form-control"
+                                               t-att-value="channel.api_secret if channel else ''"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Merchant ID</label>
+                                        <input type="text" name="merchant_id" class="form-control"
+                                               t-att-value="channel.merchant_id if channel else ''"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Shop ID</label>
+                                        <input type="text" name="shop_id" class="form-control"
+                                               t-att-value="channel.shop_id if channel else ''"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn ms-btn-brand px-4">
+                            <i class="fa fa-check me-1"/>Kaydet
+                        </button>
+                        <a href="/mobilsoft/pazaryeri" class="btn btn-outline-secondary">
+                            <i class="fa fa-arrow-left me-1"/>İptal
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </t>
+    </template>
+
+</odoo>

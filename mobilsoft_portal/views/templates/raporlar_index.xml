@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="raporlar_index" name="MobilSoft Raporlar">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'raporlar'"/>
+
+            <div class="p-3 p-md-4">
+                <h4 class="mb-1 fw-bold"><i class="fa fa-bar-chart me-2 text-muted"/>Raporlar</h4>
+                <small class="text-muted d-block mb-4">Finansal ve satış raporlarınız</small>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <a href="/mobilsoft/raporlar/gelir-gider" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-success-subtle text-success mx-auto mb-3">
+                                        <i class="fa fa-line-chart"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">Gelir / Gider</h6>
+                                    <p class="text-muted small mb-0">Dönemsel gelir-gider karşılaştırması, KDV özeti, aylık dağılım</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="/mobilsoft/raporlar/alacak-yaslandirma" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-warning-subtle text-warning mx-auto mb-3">
+                                        <i class="fa fa-clock-o"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">Alacak Yaşlandırma</h6>
+                                    <p class="text-muted small mb-0">Vadesi geçen alacaklar, yaşlandırma dilimleri (0-30, 31-60, 61-90, 90+)</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="/mobilsoft/raporlar/en-cok-satanlar" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                <div class="card-body py-4 text-center">
+                                    <div class="ms-quick-icon bg-primary-subtle text-primary mx-auto mb-3">
+                                        <i class="fa fa-trophy"/>
+                                    </div>
+                                    <h6 class="fw-bold text-dark">En Çok Satanlar</h6>
+                                    <p class="text-muted small mb-0">En çok satan ürünler ve en çok alışveriş yapan müşteriler</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

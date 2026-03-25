@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="rapor_alacak_yaslandirma" name="MobilSoft Alacak Yaşlandırma">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'raporlar'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/raporlar" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Raporlar
+                </a>
+                <h4 class="fw-bold mt-1 mb-4"><i class="fa fa-clock-o me-2 text-muted"/>Alacak Yaşlandırma</h4>
+
+                <!-- Dilim Kartları -->
+                <div class="row g-3 mb-4">
+                    <div class="col">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted" style="font-size:11px;">Güncel</div>
+                                <div class="fw-bold text-success">₺ <t t-esc="'{:,.2f}'.format(buckets['current'])"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted" style="font-size:11px;">1-30 gün</div>
+                                <div class="fw-bold text-warning">₺ <t t-esc="'{:,.2f}'.format(buckets['1_30'])"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted" style="font-size:11px;">31-60 gün</div>
+                                <div class="fw-bold text-orange">₺ <t t-esc="'{:,.2f}'.format(buckets['31_60'])"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted" style="font-size:11px;">61-90 gün</div>
+                                <div class="fw-bold text-danger">₺ <t t-esc="'{:,.2f}'.format(buckets['61_90'])"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted" style="font-size:11px;">90+ gün</div>
+                                <div class="fw-bold text-danger">₺ <t t-esc="'{:,.2f}'.format(buckets['90_plus'])"/></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Toplam -->
+                <div class="alert alert-light border-0 shadow-sm d-flex justify-content-between align-items-center mb-4">
+                    <span class="fw-bold">Toplam Açık Alacak</span>
+                    <span class="fw-bold fs-5 text-danger">₺ <t t-esc="'{:,.2f}'.format(total)"/></span>
+                </div>
+
+                <!-- Detay Tablosu -->
+                <div class="card border-0 shadow-sm">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fatura</th>
+                                    <th>Müşteri</th>
+                                    <th>Vade</th>
+                                    <th class="text-end">Gecikme</th>
+                                    <th class="text-end">Kalan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-if="not rows">
+                                    <tr><td colspan="5" class="text-center text-muted py-4">
+                                        <i class="fa fa-check-circle fa-2x d-block mb-2 text-success"/>Açık alacak yok!
+                                    </td></tr>
+                                </t>
+                                <t t-foreach="rows" t-as="r" t-key="r['invoice'].id">
+                                    <tr>
+                                        <td class="small fw-semibold">
+                                            <a t-attf-href="/mobilsoft/faturalar/#{r['invoice'].id}" class="ms-link">
+                                                <t t-esc="r['invoice'].name"/>
+                                            </a>
+                                        </td>
+                                        <td class="small"><t t-esc="r['invoice'].partner_id.name"/></td>
+                                        <td class="small text-muted"><t t-esc="r['invoice'].invoice_date_due"/></td>
+                                        <td class="text-end">
+                                            <span t-if="r['days'] > 0" t-attf-class="badge #{('bg-warning-subtle text-warning' if r['days'] &lt;= 30 else ('bg-danger-subtle text-danger'))}">
+                                                <t t-esc="r['days']"/> gün
+                                            </span>
+                                            <span t-else="" class="badge bg-success-subtle text-success">Güncel</span>
+                                        </td>
+                                        <td class="text-end fw-bold small text-danger">
+                                            ₺ <t t-esc="'{:,.2f}'.format(r['residual'])"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from html import unescape
 from odoo import models, fields, api
 
 
@@ -73,7 +74,7 @@ class XmlCategoryMapping(models.Model):
         if not xml_category_name:
             return False
 
-        xml_category_name = xml_category_name.strip()
+        xml_category_name = unescape(xml_category_name.strip())
 
         # Önce tam eşleşme ara
         mapping = self.search([

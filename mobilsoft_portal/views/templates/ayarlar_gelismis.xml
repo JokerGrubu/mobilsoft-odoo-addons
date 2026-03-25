@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="ayarlar_gelismis" name="MobilSoft Gelişmiş Ayarlar">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'ayarlar'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/ayarlar" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Ayarlar
+                </a>
+                <h4 class="fw-bold mt-1 mb-4"><i class="fa fa-wrench me-2 text-muted"/>Gelişmiş Ayarlar</h4>
+
+                <t t-if="success">
+                    <div class="alert alert-success d-flex align-items-center py-2 small"><i class="fa fa-check-circle me-2"/><t t-esc="success"/></div>
+                </t>
+                <t t-if="error">
+                    <div class="alert alert-danger d-flex align-items-center py-2 small"><i class="fa fa-exclamation-circle me-2"/><t t-esc="error"/></div>
+                </t>
+
+                <div class="row g-4">
+
+                    <!-- Sol Kolon -->
+                    <div class="col-lg-6">
+
+                        <!-- Para Birimi -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-money me-2 text-success"/>Para Birimi</h6>
+                            </div>
+                            <div class="card-body">
+                                <form action="/mobilsoft/ayarlar/gelismis/kaydet" method="post">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Varsayılan Para Birimi</label>
+                                        <select name="currency_id" class="form-select">
+                                            <t t-foreach="currencies" t-as="cur" t-key="cur.id">
+                                                <option t-att-value="cur.id"
+                                                        t-att-selected="'selected' if company_currency.id == cur.id else None">
+                                                    <t t-esc="cur.name"/> — <t t-esc="cur.symbol"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn ms-btn-brand btn-sm px-3">
+                                        <i class="fa fa-check me-1"/>Kaydet
+                                    </button>
+                                </form>
+
+                                <hr class="my-3"/>
+                                <label class="form-label small fw-semibold">Aktif Para Birimleri</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <t t-foreach="currencies" t-as="cur" t-key="cur.id">
+                                        <span class="badge bg-light text-dark border">
+                                            <t t-esc="cur.name"/>
+                                            <span class="text-muted ms-1"><t t-esc="cur.symbol"/></span>
+                                            <t t-if="cur.rate != 1">
+                                                <span class="text-muted ms-1">(1 <t t-esc="company_currency.symbol"/> = <t t-esc="'%.4f' % cur.rate"/> <t t-esc="cur.symbol"/>)</span>
+                                            </t>
+                                        </span>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vergi Tanımları -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-percent me-2 text-info"/>Vergi Tanımları</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <t t-if="taxes">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="small">Vergi Adı</th>
+                                                <th class="small text-center">Oran</th>
+                                                <th class="small text-center">Tür</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="taxes" t-as="tax" t-key="tax.id">
+                                                <tr>
+                                                    <td class="small"><t t-esc="tax.name"/></td>
+                                                    <td class="small text-center fw-semibold">
+                                                        %<t t-esc="'%.0f' % tax.amount"/>
+                                                    </td>
+                                                    <td class="small text-center">
+                                                        <t t-if="tax.type_tax_use == 'sale'">
+                                                            <span class="badge bg-success-subtle text-success">Satış</span>
+                                                        </t>
+                                                        <t t-elif="tax.type_tax_use == 'purchase'">
+                                                            <span class="badge bg-primary-subtle text-primary">Alış</span>
+                                                        </t>
+                                                        <t t-else="">
+                                                            <span class="badge bg-secondary-subtle text-secondary">Diğer</span>
+                                                        </t>
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                        </tbody>
+                                    </table>
+                                </t>
+                                <t t-else="">
+                                    <div class="p-3 text-muted small text-center">Vergi tanımı bulunamadı</div>
+                                </t>
+                            </div>
+                        </div>
+
+                        <!-- Mali Yıl -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-calendar me-2 text-warning"/>Mali Yıllar</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <t t-if="fiscal_years">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="small">Dönem</th>
+                                                <th class="small">Başlangıç</th>
+                                                <th class="small">Bitiş</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="fiscal_years" t-as="fy" t-key="fy.id">
+                                                <tr>
+                                                    <td class="small fw-semibold"><t t-esc="fy.name"/></td>
+                                                    <td class="small"><t t-esc="fy.date_from"/></td>
+                                                    <td class="small"><t t-esc="fy.date_to"/></td>
+                                                </tr>
+                                            </t>
+                                        </tbody>
+                                    </table>
+                                </t>
+                                <t t-else="">
+                                    <div class="p-3 text-muted small text-center">Mali yıl tanımı bulunamadı</div>
+                                </t>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Sağ Kolon -->
+                    <div class="col-lg-6">
+
+                        <!-- Kasa / Banka Hesapları -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-university me-2 text-primary"/>Kasa / Banka Hesapları</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <t t-if="journals">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="small">Hesap Adı</th>
+                                                <th class="small text-center">Tür</th>
+                                                <th class="small text-center">Para Birimi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="journals" t-as="j" t-key="j.id">
+                                                <tr>
+                                                    <td class="small fw-semibold"><t t-esc="j.name"/></td>
+                                                    <td class="small text-center">
+                                                        <t t-if="j.type == 'bank'">
+                                                            <span class="badge bg-primary-subtle text-primary">Banka</span>
+                                                        </t>
+                                                        <t t-else="">
+                                                            <span class="badge bg-success-subtle text-success">Kasa</span>
+                                                        </t>
+                                                    </td>
+                                                    <td class="small text-center">
+                                                        <t t-esc="j.currency_id.name or company_currency.name"/>
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                        </tbody>
+                                    </table>
+                                </t>
+                                <t t-else="">
+                                    <div class="p-3 text-muted small text-center">Hesap bulunamadı</div>
+                                </t>
+                            </div>
+                        </div>
+
+                        <!-- Ürün Kategorileri -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-tags me-2 text-danger"/>Ürün Kategorileri</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <t t-if="categories">
+                                    <div class="list-group list-group-flush" style="max-height:300px; overflow-y:auto;">
+                                        <t t-foreach="categories" t-as="cat" t-key="cat.id">
+                                            <div class="list-group-item py-2 px-3 border-0 small">
+                                                <i class="fa fa-folder-o text-muted me-1"/>
+                                                <t t-esc="cat.complete_name"/>
+                                            </div>
+                                        </t>
+                                    </div>
+                                </t>
+                                <t t-else="">
+                                    <div class="p-3 text-muted small text-center">Kategori bulunamadı</div>
+                                </t>
+                            </div>
+                        </div>
+
+                        <!-- Hesap Planı Özeti -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-list-ol me-2 text-secondary"/>Hesap Planı (İlk 50)</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <t t-if="accounts">
+                                    <div style="max-height:300px; overflow-y:auto;">
+                                        <table class="table table-sm table-hover mb-0">
+                                            <thead class="table-light sticky-top">
+                                                <tr>
+                                                    <th class="small">Kod</th>
+                                                    <th class="small">Hesap Adı</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <t t-foreach="accounts" t-as="acc" t-key="acc.id">
+                                                    <tr>
+                                                        <td class="small fw-semibold text-primary"><t t-esc="acc.code"/></td>
+                                                        <td class="small"><t t-esc="acc.name"/></td>
+                                                    </tr>
+                                                </t>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </t>
+                                <t t-else="">
+                                    <div class="p-3 text-muted small text-center">Hesap bulunamadı</div>
+                                </t>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <a href="/mobilsoft/ayarlar" class="btn btn-outline-secondary">
+                        <i class="fa fa-arrow-left me-1"/>Ayarlar'a Dön
+                    </a>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

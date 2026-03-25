@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="bildirimler_list" name="MobilSoft Bildirimler">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'bildirimler'"/>
+
+            <div class="p-3 p-md-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h4 class="mb-0 fw-bold"><i class="fa fa-bell me-2 text-muted"/>Bildirimler</h4>
+                        <span class="text-muted small"><t t-esc="total"/> bildirim</span>
+                    </div>
+                </div>
+
+                <t t-if="notifications">
+                    <div class="list-group list-group-flush">
+                        <t t-foreach="notifications" t-as="notif" t-key="notif_index">
+                            <a t-att-href="notif.get('url', '#')"
+                               class="list-group-item list-group-item-action border-0 shadow-sm mb-2 rounded">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div t-attf-class="rounded-circle d-flex align-items-center justify-content-center bg-#{notif.get('color', 'secondary')}-subtle"
+                                         style="width:40px;height:40px;min-width:40px;">
+                                        <i t-attf-class="fa #{notif.get('icon', 'fa-bell')} text-#{notif.get('color', 'secondary')}"/>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold small"><t t-esc="notif.get('title', '')"/></div>
+                                        <div class="text-muted" style="font-size:12px;"><t t-esc="notif.get('detail', '')"/></div>
+                                    </div>
+                                    <div class="text-muted" style="font-size:11px;">
+                                        <t t-esc="notif.get('date', '')"/>
+                                    </div>
+                                </div>
+                            </a>
+                        </t>
+                    </div>
+                </t>
+
+                <t t-if="not notifications">
+                    <div class="text-center py-5">
+                        <i class="fa fa-check-circle fa-3x text-success mb-3 d-block opacity-50"/>
+                        <h5 class="text-muted">Tüm bildirimler temiz!</h5>
+                        <p class="text-muted small">Vadesi geçmiş fatura veya kritik stok uyarısı bulunmuyor.</p>
+                    </div>
+                </t>
+            </div>
+        </t>
+    </template>
+
+</odoo>

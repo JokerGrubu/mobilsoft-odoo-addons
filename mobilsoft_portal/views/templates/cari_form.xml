@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="cari_form" name="MobilSoft Cari Form">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'cariler'"/>
+
+            <div class="p-3 p-md-4">
+                <!-- Breadcrumb -->
+                <a href="/mobilsoft/cariler" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Cariler
+                </a>
+                <h4 class="fw-bold mt-1 mb-4">
+                    <t t-if="is_edit">
+                        <i class="fa fa-pencil me-2 text-muted"/>Cari Düzenle
+                    </t>
+                    <t t-else="">
+                        <i class="fa fa-plus me-2 text-muted"/>Yeni Cari
+                    </t>
+                </h4>
+
+                <t t-if="error">
+                    <div class="alert alert-danger d-flex align-items-center py-2 small" role="alert">
+                        <i class="fa fa-exclamation-circle me-2"/>
+                        <t t-esc="error"/>
+                    </div>
+                </t>
+
+                <form action="/mobilsoft/cariler/kaydet" method="post">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="partner_id" t-att-value="partner.id if partner else 0"/>
+
+                    <div class="row g-4">
+                        <!-- Sol: Temel Bilgiler -->
+                        <div class="col-md-7">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold"><i class="fa fa-id-card me-2 text-muted"/>Temel Bilgiler</h6>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Cari Tipi -->
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">Cari Tipi</label>
+                                            <select name="cari_type" class="form-select">
+                                                <option value="musteri"
+                                                    t-att-selected="'selected' if not partner or partner.customer_rank > 0 else None">
+                                                    Müşteri
+                                                </option>
+                                                <option value="tedarikci"
+                                                    t-att-selected="'selected' if partner and partner.supplier_rank > 0 else None">
+                                                    Tedarikçi
+                                                </option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">Kişi Tipi</label>
+                                            <select name="company_type" class="form-select">
+                                                <option value="company"
+                                                    t-att-selected="'selected' if not partner or partner.company_type == 'company' else None">
+                                                    Şirket
+                                                </option>
+                                                <option value="person"
+                                                    t-att-selected="'selected' if partner and partner.company_type == 'person' else None">
+                                                    Bireysel
+                                                </option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- İsim -->
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">İsim / Unvan *</label>
+                                        <input type="text" name="name" class="form-control" required="required"
+                                               placeholder="Cari adı veya unvanı"
+                                               t-att-value="partner.name if partner else ''"/>
+                                    </div>
+
+                                    <!-- VKN + Telefon -->
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">VKN / TCKN</label>
+                                            <input type="text" name="vat" class="form-control"
+                                                   placeholder="Vergi veya kimlik no"
+                                                   t-att-value="partner.vat if partner else ''"/>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">E-posta</label>
+                                            <input type="email" name="email" class="form-control"
+                                                   placeholder="ornek@sirket.com"
+                                                   t-att-value="partner.email if partner else ''"/>
+                                        </div>
+                                    </div>
+
+                                    <!-- Telefon + Cep -->
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">Telefon</label>
+                                            <input type="tel" name="phone" class="form-control"
+                                                   placeholder="0212 123 45 67"
+                                                   t-att-value="partner.phone if partner else ''"/>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">Telefon 2</label>
+                                            <input type="tel" name="phone2" class="form-control"
+                                                   placeholder="0532 123 45 67"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sağ: Adres -->
+                        <div class="col-md-5">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold"><i class="fa fa-map-marker me-2 text-muted"/>Adres</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Adres</label>
+                                        <input type="text" name="street" class="form-control"
+                                               placeholder="Sokak, mahalle, bina no"
+                                               t-att-value="partner.street if partner else ''"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Şehir</label>
+                                        <input type="text" name="city" class="form-control"
+                                               placeholder="İstanbul"
+                                               t-att-value="partner.city if partner else ''"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Ülke</label>
+                                        <select name="country_id" class="form-select">
+                                            <option value="">Seçiniz...</option>
+                                            <t t-foreach="countries" t-as="c" t-key="c.id">
+                                                <option t-att-value="c.id"
+                                                    t-att-selected="'selected' if partner and partner.country_id.id == c.id else None">
+                                                    <t t-esc="c.name"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">İl / Eyalet</label>
+                                        <select name="state_id" class="form-select">
+                                            <option value="">Seçiniz...</option>
+                                            <t t-foreach="states" t-as="s" t-key="s.id">
+                                                <option t-att-value="s.id"
+                                                    t-att-selected="'selected' if partner and partner.state_id.id == s.id else None">
+                                                    <t t-esc="s.name"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label small fw-semibold">Posta Kodu</label>
+                                        <input type="text" name="zip" class="form-control"
+                                               placeholder="34000"
+                                               t-att-value="partner.zip if partner else ''"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kaydet -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="/mobilsoft/cariler" class="btn btn-outline-secondary">
+                            <i class="fa fa-times me-1"/>İptal
+                        </a>
+                        <button type="submit" class="btn ms-btn-brand px-4">
+                            <i class="fa fa-check me-1"/>Kaydet
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </t>
+    </template>
+
+</odoo>

@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="cek_senet_list" name="MobilSoft Çek/Senet Listesi">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'cek_senet'"/>
+
+            <div class="p-3 p-md-4">
+                <t t-if="module_missing">
+                    <div class="text-center py-5">
+                        <i class="fa fa-exclamation-triangle fa-3x text-warning mb-3 d-block"/>
+                        <h5>Çek/Senet modülü yüklü değil</h5>
+                        <p class="text-muted">mobilsoft_onmuhasebe modülünü yükleyin.</p>
+                    </div>
+                </t>
+
+                <t t-if="not module_missing">
+                    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                        <div>
+                            <h4 class="mb-0 fw-bold"><i class="fa fa-credit-card me-2 text-muted"/>Çek / Senet</h4>
+                            <span class="text-muted small"><t t-esc="total"/> kayıt</span>
+                        </div>
+                        <a href="/mobilsoft/export/cek-senet" class="btn btn-sm btn-outline-success">
+                            <i class="fa fa-file-excel-o me-1"/>Excel
+                        </a>
+                    </div>
+
+                    <!-- KPI -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-md-3">
+                            <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--success">
+                                <div class="card-body py-3 text-center">
+                                    <div class="text-muted small">Alınan</div>
+                                    <div class="fw-bold fs-5"><t t-esc="alinan_count"/></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--danger">
+                                <div class="card-body py-3 text-center">
+                                    <div class="text-muted small">Verilen</div>
+                                    <div class="fw-bold fs-5"><t t-esc="verilen_count"/></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--warning">
+                                <div class="card-body py-3 text-center">
+                                    <div class="text-muted small">Vade Yaklaşan (7 gün)</div>
+                                    <div class="fw-bold fs-5"><t t-esc="vade_yaklasan"/></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white border-bottom py-0 d-flex justify-content-between align-items-center flex-wrap">
+                            <ul class="nav nav-tabs border-0">
+                                <li class="nav-item">
+                                    <a t-attf-class="nav-link border-0 py-3 #{'active fw-bold' if tab == 'alinan' else 'text-muted'}"
+                                       href="/mobilsoft/cek-senet?tab=alinan">
+                                        Alınan <span class="badge bg-success-subtle text-success ms-1"><t t-esc="alinan_count"/></span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a t-attf-class="nav-link border-0 py-3 #{'active fw-bold' if tab == 'verilen' else 'text-muted'}"
+                                       href="/mobilsoft/cek-senet?tab=verilen">
+                                        Verilen <span class="badge bg-danger-subtle text-danger ms-1"><t t-esc="verilen_count"/></span>
+                                    </a>
+                                </li>
+                            </ul>
+                            <form method="get" action="/mobilsoft/cek-senet" class="d-flex gap-2 py-2">
+                                <input type="hidden" name="tab" t-att-value="tab"/>
+                                <select name="doc_type" class="form-select form-select-sm" style="width:100px;">
+                                    <option value="">Tümü</option>
+                                    <option value="cheque" t-att-selected="doc_type_filter == 'cheque'">Çek</option>
+                                    <option value="promissory" t-att-selected="doc_type_filter == 'promissory'">Senet</option>
+                                </select>
+                                <input type="text" name="q" t-att-value="q" class="form-control form-control-sm" placeholder="Ara..." style="width:140px;"/>
+                                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="fa fa-search"/></button>
+                            </form>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0 align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>No</th>
+                                        <th>Tür</th>
+                                        <th>Cari</th>
+                                        <th>Banka</th>
+                                        <th>Vade</th>
+                                        <th class="text-end">Tutar</th>
+                                        <th class="text-center">Durum</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="records" t-as="rec" t-key="rec.id">
+                                        <tr class="ms-table-row" style="cursor:pointer;" t-attf-onclick="window.location='/mobilsoft/cek-senet/#{rec.id}'">
+                                            <td class="small fw-semibold"><t t-esc="rec.name"/></td>
+                                            <td class="small"><t t-esc="doc_type_map.get(rec.type, '')"/></td>
+                                            <td class="small"><t t-esc="rec.partner_id.name or '-'"/></td>
+                                            <td class="small text-muted"><t t-esc="rec.bank_id.name or '-'"/></td>
+                                            <td class="small text-muted"><t t-esc="rec.maturity_date or '-'"/></td>
+                                            <td class="text-end fw-bold small">₺ <t t-esc="'{:,.2f}'.format(rec.amount)"/></td>
+                                            <td class="text-center">
+                                                <span t-attf-class="badge #{state_badge.get(rec.state, 'bg-secondary')}">
+                                                    <t t-esc="state_map.get(rec.state, rec.state)"/>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <tr t-if="not records">
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <i class="fa fa-inbox fa-2x d-block mb-2 opacity-50"/>
+                                            Kayıt bulunamadı
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <t t-if="page_count > 1">
+                            <div class="card-footer bg-white d-flex justify-content-center">
+                                <nav>
+                                    <ul class="pagination pagination-sm mb-0">
+                                        <li t-attf-class="page-item #{'disabled' if page_num == 1 else ''}">
+                                            <a class="page-link" t-attf-href="/mobilsoft/cek-senet?tab=#{tab}&amp;q=#{q}&amp;page=#{page_num - 1}">‹</a>
+                                        </li>
+                                        <t t-foreach="page_range" t-as="pg" t-key="pg">
+                                            <li t-attf-class="page-item #{'active' if pg == page_num else ''}">
+                                                <a class="page-link" t-attf-href="/mobilsoft/cek-senet?tab=#{tab}&amp;q=#{q}&amp;page=#{pg}"><t t-esc="pg"/></a>
+                                            </li>
+                                        </t>
+                                        <li t-attf-class="page-item #{'disabled' if page_num == page_count else ''}">
+                                            <a class="page-link" t-attf-href="/mobilsoft/cek-senet?tab=#{tab}&amp;q=#{q}&amp;page=#{page_num + 1}">›</a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        </t>
+                    </div>
+                </t>
+            </div>
+        </t>
+    </template>
+
+</odoo>

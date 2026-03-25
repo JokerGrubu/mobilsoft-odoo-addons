@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="fatura_detail" name="MobilSoft Fatura Detay">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'faturalar'"/>
+
+            <div class="p-3 p-md-4">
+                <!-- Breadcrumb -->
+                <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+                    <div>
+                        <a href="/mobilsoft/faturalar" class="text-muted small text-decoration-none">
+                            <i class="fa fa-arrow-left me-1"/>Faturalar
+                        </a>
+                        <h4 class="mb-0 fw-bold mt-1">
+                            <t t-esc="invoice.name or 'Taslak Fatura'"/>
+                        </h4>
+                        <div class="d-flex gap-2 mt-1">
+                            <span t-if="invoice.move_type == 'out_invoice'" class="badge bg-success-subtle text-success">Satış Faturası</span>
+                            <span t-if="invoice.move_type == 'in_invoice'" class="badge bg-warning-subtle text-warning">Alış Faturası</span>
+                            <span t-if="invoice.move_type == 'out_refund'" class="badge bg-danger-subtle text-danger">Satış İadesi</span>
+                            <span t-if="invoice.move_type == 'in_refund'" class="badge bg-info-subtle text-info">Alış İadesi</span>
+
+                            <span t-if="invoice.state == 'draft'" class="badge bg-secondary">Taslak</span>
+                            <span t-if="invoice.state == 'posted' and invoice.payment_state == 'paid'" class="badge bg-success">Ödendi</span>
+                            <span t-if="invoice.state == 'posted' and invoice.payment_state == 'partial'" class="badge bg-warning">Kısmi Ödeme</span>
+                            <span t-if="invoice.state == 'posted' and invoice.payment_state == 'not_paid'" class="badge bg-danger">Ödenmedi</span>
+                            <span t-if="invoice.state == 'cancel'" class="badge bg-dark">İptal</span>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <!-- PDF İndir -->
+                        <a t-attf-href="/mobilsoft/faturalar/#{invoice.id}/pdf" class="btn btn-sm btn-outline-secondary">
+                            <i class="fa fa-file-pdf-o me-1"/>PDF
+                        </a>
+                        <!-- Ödeme Al butonu (onaylı + ödenmemiş) -->
+                        <a t-if="invoice.state == 'posted' and invoice.payment_state in ('not_paid', 'partial')"
+                           t-attf-href="/mobilsoft/faturalar/#{invoice.id}/odeme-al"
+                           class="btn btn-sm btn-primary">
+                            <i class="fa fa-money me-1"/>Ödeme Al
+                        </a>
+                        <!-- Onayla butonu (sadece taslak) -->
+                        <form t-if="invoice.state == 'draft'" t-attf-action="/mobilsoft/faturalar/#{invoice.id}/onayla" method="post" class="d-inline">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <button type="submit" class="btn btn-sm btn-success"
+                                    onclick="return confirm('Faturayı onaylamak istediğinize emin misiniz?')">
+                                <i class="fa fa-check me-1"/>Onayla
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <!-- Fatura Bilgileri -->
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-info-circle me-2 text-muted"/>Fatura Bilgileri</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless table-sm mb-0">
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-muted" style="width:120px;">Cari</td>
+                                            <td class="fw-semibold">
+                                                <a t-attf-href="/mobilsoft/cariler/#{invoice.partner_id.id}" class="ms-link">
+                                                    <t t-esc="invoice.partner_id.name"/>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted">Fatura Tarihi</td>
+                                            <td><t t-esc="invoice.invoice_date or '-'"/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted">Vade Tarihi</td>
+                                            <td><t t-esc="invoice.invoice_date_due or '-'"/></td>
+                                        </tr>
+                                        <tr t-if="invoice.ref">
+                                            <td class="text-muted">Referans</td>
+                                            <td><t t-esc="invoice.ref"/></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tutar Kartları -->
+                    <div class="col-md-6">
+                        <div class="row g-3 h-100">
+                            <div class="col-6">
+                                <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--success h-100">
+                                    <div class="card-body py-3 text-center d-flex flex-column justify-content-center">
+                                        <div class="text-muted small">Ara Toplam</div>
+                                        <div class="fw-bold fs-5">
+                                            ₺ <t t-esc="'{:,.2f}'.format(invoice.amount_untaxed)"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--warning h-100">
+                                    <div class="card-body py-3 text-center d-flex flex-column justify-content-center">
+                                        <div class="text-muted small">KDV</div>
+                                        <div class="fw-bold fs-5">
+                                            ₺ <t t-esc="'{:,.2f}'.format(invoice.amount_tax)"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--teal">
+                                    <div class="card-body py-3 text-center">
+                                        <div class="text-muted small">Genel Toplam</div>
+                                        <div class="fw-bold fs-3 text-primary">
+                                            ₺ <t t-esc="'{:,.2f}'.format(invoice.amount_total)"/>
+                                        </div>
+                                        <div t-if="invoice.amount_residual > 0 and invoice.state == 'posted'" class="small text-danger mt-1">
+                                            Kalan: ₺ <t t-esc="'{:,.2f}'.format(invoice.amount_residual)"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fatura Satırları -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h6 class="mb-0 fw-bold"><i class="fa fa-list me-2 text-muted"/>Fatura Kalemleri</h6>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:40%;">Açıklama</th>
+                                    <th class="text-end">Miktar</th>
+                                    <th>Birim</th>
+                                    <th class="text-end">Birim Fiyat</th>
+                                    <th class="d-none d-md-table-cell">KDV</th>
+                                    <th class="text-end">Toplam</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="lines" t-as="line" t-key="line.id">
+                                    <t t-if="not line.display_type">
+                                        <tr>
+                                            <td>
+                                                <div class="fw-semibold small"><t t-esc="line.name or line.product_id.name or '-'"/></div>
+                                                <div t-if="line.product_id" class="text-muted" style="font-size:11px;">
+                                                    <t t-esc="line.product_id.default_code or ''"/>
+                                                </div>
+                                            </td>
+                                            <td class="text-end small"><t t-esc="'{:,.2f}'.format(line.quantity)"/></td>
+                                            <td class="small text-muted"><t t-esc="line.product_uom_id.name or ''"/></td>
+                                            <td class="text-end small">₺ <t t-esc="'{:,.2f}'.format(line.price_unit)"/></td>
+                                            <td class="d-none d-md-table-cell small text-muted">
+                                                <t t-foreach="line.tax_ids" t-as="tax" t-key="tax.id">
+                                                    <span class="badge bg-light text-muted"><t t-esc="tax.name"/></span>
+                                                </t>
+                                            </td>
+                                            <td class="text-end fw-bold small">₺ <t t-esc="'{:,.2f}'.format(line.price_subtotal)"/></td>
+                                        </tr>
+                                    </t>
+                                </t>
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="5" class="text-end fw-semibold small">Ara Toplam</td>
+                                    <td class="text-end fw-semibold small">₺ <t t-esc="'{:,.2f}'.format(invoice.amount_untaxed)"/></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="5" class="text-end small text-muted">KDV</td>
+                                    <td class="text-end small">₺ <t t-esc="'{:,.2f}'.format(invoice.amount_tax)"/></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="5" class="text-end fw-bold">Genel Toplam</td>
+                                    <td class="text-end fw-bold text-primary">₺ <t t-esc="'{:,.2f}'.format(invoice.amount_total)"/></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

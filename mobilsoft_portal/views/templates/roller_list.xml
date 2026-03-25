@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="roller_list" name="MobilSoft Roller">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'ayarlar'"/>
+
+            <div class="p-3 p-md-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h4 class="mb-1 fw-bold"><i class="fa fa-shield me-2 text-muted"/>Rol Yönetimi</h4>
+                        <small class="text-muted">Portal erişim rolleri</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/mobilsoft/ayarlar/kullanicilar" class="btn btn-outline-secondary btn-sm">
+                            <i class="fa fa-users me-1"/>Kullanıcılar
+                        </a>
+                        <a href="/mobilsoft/ayarlar/roller/yeni" class="btn btn-primary btn-sm">
+                            <i class="fa fa-plus me-1"/>Yeni Rol
+                        </a>
+                    </div>
+                </div>
+
+                <t t-if="success">
+                    <div class="alert alert-success alert-dismissible fade show">
+                        <i class="fa fa-check-circle me-2"/><t t-esc="success"/>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"/>
+                    </div>
+                </t>
+                <t t-if="error">
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="fa fa-exclamation-triangle me-2"/><t t-esc="error"/>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"/>
+                    </div>
+                </t>
+
+                <div class="row g-3">
+                    <t t-foreach="role_data" t-as="rd" t-key="rd['id']">
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="fw-bold mb-0"><t t-esc="rd['name']"/></h6>
+                                        <a t-attf-href="/mobilsoft/ayarlar/roller/#{rd['id']}/duzenle" class="btn btn-sm btn-outline-primary">
+                                            <i class="fa fa-pencil"/>
+                                        </a>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <t t-foreach="rd['perms'].items()" t-as="perm" t-key="perm[0]">
+                                            <span class="badge bg-primary-subtle text-primary">
+                                                <t t-esc="perm[0]"/>: <t t-esc="perm[1]"/>
+                                            </span>
+                                        </t>
+                                        <span t-if="not rd['perms']" class="text-muted small">İzin tanımlanmamış</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                    <t t-if="not role_data">
+                        <div class="col-12 text-center text-muted py-4">
+                            Henüz rol tanımlanmamış.
+                            <a href="/mobilsoft/ayarlar/roller/yeni">İlk rolü oluşturun</a>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

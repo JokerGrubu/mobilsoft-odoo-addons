@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="ayarlar_profil" name="MobilSoft Profil Ayarları">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'ayarlar'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/ayarlar" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Ayarlar
+                </a>
+                <h4 class="fw-bold mt-1 mb-4"><i class="fa fa-user me-2 text-muted"/>Profil</h4>
+
+                <t t-if="success">
+                    <div class="alert alert-success d-flex align-items-center py-2 small"><i class="fa fa-check-circle me-2"/><t t-esc="success"/></div>
+                </t>
+                <t t-if="error">
+                    <div class="alert alert-danger d-flex align-items-center py-2 small"><i class="fa fa-exclamation-circle me-2"/><t t-esc="error"/></div>
+                </t>
+
+                <div class="row g-4">
+                    <!-- Profil Bilgileri -->
+                    <div class="col-md-7">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold">Kişisel Bilgiler</h6>
+                            </div>
+                            <div class="card-body">
+                                <form action="/mobilsoft/ayarlar/profil/kaydet" method="post" enctype="multipart/form-data">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                                    <div class="text-center mb-3">
+                                        <div class="ms-avatar mx-auto mb-2" style="width:64px;height:64px;font-size:24px;">
+                                            <t t-esc="(user.name or '?')[0].upper()"/>
+                                        </div>
+                                        <input type="file" name="avatar" class="form-control form-control-sm mx-auto" style="max-width:250px;" accept="image/*"/>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">İsim</label>
+                                        <input type="text" name="name" class="form-control" t-att-value="user.name"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">E-posta (giriş)</label>
+                                        <input type="email" class="form-control" t-att-value="user.login" disabled="disabled"/>
+                                        <small class="text-muted">E-posta değiştirmek için yöneticiyle iletişime geçin</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Telefon</label>
+                                        <input type="tel" name="phone" class="form-control" t-att-value="user.partner_id.phone or ''"/>
+                                    </div>
+
+                                    <button type="submit" class="btn ms-btn-brand px-4"><i class="fa fa-check me-1"/>Güncelle</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Şifre Değiştir -->
+                    <div class="col-md-5">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-lock me-2 text-muted"/>Şifre Değiştir</h6>
+                            </div>
+                            <div class="card-body">
+                                <form action="/mobilsoft/ayarlar/sifre" method="post">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Yeni Şifre</label>
+                                        <input type="password" name="new_password" class="form-control" minlength="6" required="required"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Şifre Tekrar</label>
+                                        <input type="password" name="confirm_password" class="form-control" minlength="6" required="required"/>
+                                    </div>
+                                    <button type="submit" class="btn btn-outline-danger w-100">
+                                        <i class="fa fa-key me-1"/>Şifre Değiştir
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Hesap Bilgisi -->
+                        <div class="card border-0 shadow-sm mt-3">
+                            <div class="card-body">
+                                <table class="table table-borderless table-sm mb-0">
+                                    <tr>
+                                        <td class="text-muted small">Şirket</td>
+                                        <td class="small fw-semibold"><t t-esc="user.company_id.name"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted small">Kullanıcı ID</td>
+                                        <td class="small"><t t-esc="user.id"/></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

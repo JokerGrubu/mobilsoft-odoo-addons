@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="kasa_banka_detail" name="MobilSoft Kasa Banka Detay">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'kasa_banka'"/>
+
+            <div class="p-3 p-md-4">
+                <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+                    <div>
+                        <a href="/mobilsoft/kasa-banka" class="text-muted small text-decoration-none">
+                            <i class="fa fa-arrow-left me-1"/>Kasa &amp; Banka
+                        </a>
+                        <h4 class="fw-bold mt-1 mb-0">
+                            <i t-attf-class="fa #{('fa-money' if journal.type == 'cash' else 'fa-university')} me-2 text-muted"/>
+                            <t t-esc="journal.name"/>
+                        </h4>
+                    </div>
+                </div>
+
+                <!-- Özet -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Güncel Bakiye</div>
+                                <div t-attf-class="fw-bold fs-5 #{('text-success' if current_balance >= 0 else 'text-danger')}">
+                                    ₺ <t t-esc="'{:,.2f}'.format(current_balance)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Dönem Giriş</div>
+                                <div class="fw-bold fs-5 text-success">₺ <t t-esc="'{:,.2f}'.format(total_in)"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Dönem Çıkış</div>
+                                <div class="fw-bold fs-5 text-danger">₺ <t t-esc="'{:,.2f}'.format(total_out)"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Dönem Net</div>
+                                <t t-set="net" t-value="total_in - total_out"/>
+                                <div t-attf-class="fw-bold fs-5 #{('text-success' if net >= 0 else 'text-danger')}">
+                                    ₺ <t t-esc="'{:,.2f}'.format(net)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tarih Filtresi -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body py-3">
+                        <form method="get" t-attf-action="/mobilsoft/kasa-banka/#{journal.id}" class="row g-2 align-items-end">
+                            <div class="col-auto">
+                                <label class="form-label small fw-semibold mb-1">Başlangıç</label>
+                                <input type="date" name="start" class="form-control form-control-sm" t-att-value="start_date"/>
+                            </div>
+                            <div class="col-auto">
+                                <label class="form-label small fw-semibold mb-1">Bitiş</label>
+                                <input type="date" name="end" class="form-control form-control-sm" t-att-value="end_date"/>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm ms-btn-brand">
+                                    <i class="fa fa-filter me-1"/>Filtrele
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Hareket Tablosu -->
+                <div class="card border-0 shadow-sm">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tarih</th>
+                                    <th>Belge</th>
+                                    <th>Açıklama</th>
+                                    <th>Cari</th>
+                                    <th class="text-end">Giriş</th>
+                                    <th class="text-end">Çıkış</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-if="not move_lines">
+                                    <tr><td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fa fa-inbox fa-2x d-block mb-2"/>Hareket bulunamadı.
+                                    </td></tr>
+                                </t>
+                                <t t-foreach="move_lines" t-as="ml" t-key="ml.id">
+                                    <tr>
+                                        <td class="small text-muted"><t t-esc="ml.date"/></td>
+                                        <td class="small fw-semibold"><t t-esc="ml.move_id.name"/></td>
+                                        <td class="small text-muted"><t t-esc="ml.name or ''"/></td>
+                                        <td class="small"><t t-esc="ml.partner_id.name or '-'"/></td>
+                                        <td class="text-end small">
+                                            <span t-if="ml.debit > 0" class="text-success fw-semibold">
+                                                ₺ <t t-esc="'{:,.2f}'.format(ml.debit)"/>
+                                            </span>
+                                        </td>
+                                        <td class="text-end small">
+                                            <span t-if="ml.credit > 0" class="text-danger fw-semibold">
+                                                ₺ <t t-esc="'{:,.2f}'.format(ml.credit)"/>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sayfalama -->
+                <t t-if="page_count > 1">
+                    <nav class="mt-3 d-flex justify-content-center">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li t-attf-class="page-item #{'disabled' if page_num == 1 else ''}">
+                                <a class="page-link" t-attf-href="/mobilsoft/kasa-banka/#{journal.id}?start=#{start_date}&amp;end=#{end_date}&amp;page=#{page_num - 1}"><i class="fa fa-chevron-left"/></a>
+                            </li>
+                            <t t-foreach="page_range" t-as="pg" t-key="pg">
+                                <li t-attf-class="page-item #{'active' if pg == page_num else ''}">
+                                    <a class="page-link" t-attf-href="/mobilsoft/kasa-banka/#{journal.id}?start=#{start_date}&amp;end=#{end_date}&amp;page=#{pg}"><t t-esc="pg"/></a>
+                                </li>
+                            </t>
+                            <li t-attf-class="page-item #{'disabled' if page_num == page_count else ''}">
+                                <a class="page-link" t-attf-href="/mobilsoft/kasa-banka/#{journal.id}?start=#{start_date}&amp;end=#{end_date}&amp;page=#{page_num + 1}"><i class="fa fa-chevron-right"/></a>
+                            </li>
+                        </ul>
+                    </nav>
+                </t>
+                <div class="text-center mt-2">
+                    <small class="text-muted">Toplam <t t-esc="total"/> hareket — Sayfa <t t-esc="page_num"/> / <t t-esc="page_count"/></small>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

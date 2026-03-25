@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="dashboard_page" name="MobilSoft Dashboard">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'dashboard'"/>
+
+            <div class="p-3 p-md-4">
+                <!-- Başlık -->
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-0 fw-bold"><t t-esc="company.name"/></h4>
+                        <small class="text-muted"><i class="fa fa-calendar me-1"/><t t-esc="today_str"/></small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/mobilsoft/faturalar" class="btn btn-sm ms-btn-brand">
+                            <i class="fa fa-plus me-1"/>Fatura Kes
+                        </a>
+                        <a href="/mobilsoft/cariler" class="btn btn-sm btn-outline-secondary">
+                            <i class="fa fa-user-plus me-1"/>Cari Ekle
+                        </a>
+                    </div>
+                </div>
+
+                <!-- KPI Kartları -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-lg-3">
+                        <div class="card border-0 shadow-sm h-100 ms-kpi-card ms-kpi-card--success">
+                            <div class="card-body d-flex align-items-center gap-3 py-3">
+                                <div class="ms-kpi-icon ms-kpi-icon--success">
+                                    <i class="fa fa-turkish-lira"/>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-5 text-success">
+                                        ₺ <t t-esc="'{:,.2f}'.format(stats['today_sales'])"/>
+                                    </div>
+                                    <small class="text-muted">Bugün Satış</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-lg-3">
+                        <div class="card border-0 shadow-sm h-100 ms-kpi-card ms-kpi-card--warning">
+                            <div class="card-body d-flex align-items-center gap-3 py-3">
+                                <div class="ms-kpi-icon ms-kpi-icon--warning">
+                                    <i class="fa fa-clock-o"/>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-5 text-warning">
+                                        <t t-esc="stats['pending_invoices']"/>
+                                    </div>
+                                    <small class="text-muted">Bekleyen Fatura</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-lg-3">
+                        <div class="card border-0 shadow-sm h-100 ms-kpi-card ms-kpi-card--danger">
+                            <div class="card-body d-flex align-items-center gap-3 py-3">
+                                <div class="ms-kpi-icon ms-kpi-icon--danger">
+                                    <i class="fa fa-exclamation-triangle"/>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-5 text-danger">
+                                        <t t-esc="stats['stock_alerts']"/>
+                                    </div>
+                                    <small class="text-muted">Kritik Stok</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-lg-3">
+                        <div class="card border-0 shadow-sm h-100 ms-kpi-card ms-kpi-card--teal">
+                            <div class="card-body d-flex align-items-center gap-3 py-3">
+                                <div class="ms-kpi-icon ms-kpi-icon--teal">
+                                    <i class="fa fa-shopping-bag"/>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-5" style="color:#0D9488;">
+                                        <t t-esc="stats['ct_products']"/>
+                                    </div>
+                                    <small class="text-muted">CepteTedarik</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hızlı Erişim Kartları -->
+                <h5 class="fw-bold mb-3"><i class="fa fa-th-large me-2 text-muted"/>Hızlı Erişim</h5>
+                <div class="row g-3">
+                    <t t-foreach="[
+                        {'url': '/mobilsoft/cariler', 'icon': 'fa-users', 'color': '#714B67', 'title': 'Cariler', 'sub': str(stats['customer_count']) + ' müşteri'},
+                        {'url': '/mobilsoft/urunler', 'icon': 'fa-cube', 'color': '#00A09D', 'title': 'Ürünler', 'sub': str(stats['product_count']) + ' ürün'},
+                        {'url': '/mobilsoft/faturalar', 'icon': 'fa-file-text-o', 'color': '#E67E22', 'title': 'Faturalar', 'sub': 'Satış / Alış'},
+                        {'url': '/mobilsoft/hesaplar', 'icon': 'fa-university', 'color': '#2980B9', 'title': 'Kasa / Banka', 'sub': 'Hesap hareketleri'},
+                        {'url': '/mobilsoft/raporlar', 'icon': 'fa-line-chart', 'color': '#27AE60', 'title': 'Raporlar', 'sub': 'Gelir / Gider'},
+                        {'url': '/mobilsoft/pazaryeri', 'icon': 'fa-shopping-bag', 'color': '#0D9488', 'title': 'CepteTedarik', 'sub': 'B2B Pazaryeri'},
+                    ]" t-as="item" t-key="item['url']">
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a t-att-href="item['url']" class="text-decoration-none">
+                                <div class="card border-0 shadow-sm text-center h-100 ms-quick-card">
+                                    <div class="card-body py-4">
+                                        <div class="ms-quick-icon mx-auto mb-2" t-attf-style="background:#{item['color']}15; color:#{item['color']};">
+                                            <i t-attf-class="fa #{item['icon']}"/>
+                                        </div>
+                                        <div class="fw-semibold text-dark small"><t t-esc="item['title']"/></div>
+                                        <small class="text-muted" style="font-size:11px;"><t t-esc="item['sub']"/></small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

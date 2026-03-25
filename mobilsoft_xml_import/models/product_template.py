@@ -125,6 +125,32 @@ class ProductTemplate(models.Model):
         string='Ek Görsel URL\'leri',
         help='Birden fazla görsel URL\'i (her satırda bir URL)',
     )
+
+    # XML'den gelen ek bilgiler
+    xml_brand = fields.Char(
+        string='Marka (XML)',
+        help='XML kaynağından gelen marka bilgisi',
+    )
+    xml_warranty = fields.Char(
+        string='Garanti',
+        help='XML kaynağından gelen garanti bilgisi',
+    )
+    xml_model = fields.Char(
+        string='Model (XML)',
+        help='XML kaynağından gelen model bilgisi',
+    )
+    xml_origin = fields.Char(
+        string='Menşei (XML)',
+        help='XML kaynağından gelen menşei bilgisi',
+    )
+    xml_extra2 = fields.Char(
+        string='Ekstra 2',
+        help='XML kaynağından gelen ek bilgi 2',
+    )
+    xml_extra3 = fields.Char(
+        string='Ekstra 3',
+        help='XML kaynağından gelen ek bilgi 3',
+    )
     
     # Görsel URL'den compute edilen HTML (view için)
     xml_image_html = fields.Html(

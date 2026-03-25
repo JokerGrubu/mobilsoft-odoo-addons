@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="cari_ekstre" name="MobilSoft Cari Ekstre">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'cariler'"/>
+
+            <div class="p-3 p-md-4">
+                <!-- Breadcrumb -->
+                <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+                    <div>
+                        <a t-attf-href="/mobilsoft/cariler/#{partner.id}" class="text-muted small text-decoration-none">
+                            <i class="fa fa-arrow-left me-1"/><t t-esc="partner.name"/>
+                        </a>
+                        <h4 class="fw-bold mt-1 mb-0">
+                            <i class="fa fa-list-alt me-2 text-muted"/>Hesap Ekstresi
+                        </h4>
+                    </div>
+                </div>
+
+                <!-- Tarih Filtresi -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body py-3">
+                        <form method="get" t-attf-action="/mobilsoft/cariler/#{partner.id}/ekstre" class="row g-2 align-items-end">
+                            <div class="col-auto">
+                                <label class="form-label small fw-semibold mb-1">Başlangıç</label>
+                                <input type="date" name="start" class="form-control form-control-sm" t-att-value="start_date"/>
+                            </div>
+                            <div class="col-auto">
+                                <label class="form-label small fw-semibold mb-1">Bitiş</label>
+                                <input type="date" name="end" class="form-control form-control-sm" t-att-value="end_date"/>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm ms-btn-brand">
+                                    <i class="fa fa-filter me-1"/>Filtrele
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Özet -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Açılış Bakiyesi</div>
+                                <div t-attf-class="fw-bold #{('text-success' if opening_balance >= 0 else 'text-danger')}">
+                                    ₺ <t t-esc="'{:,.2f}'.format(opening_balance)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Kapanış Bakiyesi</div>
+                                <div t-attf-class="fw-bold #{('text-success' if closing_balance >= 0 else 'text-danger')}">
+                                    ₺ <t t-esc="'{:,.2f}'.format(closing_balance)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Toplam Borç</div>
+                                <div class="fw-bold text-success">
+                                    ₺ <t t-esc="'{:,.2f}'.format(sum(l['debit'] for l in lines))"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Toplam Alacak</div>
+                                <div class="fw-bold text-danger">
+                                    ₺ <t t-esc="'{:,.2f}'.format(sum(l['credit'] for l in lines))"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hareket Tablosu -->
+                <div class="card border-0 shadow-sm">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tarih</th>
+                                    <th>Belge No</th>
+                                    <th>Açıklama</th>
+                                    <th class="text-end">Borç</th>
+                                    <th class="text-end">Alacak</th>
+                                    <th class="text-end">Bakiye</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Açılış satırı -->
+                                <tr class="table-light">
+                                    <td class="fw-semibold small"><t t-esc="start_date"/></td>
+                                    <td colspan="2" class="fst-italic text-muted small">Açılış Bakiyesi</td>
+                                    <td/>
+                                    <td/>
+                                    <td t-attf-class="text-end fw-bold small #{('text-success' if opening_balance >= 0 else 'text-danger')}">
+                                        ₺ <t t-esc="'{:,.2f}'.format(opening_balance)"/>
+                                    </td>
+                                </tr>
+
+                                <t t-if="not lines">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            <i class="fa fa-inbox fa-2x d-block mb-2"/>
+                                            Bu dönemde hareket bulunamadı.
+                                        </td>
+                                    </tr>
+                                </t>
+
+                                <t t-foreach="lines" t-as="line" t-key="line_index">
+                                    <tr>
+                                        <td class="small"><t t-esc="line['date']"/></td>
+                                        <td class="small fw-semibold"><t t-esc="line['ref']"/></td>
+                                        <td class="small text-muted"><t t-esc="line['description']"/></td>
+                                        <td class="text-end small">
+                                            <span t-if="line['debit'] > 0" class="text-success">
+                                                ₺ <t t-esc="'{:,.2f}'.format(line['debit'])"/>
+                                            </span>
+                                        </td>
+                                        <td class="text-end small">
+                                            <span t-if="line['credit'] > 0" class="text-danger">
+                                                ₺ <t t-esc="'{:,.2f}'.format(line['credit'])"/>
+                                            </span>
+                                        </td>
+                                        <td t-attf-class="text-end fw-semibold small #{('text-success' if line['balance'] >= 0 else 'text-danger')}">
+                                            ₺ <t t-esc="'{:,.2f}'.format(line['balance'])"/>
+                                        </td>
+                                    </tr>
+                                </t>
+
+                                <!-- Kapanış satırı -->
+                                <tr class="table-light">
+                                    <td class="fw-semibold small"><t t-esc="end_date"/></td>
+                                    <td colspan="2" class="fst-italic text-muted small">Kapanış Bakiyesi</td>
+                                    <td/>
+                                    <td/>
+                                    <td t-attf-class="text-end fw-bold small #{('text-success' if closing_balance >= 0 else 'text-danger')}">
+                                        ₺ <t t-esc="'{:,.2f}'.format(closing_balance)"/>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

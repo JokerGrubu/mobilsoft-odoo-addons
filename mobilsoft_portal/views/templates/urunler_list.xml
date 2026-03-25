@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="urunler_list" name="MobilSoft Ürünler Liste">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'urunler'"/>
+
+            <div class="p-3 p-md-4">
+                <!-- Başlık -->
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-0 fw-bold"><i class="fa fa-cube me-2 text-muted"/>Ürünler</h4>
+                        <small class="text-muted">
+                            <t t-esc="total_products"/> ürün
+                            <span t-if="low_stock > 0" class="text-danger ms-2">
+                                <i class="fa fa-exclamation-triangle me-1"/><t t-esc="low_stock"/> kritik stok
+                            </span>
+                        </small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/mobilsoft/export/urunler" class="btn btn-sm btn-outline-success">
+                            <i class="fa fa-file-excel-o me-1"/>Excel
+                        </a>
+                        <a href="/mobilsoft/veri-aktarimi?tab=urunler" class="btn btn-sm btn-outline-primary">
+                            <i class="fa fa-upload me-1"/>İçe Aktar
+                        </a>
+                        <a href="/mobilsoft/urunler/yeni" class="btn btn-sm ms-btn-brand">
+                            <i class="fa fa-plus me-1"/>Yeni Ürün
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Arama + Filtre -->
+                <form method="get" action="/mobilsoft/urunler" class="mb-3">
+                    <div class="row g-2">
+                        <div class="col-md-5">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="fa fa-search text-muted"/></span>
+                                <input type="text" name="q" class="form-control"
+                                       placeholder="Ürün adı, kod veya barkod..."
+                                       t-att-value="q"/>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <select name="category" class="form-select">
+                                <option value="">Tüm Kategoriler</option>
+                                <t t-foreach="categories" t-as="cat" t-key="cat.id">
+                                    <option t-att-value="cat.id"
+                                            t-att-selected="'selected' if category == cat.id else None">
+                                        <t t-esc="cat.complete_name"/>
+                                    </option>
+                                </t>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-outline-secondary w-100">
+                                <i class="fa fa-filter me-1"/>Filtrele
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Ürün Grid -->
+                <div class="row g-3">
+                    <t t-if="not products">
+                        <div class="col-12 text-center text-muted py-5">
+                            <i class="fa fa-inbox fa-3x d-block mb-3"/>
+                            <p>Ürün bulunamadı.</p>
+                        </div>
+                    </t>
+                    <t t-foreach="products" t-as="p" t-key="p.id">
+                        <div class="col-6 col-md-4 col-lg-3">
+                            <a t-attf-href="/mobilsoft/urunler/#{p.id}" class="text-decoration-none">
+                                <div class="card border-0 shadow-sm h-100 ms-product-card">
+                                    <!-- Resim -->
+                                    <div class="ms-product-img-wrap">
+                                        <t t-if="p.image_128">
+                                            <img t-attf-src="data:image/png;base64,#{p.image_128.decode() if p.image_128 else ''}"
+                                                 class="ms-product-img" alt=""/>
+                                        </t>
+                                        <t t-else="">
+                                            <div class="ms-product-img-placeholder">
+                                                <i class="fa fa-cube fa-2x text-muted"/>
+                                            </div>
+                                        </t>
+                                    </div>
+                                    <div class="card-body py-2 px-3">
+                                        <div class="fw-semibold text-dark small text-truncate">
+                                            <t t-esc="p.name"/>
+                                        </div>
+                                        <div t-if="p.default_code" class="text-muted" style="font-size:11px;">
+                                            <t t-esc="p.default_code"/>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mt-1">
+                                            <span class="fw-bold text-primary small">
+                                                ₺ <t t-esc="'{:,.2f}'.format(p.list_price)"/>
+                                            </span>
+                                            <t t-set="pqty" t-value="sum(v.qty_available for v in p.product_variant_ids)"/>
+                                            <span t-attf-class="badge #{('bg-success-subtle text-success' if pqty > 0 else 'bg-danger-subtle text-danger')}" style="font-size:10px;">
+                                                <t t-esc="'{:,.0f}'.format(pqty)"/> adet
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </t>
+                </div>
+
+                <!-- Sayfalama -->
+                <t t-if="page_count > 1">
+                    <nav class="mt-4 d-flex justify-content-center">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li t-attf-class="page-item #{'disabled' if page_num == 1 else ''}">
+                                <a class="page-link" t-attf-href="/mobilsoft/urunler?q=#{q}&amp;category=#{category}&amp;page=#{page_num - 1}">
+                                    <i class="fa fa-chevron-left"/>
+                                </a>
+                            </li>
+                            <t t-foreach="page_range" t-as="pg" t-key="pg">
+                                <li t-attf-class="page-item #{'active' if pg == page_num else ''}">
+                                    <a class="page-link" t-attf-href="/mobilsoft/urunler?q=#{q}&amp;category=#{category}&amp;page=#{pg}">
+                                        <t t-esc="pg"/>
+                                    </a>
+                                </li>
+                            </t>
+                            <li t-attf-class="page-item #{'disabled' if page_num == page_count else ''}">
+                                <a class="page-link" t-attf-href="/mobilsoft/urunler?q=#{q}&amp;category=#{category}&amp;page=#{page_num + 1}">
+                                    <i class="fa fa-chevron-right"/>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </t>
+
+                <div class="text-center mt-2">
+                    <small class="text-muted">
+                        Toplam <t t-esc="total"/> ürün — Sayfa <t t-esc="page_num"/> / <t t-esc="page_count"/>
+                    </small>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

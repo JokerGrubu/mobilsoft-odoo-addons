@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="cari_mutabakat" name="MobilSoft Cari Mutabakat">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'cariler'"/>
+
+            <div class="p-3 p-md-4">
+                <a t-attf-href="/mobilsoft/cariler/#{partner.id}" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/><t t-esc="partner.name"/>
+                </a>
+                <h4 class="fw-bold mt-1 mb-4">
+                    <i class="fa fa-handshake-o me-2 text-muted"/>Mutabakat Mektubu
+                </h4>
+
+                <!-- Tarih Filtresi -->
+                <form method="get" t-attf-action="/mobilsoft/cariler/#{partner.id}/mutabakat" class="d-flex gap-2 mb-4 flex-wrap">
+                    <input type="date" name="start_date" t-att-value="start_date" class="form-control form-control-sm" style="width:160px;"/>
+                    <input type="date" name="end_date" t-att-value="end_date" class="form-control form-control-sm" style="width:160px;"/>
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-filter me-1"/>Filtrele</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="fa fa-print me-1"/>Yazdır</button>
+                </form>
+
+                <!-- Mutabakat Belgesi -->
+                <div class="card border-0 shadow-sm" id="mutabakat-print">
+                    <div class="card-body p-4">
+                        <!-- Başlık -->
+                        <div class="text-center mb-4">
+                            <h5 class="fw-bold">CARİ MUTABAKAT MEKTUBU</h5>
+                            <p class="text-muted mb-0">
+                                <t t-esc="start_date"/> — <t t-esc="end_date"/>
+                            </p>
+                        </div>
+
+                        <!-- Şirket + Cari Bilgileri -->
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <div class="small fw-bold text-muted mb-1">GÖNDERİCİ</div>
+                                <div class="fw-bold"><t t-esc="company.name"/></div>
+                                <div class="small text-muted" t-if="company.vat">VKN: <t t-esc="company.vat"/></div>
+                                <div class="small text-muted" t-if="company.street"><t t-esc="company.street"/></div>
+                                <div class="small text-muted" t-if="company.phone"><t t-esc="company.phone"/></div>
+                            </div>
+                            <div class="col-6 text-end">
+                                <div class="small fw-bold text-muted mb-1">ALICI</div>
+                                <div class="fw-bold"><t t-esc="partner.name"/></div>
+                                <div class="small text-muted" t-if="partner.vat">VKN: <t t-esc="partner.vat"/></div>
+                                <div class="small text-muted" t-if="partner.street"><t t-esc="partner.street"/></div>
+                                <div class="small text-muted" t-if="partner.phone"><t t-esc="partner.phone"/></div>
+                            </div>
+                        </div>
+
+                        <!-- Açılış Bakiyesi -->
+                        <div class="alert alert-light border py-2 px-3 small mb-3">
+                            <strong>Açılış Bakiyesi:</strong>
+                            <span t-attf-class="fw-bold #{' text-success' if opening_balance >= 0 else 'text-danger'}">
+                                ₺ <t t-esc="'{:,.2f}'.format(opening_balance)"/>
+                            </span>
+                        </div>
+
+                        <!-- Hareketler Tablosu -->
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0 align-middle" style="font-size:12px;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Tarih</th>
+                                        <th>Belge</th>
+                                        <th>Açıklama</th>
+                                        <th class="text-end">Borç</th>
+                                        <th class="text-end">Alacak</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="lines" t-as="line" t-key="line.id">
+                                        <tr>
+                                            <td><t t-esc="line.date"/></td>
+                                            <td><t t-esc="line.move_id.name"/></td>
+                                            <td><t t-esc="line.name or '-'"/></td>
+                                            <td class="text-end"><t t-esc="'{:,.2f}'.format(line.debit)" t-if="line.debit"/></td>
+                                            <td class="text-end"><t t-esc="'{:,.2f}'.format(line.credit)" t-if="line.credit"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                                <tfoot class="table-light fw-bold">
+                                    <tr>
+                                        <td colspan="3" class="text-end">TOPLAM</td>
+                                        <td class="text-end">₺ <t t-esc="'{:,.2f}'.format(total_debit)"/></td>
+                                        <td class="text-end">₺ <t t-esc="'{:,.2f}'.format(total_credit)"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="text-end">KAPANIŞ BAKİYESİ</td>
+                                        <td colspan="2" class="text-end">
+                                            <span t-attf-class="#{' text-success' if closing_balance >= 0 else 'text-danger'}">
+                                                ₺ <t t-esc="'{:,.2f}'.format(closing_balance)"/>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Açıklama -->
+                        <div class="mt-4 small text-muted border-top pt-3">
+                            <p>Yukarıdaki bilgilerin doğruluğunu onaylıyoruz. Farklılık olması durumunda
+                            5 iş günü içinde tarafımıza yazılı olarak bildirilmesini rica ederiz.</p>
+                            <div class="row mt-4">
+                                <div class="col-6 text-center">
+                                    <div class="border-top pt-2 mx-4">
+                                        <t t-esc="company.name"/>
+                                        <br/>Kaşe / İmza
+                                    </div>
+                                </div>
+                                <div class="col-6 text-center">
+                                    <div class="border-top pt-2 mx-4">
+                                        <t t-esc="partner.name"/>
+                                        <br/>Kaşe / İmza
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

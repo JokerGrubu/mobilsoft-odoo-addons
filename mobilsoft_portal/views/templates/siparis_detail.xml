@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="siparis_detail" name="MobilSoft Sipariş Detay">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'siparisler'"/>
+
+            <div class="p-3 p-md-4">
+                <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+                    <div>
+                        <a href="/mobilsoft/siparisler" class="text-muted small text-decoration-none">
+                            <i class="fa fa-arrow-left me-1"/>Siparişler
+                        </a>
+                        <h4 class="mb-0 fw-bold mt-1"><t t-esc="order.name"/></h4>
+                        <div class="d-flex gap-2 mt-1">
+                            <span t-if="order.state == 'draft'" class="badge bg-secondary">Teklif</span>
+                            <span t-if="order.state == 'sent'" class="badge bg-info">Gönderildi</span>
+                            <span t-if="order.state == 'sale'" class="badge bg-success">Sipariş</span>
+                            <span t-if="order.state == 'done'" class="badge bg-primary">Kilitli</span>
+                            <span t-if="order.state == 'cancel'" class="badge bg-dark">İptal</span>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <!-- Teklif → Sipariş -->
+                        <form t-if="order.state in ['draft', 'sent']"
+                              t-attf-action="/mobilsoft/siparisler/#{order.id}/onayla" method="post" class="d-inline">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <button type="submit" class="btn btn-sm btn-success"
+                                    onclick="return confirm('Teklifi siparişe çevirmek istediğinize emin misiniz?')">
+                                <i class="fa fa-check me-1"/>Siparişe Çevir
+                            </button>
+                        </form>
+                        <!-- Sipariş → Fatura -->
+                        <form t-if="order.state == 'sale'"
+                              t-attf-action="/mobilsoft/siparisler/#{order.id}/fatura-olustur" method="post" class="d-inline">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <button type="submit" class="btn btn-sm btn-primary"
+                                    onclick="return confirm('Bu sipariş için fatura oluşturmak istiyor musunuz?')">
+                                <i class="fa fa-file-text-o me-1"/>Fatura Oluştur
+                            </button>
+                        </form>
+                        <!-- İrsaliyeleri Gör -->
+                        <a t-if="order.state == 'sale' and order.picking_ids"
+                           t-attf-href="/mobilsoft/siparisler/#{order.id}/irsaliyeler"
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="fa fa-truck me-1"/>İrsaliyeler
+                        </a>
+                        <!-- Mevcut Faturalar Link -->
+                        <a t-if="order.invoice_ids"
+                           t-attf-href="/mobilsoft/faturalar/#{order.invoice_ids[0].id}"
+                           class="btn btn-sm btn-outline-success">
+                            <i class="fa fa-file-text me-1"/>Faturayı Gör
+                        </a>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-info-circle me-2 text-muted"/>Bilgiler</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless table-sm mb-0">
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-muted" style="width:120px;">Müşteri</td>
+                                            <td class="fw-semibold">
+                                                <a t-attf-href="/mobilsoft/cariler/#{order.partner_id.id}" class="ms-link">
+                                                    <t t-esc="order.partner_id.name"/>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted">Tarih</td>
+                                            <td><t t-esc="order.date_order"/></td>
+                                        </tr>
+                                        <tr t-if="order.validity_date">
+                                            <td class="text-muted">Geçerlilik</td>
+                                            <td><t t-esc="order.validity_date"/></td>
+                                        </tr>
+                                        <tr t-if="order.note">
+                                            <td class="text-muted">Not</td>
+                                            <td class="small"><t t-esc="order.note"/></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="row g-3 h-100">
+                            <div class="col-6">
+                                <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--success h-100">
+                                    <div class="card-body py-3 text-center d-flex flex-column justify-content-center">
+                                        <div class="text-muted small">Ara Toplam</div>
+                                        <div class="fw-bold fs-5">₺ <t t-esc="'{:,.2f}'.format(order.amount_untaxed)"/></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--warning h-100">
+                                    <div class="card-body py-3 text-center d-flex flex-column justify-content-center">
+                                        <div class="text-muted small">KDV</div>
+                                        <div class="fw-bold fs-5">₺ <t t-esc="'{:,.2f}'.format(order.amount_tax)"/></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--teal">
+                                    <div class="card-body py-3 text-center">
+                                        <div class="text-muted small">Genel Toplam</div>
+                                        <div class="fw-bold fs-3 text-primary">₺ <t t-esc="'{:,.2f}'.format(order.amount_total)"/></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Satırlar -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h6 class="mb-0 fw-bold"><i class="fa fa-list me-2 text-muted"/>Kalemler</h6>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:40%;">Ürün</th>
+                                    <th class="text-end">Miktar</th>
+                                    <th class="text-end">Birim Fiyat</th>
+                                    <th class="d-none d-md-table-cell">KDV</th>
+                                    <th class="text-end">Toplam</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="lines" t-as="line" t-key="line.id">
+                                    <t t-if="not line.display_type">
+                                        <tr>
+                                            <td>
+                                                <div class="fw-semibold small"><t t-esc="line.name or line.product_id.name or '-'"/></div>
+                                            </td>
+                                            <td class="text-end small"><t t-esc="'{:,.2f}'.format(line.product_uom_qty)"/></td>
+                                            <td class="text-end small">₺ <t t-esc="'{:,.2f}'.format(line.price_unit)"/></td>
+                                            <td class="d-none d-md-table-cell small text-muted">
+                                                <t t-foreach="line.tax_id" t-as="tax" t-key="tax.id">
+                                                    <span class="badge bg-light text-muted"><t t-esc="tax.name"/></span>
+                                                </t>
+                                            </td>
+                                            <td class="text-end fw-bold small">₺ <t t-esc="'{:,.2f}'.format(line.price_subtotal)"/></td>
+                                        </tr>
+                                    </t>
+                                </t>
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="4" class="text-end fw-semibold small">Ara Toplam</td>
+                                    <td class="text-end fw-semibold small">₺ <t t-esc="'{:,.2f}'.format(order.amount_untaxed)"/></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" class="text-end small text-muted">KDV</td>
+                                    <td class="text-end small">₺ <t t-esc="'{:,.2f}'.format(order.amount_tax)"/></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" class="text-end fw-bold">Genel Toplam</td>
+                                    <td class="text-end fw-bold text-primary">₺ <t t-esc="'{:,.2f}'.format(order.amount_total)"/></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="ayarlar_sirket" name="MobilSoft Şirket Ayarları">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'ayarlar'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/ayarlar" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Ayarlar
+                </a>
+                <h4 class="fw-bold mt-1 mb-4"><i class="fa fa-building me-2 text-muted"/>Şirket Bilgileri</h4>
+
+                <t t-if="success">
+                    <div class="alert alert-success d-flex align-items-center py-2 small"><i class="fa fa-check-circle me-2"/><t t-esc="success"/></div>
+                </t>
+                <t t-if="error">
+                    <div class="alert alert-danger d-flex align-items-center py-2 small"><i class="fa fa-exclamation-circle me-2"/><t t-esc="error"/></div>
+                </t>
+
+                <form action="/mobilsoft/ayarlar/sirket/kaydet" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                    <div class="row g-4">
+                        <div class="col-md-7">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold">Temel Bilgiler</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Şirket Unvanı</label>
+                                        <input type="text" name="name" class="form-control" t-att-value="company.name"/>
+                                    </div>
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">VKN</label>
+                                            <input type="text" name="vat" class="form-control" t-att-value="company.vat or ''"/>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">Telefon</label>
+                                            <input type="tel" name="phone" class="form-control" t-att-value="company.phone or ''"/>
+                                        </div>
+                                    </div>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">E-posta</label>
+                                            <input type="email" name="email" class="form-control" t-att-value="company.email or ''"/>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">Web Sitesi</label>
+                                            <input type="url" name="website_url" class="form-control" t-att-value="company.website or ''"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="card border-0 shadow-sm mb-3">
+                                <div class="card-header bg-white border-bottom py-3"><h6 class="mb-0 fw-bold">Adres</h6></div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <input type="text" name="street" class="form-control" placeholder="Adres" t-att-value="company.street or ''"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <input type="text" name="city" class="form-control" placeholder="Şehir" t-att-value="company.city or ''"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <select name="country_id" class="form-select">
+                                            <option value="">Ülke seçiniz</option>
+                                            <t t-foreach="countries" t-as="c" t-key="c.id">
+                                                <option t-att-value="c.id" t-att-selected="'selected' if company.country_id.id == c.id else None"><t t-esc="c.name"/></option>
+                                            </t>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <input type="text" name="zip" class="form-control" placeholder="Posta kodu" t-att-value="company.zip or ''"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3"><h6 class="mb-0 fw-bold">Logo</h6></div>
+                                <div class="card-body text-center">
+                                    <t t-if="company.logo">
+                                        <img t-attf-src="data:image/png;base64,#{company.logo.decode()}" class="img-thumbnail mb-2" style="max-height:80px;" alt=""/>
+                                    </t>
+                                    <input type="file" name="logo" class="form-control form-control-sm" accept="image/*"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="/mobilsoft/ayarlar" class="btn btn-outline-secondary"><i class="fa fa-times me-1"/>İptal</a>
+                        <button type="submit" class="btn ms-btn-brand px-4"><i class="fa fa-check me-1"/>Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </t>
+    </template>
+
+</odoo>

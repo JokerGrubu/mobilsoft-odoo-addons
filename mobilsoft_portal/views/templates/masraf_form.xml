@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="masraf_form" name="MobilSoft Masraf Form">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'masraflar'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/masraflar" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Masraflar
+                </a>
+                <h4 class="fw-bold mt-1 mb-4"><i class="fa fa-plus me-2 text-muted"/>Hızlı Masraf Girişi</h4>
+
+                <t t-if="error">
+                    <div class="alert alert-danger d-flex align-items-center py-2 small">
+                        <i class="fa fa-exclamation-circle me-2"/><t t-esc="error"/>
+                    </div>
+                </t>
+
+                <form action="/mobilsoft/masraflar/kaydet" method="post">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Masraf Kategorisi</label>
+                                    <select name="category" class="form-select">
+                                        <t t-foreach="categories" t-as="cat" t-key="cat[0]">
+                                            <option t-att-value="cat[0]"><t t-esc="cat[1]"/></option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Tedarikçi</label>
+                                    <select name="partner_id" class="form-select">
+                                        <option value="0">Tedarikçi yok</option>
+                                        <t t-foreach="suppliers" t-as="s" t-key="s.id">
+                                            <option t-att-value="s.id"><t t-esc="s.name"/></option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Tutar (₺) *</label>
+                                    <input type="number" name="amount" class="form-control" step="0.01" required="required" placeholder="0.00"/>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Tarih</label>
+                                    <input type="date" name="invoice_date" class="form-control"/>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">KDV</label>
+                                    <select name="tax_id" class="form-select">
+                                        <option value="0">KDV yok</option>
+                                        <t t-foreach="taxes" t-as="tax" t-key="tax.id">
+                                            <option t-att-value="tax.id"><t t-esc="tax.name"/></option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Açıklama</label>
+                                    <input type="text" name="description" class="form-control" placeholder="Masraf açıklaması..."/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="/mobilsoft/masraflar" class="btn btn-outline-secondary"><i class="fa fa-times me-1"/>İptal</a>
+                        <button type="submit" class="btn ms-btn-brand px-4"><i class="fa fa-save me-1"/>Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </t>
+    </template>
+
+</odoo>

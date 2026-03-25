@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="urun_form" name="MobilSoft Ürün Form">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'urunler'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/urunler" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Ürünler
+                </a>
+                <h4 class="fw-bold mt-1 mb-4">
+                    <t t-if="is_edit"><i class="fa fa-pencil me-2 text-muted"/>Ürün Düzenle</t>
+                    <t t-else=""><i class="fa fa-plus me-2 text-muted"/>Yeni Ürün</t>
+                </h4>
+
+                <t t-if="error">
+                    <div class="alert alert-danger d-flex align-items-center py-2 small">
+                        <i class="fa fa-exclamation-circle me-2"/><t t-esc="error"/>
+                    </div>
+                </t>
+
+                <form action="/mobilsoft/urunler/kaydet" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="product_id" t-att-value="product.id if product else 0"/>
+
+                    <div class="row g-4">
+                        <div class="col-md-7">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold"><i class="fa fa-cube me-2 text-muted"/>Ürün Bilgileri</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Ürün Adı *</label>
+                                        <input type="text" name="name" class="form-control" required="required"
+                                               placeholder="Ürün adı" t-att-value="product.name if product else ''"/>
+                                    </div>
+
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">Ürün Kodu</label>
+                                            <input type="text" name="default_code" class="form-control"
+                                                   placeholder="SKU / Referans" t-att-value="product.default_code if product else ''"/>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">Barkod</label>
+                                            <input type="text" name="barcode" class="form-control"
+                                                   placeholder="EAN / UPC" t-att-value="product.barcode if product else ''"/>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">Satış Fiyatı (₺)</label>
+                                            <input type="number" name="list_price" class="form-control" step="0.01"
+                                                   t-att-value="product.list_price if product else '0.00'"/>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">Maliyet (₺)</label>
+                                            <input type="number" name="standard_price" class="form-control" step="0.01"
+                                                   t-att-value="product.standard_price if product else '0.00'"/>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Açıklama</label>
+                                        <textarea name="description_sale" class="form-control" rows="3"
+                                                  placeholder="Ürün açıklaması..."><t t-if="product" t-esc="product.description_sale or ''"/></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-5">
+                            <div class="card border-0 shadow-sm mb-3">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold"><i class="fa fa-cog me-2 text-muted"/>Ayarlar</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Ürün Tipi</label>
+                                        <select name="type" class="form-select">
+                                            <option value="consu" t-att-selected="'selected' if not product or product.type == 'consu' else None">Stoklanan Ürün</option>
+                                            <option value="service" t-att-selected="'selected' if product and product.type == 'service' else None">Hizmet</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Kategori</label>
+                                        <select name="categ_id" class="form-select">
+                                            <option value="">Seçiniz...</option>
+                                            <t t-foreach="categories" t-as="cat" t-key="cat.id">
+                                                <option t-att-value="cat.id"
+                                                        t-att-selected="'selected' if product and product.categ_id.id == cat.id else None">
+                                                    <t t-esc="cat.complete_name"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Birim</label>
+                                        <select name="uom_id" class="form-select">
+                                            <t t-foreach="uom_list" t-as="u" t-key="u.id">
+                                                <option t-att-value="u.id"
+                                                        t-att-selected="'selected' if product and product.uom_id.id == u.id else None">
+                                                    <t t-esc="u.name"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">KDV</label>
+                                        <select name="tax_ids" class="form-select">
+                                            <option value="">Vergi yok</option>
+                                            <t t-foreach="tax_list" t-as="tax" t-key="tax.id">
+                                                <option t-att-value="tax.id"
+                                                        t-att-selected="'selected' if product and tax.id in product.taxes_id.ids else None">
+                                                    <t t-esc="tax.name"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold"><i class="fa fa-image me-2 text-muted"/>Resim</h6>
+                                </div>
+                                <div class="card-body">
+                                    <t t-if="product and product.image_128">
+                                        <div class="text-center mb-2">
+                                            <img t-attf-src="data:image/png;base64,#{product.image_128.decode()}"
+                                                 class="img-thumbnail" style="max-height:80px;" alt=""/>
+                                        </div>
+                                    </t>
+                                    <input type="file" name="image" class="form-control form-control-sm" accept="image/*"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="/mobilsoft/urunler" class="btn btn-outline-secondary">
+                            <i class="fa fa-times me-1"/>İptal
+                        </a>
+                        <button type="submit" class="btn ms-btn-brand px-4">
+                            <i class="fa fa-check me-1"/>Kaydet
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </t>
+    </template>
+
+</odoo>

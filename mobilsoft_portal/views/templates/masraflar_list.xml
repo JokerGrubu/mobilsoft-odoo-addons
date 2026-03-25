@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="masraflar_list" name="MobilSoft Masraflar Liste">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'masraflar'"/>
+
+            <div class="p-3 p-md-4">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-0 fw-bold"><i class="fa fa-credit-card me-2 text-muted"/>Masraflar</h4>
+                        <small class="text-muted">Bu ay: ₺ <t t-esc="'{:,.2f}'.format(month_total)"/></small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/mobilsoft/export/masraflar" class="btn btn-sm btn-outline-success">
+                            <i class="fa fa-file-excel-o me-1"/>Excel
+                        </a>
+                        <a href="/mobilsoft/masraflar/yeni" class="btn btn-sm ms-btn-brand">
+                            <i class="fa fa-plus me-1"/>Masraf Ekle
+                        </a>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Numara</th>
+                                    <th>Tedarikçi</th>
+                                    <th class="d-none d-md-table-cell">Tarih</th>
+                                    <th class="d-none d-md-table-cell">Referans</th>
+                                    <th class="text-end">Tutar</th>
+                                    <th>Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-if="not expenses">
+                                    <tr><td colspan="6" class="text-center text-muted py-5">
+                                        <i class="fa fa-inbox fa-2x d-block mb-2"/>Masraf bulunamadı.
+                                    </td></tr>
+                                </t>
+                                <t t-foreach="expenses" t-as="exp" t-key="exp.id">
+                                    <tr class="ms-table-row" style="cursor:pointer;"
+                                        t-attf-onclick="window.location='/mobilsoft/faturalar/#{exp.id}'">
+                                        <td class="fw-semibold small"><t t-esc="exp.name or 'Taslak'"/></td>
+                                        <td class="small"><t t-esc="exp.partner_id.name or '-'"/></td>
+                                        <td class="d-none d-md-table-cell small text-muted"><t t-esc="exp.invoice_date"/></td>
+                                        <td class="d-none d-md-table-cell small text-muted"><t t-esc="exp.ref or '-'"/></td>
+                                        <td class="text-end fw-bold small">₺ <t t-esc="'{:,.2f}'.format(exp.amount_total)"/></td>
+                                        <td>
+                                            <span t-if="exp.state == 'draft'" class="badge bg-secondary">Taslak</span>
+                                            <span t-if="exp.state == 'posted' and exp.payment_state == 'paid'" class="badge bg-success">Ödendi</span>
+                                            <span t-if="exp.state == 'posted' and exp.payment_state != 'paid'" class="badge bg-warning">Ödenmedi</span>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <t t-if="page_count > 1">
+                    <nav class="mt-3 d-flex justify-content-center">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li t-attf-class="page-item #{'disabled' if page_num == 1 else ''}">
+                                <a class="page-link" t-attf-href="/mobilsoft/masraflar?page=#{page_num - 1}"><i class="fa fa-chevron-left"/></a>
+                            </li>
+                            <t t-foreach="page_range" t-as="pg" t-key="pg">
+                                <li t-attf-class="page-item #{'active' if pg == page_num else ''}">
+                                    <a class="page-link" t-attf-href="/mobilsoft/masraflar?page=#{pg}"><t t-esc="pg"/></a>
+                                </li>
+                            </t>
+                            <li t-attf-class="page-item #{'disabled' if page_num == page_count else ''}">
+                                <a class="page-link" t-attf-href="/mobilsoft/masraflar?page=#{page_num + 1}"><i class="fa fa-chevron-right"/></a>
+                            </li>
+                        </ul>
+                    </nav>
+                </t>
+            </div>
+        </t>
+    </template>
+
+</odoo>

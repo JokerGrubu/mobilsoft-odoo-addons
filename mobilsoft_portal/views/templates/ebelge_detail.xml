@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="ebelge_detail" name="MobilSoft e-Belge Detay">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'ebelge'"/>
+
+            <div class="p-3 p-md-4">
+                <!-- Breadcrumb -->
+                <a href="/mobilsoft/ebelge" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>e-Belgeler
+                </a>
+                <h4 class="fw-bold mt-1 mb-0"><t t-esc="doc.name"/></h4>
+                <div class="d-flex gap-2 mt-1 mb-4">
+                    <span class="badge bg-light text-dark">
+                        <t t-esc="doc_type_map.get(doc.document_type, doc.document_type)"/>
+                    </span>
+                    <span t-attf-class="badge #{doc_state_badge.get(doc.state, 'bg-secondary')}">
+                        <t t-esc="doc_state_map.get(doc.state, doc.state)"/>
+                    </span>
+                    <span t-if="doc.direction == 'outgoing'" class="badge bg-info-subtle text-info">Giden</span>
+                    <span t-if="doc.direction == 'incoming'" class="badge bg-warning-subtle text-warning">Gelen</span>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <!-- Belge Bilgileri -->
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-info-circle me-2 text-muted"/>Belge Bilgileri</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless table-sm mb-0">
+                                    <tbody>
+                                        <tr t-if="doc.ettn">
+                                            <td class="text-muted" style="width:120px;">ETTN</td>
+                                            <td class="fw-semibold" style="font-size:12px;word-break:break-all;"><t t-esc="doc.ettn"/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted">Belge Tarihi</td>
+                                            <td><t t-esc="doc.document_date or '-'"/></td>
+                                        </tr>
+                                        <tr t-if="doc.send_date">
+                                            <td class="text-muted">Gönderim</td>
+                                            <td><t t-esc="doc.send_date"/></td>
+                                        </tr>
+                                        <tr t-if="doc.response_date">
+                                            <td class="text-muted">Yanıt</td>
+                                            <td><t t-esc="doc.response_date"/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted">Cari</td>
+                                            <td>
+                                                <a t-if="doc.partner_id" t-attf-href="/mobilsoft/cariler/#{doc.partner_id.id}" class="ms-link">
+                                                    <t t-esc="doc.partner_id.name"/>
+                                                </a>
+                                                <span t-else="">-</span>
+                                            </td>
+                                        </tr>
+                                        <tr t-if="doc.move_id">
+                                            <td class="text-muted">Fatura</td>
+                                            <td>
+                                                <a t-attf-href="/mobilsoft/faturalar/#{doc.move_id.id}" class="ms-link">
+                                                    <t t-esc="doc.move_id.name"/>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tutar Bilgileri -->
+                    <div class="col-md-6">
+                        <div class="row g-3 h-100">
+                            <div class="col-6">
+                                <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--success h-100">
+                                    <div class="card-body py-3 text-center d-flex flex-column justify-content-center">
+                                        <div class="text-muted small">Vergisiz</div>
+                                        <div class="fw-bold fs-5">₺ <t t-esc="'{:,.2f}'.format(doc.amount_untaxed or 0)"/></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--warning h-100">
+                                    <div class="card-body py-3 text-center d-flex flex-column justify-content-center">
+                                        <div class="text-muted small">KDV</div>
+                                        <div class="fw-bold fs-5">₺ <t t-esc="'{:,.2f}'.format(doc.amount_tax or 0)"/></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--teal">
+                                    <div class="card-body py-3 text-center">
+                                        <div class="text-muted small">Toplam</div>
+                                        <div class="fw-bold fs-3 text-primary">₺ <t t-esc="'{:,.2f}'.format(doc.amount_total or 0)"/></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hata mesajı varsa -->
+                <div t-if="doc.state == 'error' and doc.error_message" class="alert alert-danger">
+                    <i class="fa fa-exclamation-triangle me-1"/>
+                    <strong>Hata:</strong> <t t-esc="doc.error_message"/>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

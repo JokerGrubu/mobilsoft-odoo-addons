@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="irsaliye_detail" name="MobilSoft İrsaliye Detay">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'irsaliyeler'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/irsaliyeler" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>İrsaliyeler
+                </a>
+                <h4 class="fw-bold mt-1 mb-0"><t t-esc="picking.name"/></h4>
+                <div class="d-flex gap-2 mt-1 mb-4">
+                    <span t-attf-class="badge #{state_badge.get(picking.state, 'bg-secondary')}">
+                        <t t-esc="state_map.get(picking.state, picking.state)"/>
+                    </span>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-info-circle me-2 text-muted"/>Bilgiler</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless table-sm mb-0">
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-muted" style="width:120px;">Cari</td>
+                                            <td class="fw-semibold">
+                                                <a t-if="picking.partner_id" t-attf-href="/mobilsoft/cariler/#{picking.partner_id.id}" class="ms-link">
+                                                    <t t-esc="picking.partner_id.name"/>
+                                                </a>
+                                                <span t-else="">-</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted">Planlanan</td>
+                                            <td><t t-esc="picking.scheduled_date and str(picking.scheduled_date)[:10] or '-'"/></td>
+                                        </tr>
+                                        <tr t-if="picking.origin">
+                                            <td class="text-muted">Kaynak</td>
+                                            <td><t t-esc="picking.origin"/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted">Operasyon</td>
+                                            <td><t t-esc="picking.picking_type_id.name"/></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kalemler -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h6 class="mb-0 fw-bold"><i class="fa fa-list me-2 text-muted"/>Kalemler</h6>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:50%;">Ürün</th>
+                                    <th class="text-end">Talep</th>
+                                    <th class="text-end">Yapılan</th>
+                                    <th>Birim</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="lines" t-as="line" t-key="line.id">
+                                    <tr>
+                                        <td class="small fw-semibold"><t t-esc="line.product_id.name"/></td>
+                                        <td class="text-end small"><t t-esc="'{:,.2f}'.format(line.product_uom_qty)"/></td>
+                                        <td class="text-end small"><t t-esc="'{:,.2f}'.format(line.quantity)"/></td>
+                                        <td class="small text-muted"><t t-esc="line.product_uom.name"/></td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

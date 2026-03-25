@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="irsaliye_list" name="MobilSoft İrsaliye Listesi">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'irsaliyeler'"/>
+
+            <div class="p-3 p-md-4">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-0 fw-bold"><i class="fa fa-truck me-2 text-muted"/>İrsaliyeler</h4>
+                        <span class="text-muted small"><t t-esc="total"/> kayıt</span>
+                    </div>
+                    <a href="/mobilsoft/export/irsaliyeler" class="btn btn-sm btn-outline-success">
+                        <i class="fa fa-file-excel-o me-1"/>Excel
+                    </a>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--success">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Giden</div>
+                                <div class="fw-bold fs-5"><t t-esc="giden_count"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--warning">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Gelen</div>
+                                <div class="fw-bold fs-5"><t t-esc="gelen_count"/></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom py-0 d-flex justify-content-between align-items-center flex-wrap">
+                        <ul class="nav nav-tabs border-0">
+                            <li class="nav-item">
+                                <a t-attf-class="nav-link border-0 py-3 #{'active fw-bold' if tab == 'giden' else 'text-muted'}"
+                                   href="/mobilsoft/irsaliyeler?tab=giden">
+                                    Giden <span class="badge bg-success-subtle text-success ms-1"><t t-esc="giden_count"/></span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a t-attf-class="nav-link border-0 py-3 #{'active fw-bold' if tab == 'gelen' else 'text-muted'}"
+                                   href="/mobilsoft/irsaliyeler?tab=gelen">
+                                    Gelen <span class="badge bg-warning-subtle text-warning ms-1"><t t-esc="gelen_count"/></span>
+                                </a>
+                            </li>
+                        </ul>
+                        <form method="get" action="/mobilsoft/irsaliyeler" class="d-flex gap-2 py-2">
+                            <input type="hidden" name="tab" t-att-value="tab"/>
+                            <input type="text" name="q" t-att-value="q" class="form-control form-control-sm" placeholder="Ara..." style="width:140px;"/>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="fa fa-search"/></button>
+                        </form>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>No</th>
+                                    <th>Cari</th>
+                                    <th>Kaynak</th>
+                                    <th>Tarih</th>
+                                    <th class="text-center">Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="pickings" t-as="p" t-key="p.id">
+                                    <tr class="ms-table-row" style="cursor:pointer;" t-attf-onclick="window.location='/mobilsoft/irsaliyeler/#{p.id}'">
+                                        <td class="small fw-semibold"><t t-esc="p.name"/></td>
+                                        <td class="small"><t t-esc="p.partner_id.name or '-'"/></td>
+                                        <td class="small text-muted"><t t-esc="p.origin or '-'"/></td>
+                                        <td class="small text-muted"><t t-esc="p.scheduled_date and str(p.scheduled_date)[:10] or '-'"/></td>
+                                        <td class="text-center">
+                                            <span t-attf-class="badge #{state_badge.get(p.state, 'bg-secondary')}">
+                                                <t t-esc="state_map.get(p.state, p.state)"/>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </t>
+                                <tr t-if="not pickings">
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        <i class="fa fa-inbox fa-2x d-block mb-2 opacity-50"/>
+                                        İrsaliye bulunamadı
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <t t-if="page_count > 1">
+                        <div class="card-footer bg-white d-flex justify-content-center">
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0">
+                                    <li t-attf-class="page-item #{'disabled' if page_num == 1 else ''}">
+                                        <a class="page-link" t-attf-href="/mobilsoft/irsaliyeler?tab=#{tab}&amp;q=#{q}&amp;page=#{page_num - 1}">‹</a>
+                                    </li>
+                                    <t t-foreach="page_range" t-as="pg" t-key="pg">
+                                        <li t-attf-class="page-item #{'active' if pg == page_num else ''}">
+                                            <a class="page-link" t-attf-href="/mobilsoft/irsaliyeler?tab=#{tab}&amp;q=#{q}&amp;page=#{pg}"><t t-esc="pg"/></a>
+                                        </li>
+                                    </t>
+                                    <li t-attf-class="page-item #{'disabled' if page_num == page_count else ''}">
+                                        <a class="page-link" t-attf-href="/mobilsoft/irsaliyeler?tab=#{tab}&amp;q=#{q}&amp;page=#{page_num + 1}">›</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

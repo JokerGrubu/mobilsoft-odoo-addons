@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="siparisler_list" name="MobilSoft Siparişler Liste">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'siparisler'"/>
+
+            <div class="p-3 p-md-4">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-0 fw-bold"><i class="fa fa-shopping-cart me-2 text-muted"/>Teklifler &amp; Siparişler</h4>
+                        <small class="text-muted">
+                            <t t-esc="teklif_count"/> teklif, <t t-esc="siparis_count"/> sipariş
+                        </small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/mobilsoft/export/siparisler" class="btn btn-sm btn-outline-success">
+                            <i class="fa fa-file-excel-o me-1"/>Excel
+                        </a>
+                        <a href="/mobilsoft/siparisler/yeni" class="btn btn-sm ms-btn-brand">
+                            <i class="fa fa-plus me-1"/>Yeni Teklif
+                        </a>
+                    </div>
+                </div>
+
+                <ul class="nav nav-tabs mb-3">
+                    <li class="nav-item">
+                        <a t-attf-class="nav-link #{'active' if tab == 'teklif' else ''}"
+                           t-attf-href="/mobilsoft/siparisler?tab=teklif&amp;q=#{q}">
+                            <i class="fa fa-file-o me-1"/>Teklifler
+                            <span class="badge bg-secondary ms-1"><t t-esc="teklif_count"/></span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a t-attf-class="nav-link #{'active' if tab == 'siparis' else ''}"
+                           t-attf-href="/mobilsoft/siparisler?tab=siparis&amp;q=#{q}">
+                            <i class="fa fa-check-square-o me-1"/>Siparişler
+                            <span class="badge bg-secondary ms-1"><t t-esc="siparis_count"/></span>
+                        </a>
+                    </li>
+                </ul>
+
+                <form method="get" action="/mobilsoft/siparisler" class="mb-3">
+                    <input type="hidden" name="tab" t-att-value="tab"/>
+                    <div class="input-group" style="max-width:400px;">
+                        <span class="input-group-text bg-white"><i class="fa fa-search text-muted"/></span>
+                        <input type="text" name="q" class="form-control" placeholder="Numara veya müşteri ara..." t-att-value="q"/>
+                        <button type="submit" class="btn btn-outline-secondary">Ara</button>
+                    </div>
+                </form>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Numara</th>
+                                    <th>Müşteri</th>
+                                    <th class="d-none d-md-table-cell">Tarih</th>
+                                    <th class="text-end">Tutar</th>
+                                    <th>Durum</th>
+                                    <th style="width:50px;"/>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-if="not orders">
+                                    <tr><td colspan="6" class="text-center text-muted py-5">
+                                        <i class="fa fa-inbox fa-2x d-block mb-2"/>Kayıt bulunamadı.
+                                    </td></tr>
+                                </t>
+                                <t t-foreach="orders" t-as="o" t-key="o.id">
+                                    <tr class="ms-table-row" style="cursor:pointer;"
+                                        t-attf-onclick="window.location='/mobilsoft/siparisler/#{o.id}'">
+                                        <td class="fw-semibold small"><t t-esc="o.name"/></td>
+                                        <td class="small"><t t-esc="o.partner_id.name"/></td>
+                                        <td class="d-none d-md-table-cell small text-muted"><t t-esc="o.date_order"/></td>
+                                        <td class="text-end fw-bold small">₺ <t t-esc="'{:,.2f}'.format(o.amount_total)"/></td>
+                                        <td>
+                                            <span t-if="o.state == 'draft'" class="badge bg-secondary">Teklif</span>
+                                            <span t-if="o.state == 'sent'" class="badge bg-info">Gönderildi</span>
+                                            <span t-if="o.state == 'sale'" class="badge bg-success">Sipariş</span>
+                                            <span t-if="o.state == 'done'" class="badge bg-primary">Kilitli</span>
+                                            <span t-if="o.state == 'cancel'" class="badge bg-dark">İptal</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <a t-attf-href="/mobilsoft/siparisler/#{o.id}" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                               onclick="event.stopPropagation();"><i class="fa fa-chevron-right"/></a>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <t t-if="page_count > 1">
+                    <nav class="mt-3 d-flex justify-content-center">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li t-attf-class="page-item #{'disabled' if page_num == 1 else ''}">
+                                <a class="page-link" t-attf-href="/mobilsoft/siparisler?tab=#{tab}&amp;q=#{q}&amp;page=#{page_num - 1}"><i class="fa fa-chevron-left"/></a>
+                            </li>
+                            <t t-foreach="page_range" t-as="pg" t-key="pg">
+                                <li t-attf-class="page-item #{'active' if pg == page_num else ''}">
+                                    <a class="page-link" t-attf-href="/mobilsoft/siparisler?tab=#{tab}&amp;q=#{q}&amp;page=#{pg}"><t t-esc="pg"/></a>
+                                </li>
+                            </t>
+                            <li t-attf-class="page-item #{'disabled' if page_num == page_count else ''}">
+                                <a class="page-link" t-attf-href="/mobilsoft/siparisler?tab=#{tab}&amp;q=#{q}&amp;page=#{page_num + 1}"><i class="fa fa-chevron-right"/></a>
+                            </li>
+                        </ul>
+                    </nav>
+                </t>
+                <div class="text-center mt-2">
+                    <small class="text-muted">Toplam <t t-esc="total"/> kayıt — Sayfa <t t-esc="page_num"/> / <t t-esc="page_count"/></small>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

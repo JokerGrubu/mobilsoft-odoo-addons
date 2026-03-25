@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="rapor_gelir_gider" name="MobilSoft Gelir Gider Raporu">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'raporlar'"/>
+
+            <div class="p-3 p-md-4">
+                <a href="/mobilsoft/raporlar" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Raporlar
+                </a>
+                <h4 class="fw-bold mt-1 mb-4"><i class="fa fa-line-chart me-2 text-muted"/>Gelir / Gider Raporu</h4>
+
+                <!-- Tarih Filtresi -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body py-3">
+                        <form method="get" action="/mobilsoft/raporlar/gelir-gider" class="row g-2 align-items-end">
+                            <div class="col-auto">
+                                <label class="form-label small fw-semibold mb-1">Başlangıç</label>
+                                <input type="date" name="start" class="form-control form-control-sm" t-att-value="start_date"/>
+                            </div>
+                            <div class="col-auto">
+                                <label class="form-label small fw-semibold mb-1">Bitiş</label>
+                                <input type="date" name="end" class="form-control form-control-sm" t-att-value="end_date"/>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm ms-btn-brand"><i class="fa fa-filter me-1"/>Filtrele</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Özet Kartları -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--success">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Gelir</div>
+                                <div class="fw-bold fs-5 text-success">₺ <t t-esc="'{:,.2f}'.format(total_gelir)"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--danger">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Gider</div>
+                                <div class="fw-bold fs-5 text-danger">₺ <t t-esc="'{:,.2f}'.format(total_gider)"/></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--teal">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">Net Kâr</div>
+                                <div t-attf-class="fw-bold fs-5 #{('text-success' if net_kar >= 0 else 'text-danger')}">
+                                    ₺ <t t-esc="'{:,.2f}'.format(net_kar)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm ms-kpi-card ms-kpi-card--warning">
+                            <div class="card-body py-3 text-center">
+                                <div class="text-muted small">KDV Fark</div>
+                                <div t-attf-class="fw-bold fs-5 #{('text-success' if kdv_fark >= 0 else 'text-danger')}">
+                                    ₺ <t t-esc="'{:,.2f}'.format(kdv_fark)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KDV Detay -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-percent me-2 text-muted"/>KDV Özeti</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless table-sm mb-0">
+                                    <tr>
+                                        <td class="text-muted">Hesaplanan KDV (Satış)</td>
+                                        <td class="text-end fw-semibold text-success">₺ <t t-esc="'{:,.2f}'.format(kdv_tahsil)"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">İndirilecek KDV (Alış)</td>
+                                        <td class="text-end fw-semibold text-danger">₺ <t t-esc="'{:,.2f}'.format(kdv_odenen)"/></td>
+                                    </tr>
+                                    <tr class="border-top">
+                                        <td class="fw-bold">Ödenecek / Devreden KDV</td>
+                                        <td t-attf-class="text-end fw-bold #{('text-danger' if kdv_fark > 0 else 'text-success')}">
+                                            ₺ <t t-esc="'{:,.2f}'.format(kdv_fark)"/>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Aylık Dağılım -->
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-white border-bottom py-3">
+                                <h6 class="mb-0 fw-bold"><i class="fa fa-calendar me-2 text-muted"/>Aylık Dağılım</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Ay</th>
+                                            <th class="text-end">Gelir</th>
+                                            <th class="text-end">Gider</th>
+                                            <th class="text-end">Fark</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-if="not monthly">
+                                            <tr><td colspan="4" class="text-center text-muted py-3">Veri yok</td></tr>
+                                        </t>
+                                        <t t-foreach="monthly" t-as="m" t-key="m[0]">
+                                            <tr>
+                                                <td class="small fw-semibold"><t t-esc="m[0]"/></td>
+                                                <td class="text-end small text-success">₺ <t t-esc="'{:,.2f}'.format(m[1]['gelir'])"/></td>
+                                                <td class="text-end small text-danger">₺ <t t-esc="'{:,.2f}'.format(m[1]['gider'])"/></td>
+                                                <t t-set="fark" t-value="m[1]['gelir'] - m[1]['gider']"/>
+                                                <td t-attf-class="text-end small fw-bold #{('text-success' if fark >= 0 else 'text-danger')}">
+                                                    ₺ <t t-esc="'{:,.2f}'.format(fark)"/>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

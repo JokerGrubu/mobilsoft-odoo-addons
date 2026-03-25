@@ -40,6 +40,18 @@
                             <button name="action_load_image_from_url" string="Görseli İndir" type="object" class="btn-secondary" invisible="not xml_image_url"/>
                         </group>
                     </group>
+                    <group>
+                        <group string="Ürün Detayları">
+                            <field name="xml_brand"/>
+                            <field name="xml_model"/>
+                            <field name="xml_warranty"/>
+                            <field name="xml_origin"/>
+                        </group>
+                        <group string="Ekstra Bilgiler">
+                            <field name="xml_extra2"/>
+                            <field name="xml_extra3"/>
+                        </group>
+                    </group>
                 </page>
             </xpath>
         </field>

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="odeme_form" name="MobilSoft Ödeme/Tahsilat Formu">
+        <t t-call="mobilsoft_portal.portal_layout">
+            <t t-set="page_name" t-value="'odemeler'"/>
+
+            <div class="p-3 p-md-4">
+                <!-- Breadcrumb -->
+                <a href="/mobilsoft/odemeler" class="text-muted small text-decoration-none">
+                    <i class="fa fa-arrow-left me-1"/>Ödemeler
+                </a>
+                <h4 class="fw-bold mt-1 mb-4">
+                    <i t-if="payment_type == 'inbound'" class="fa fa-sign-in me-2 text-success"/>
+                    <i t-if="payment_type == 'outbound'" class="fa fa-sign-out me-2 text-danger"/>
+                    Yeni <t t-esc="payment_type_map.get(payment_type, 'Ödeme')"/>
+                </h4>
+
+                <!-- Hata -->
+                <div t-if="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fa fa-exclamation-triangle me-1"/><t t-esc="error"/>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"/>
+                </div>
+
+                <form action="/mobilsoft/odemeler/kaydet" method="post">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="payment_type" t-att-value="payment_type"/>
+
+                    <div class="row g-4">
+                        <!-- Sol: Form alanları -->
+                        <div class="col-md-7">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold"><i class="fa fa-edit me-2 text-muted"/>Ödeme Bilgileri</h6>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Cari Seçimi -->
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Cari <span class="text-danger">*</span></label>
+                                        <select name="partner_id" class="form-select" required="required" id="partner_select">
+                                            <option value="">— Cari seçin —</option>
+                                            <t t-foreach="partners" t-as="p" t-key="p.id">
+                                                <option t-att-value="p.id"
+                                                        t-att-selected="selected_partner and selected_partner.id == p.id">
+                                                    <t t-esc="p.name"/>
+                                                    <t t-if="p.vat"> — <t t-esc="p.vat"/></t>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+
+                                    <!-- Tutar -->
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Tutar <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">₺</span>
+                                            <input type="number" name="amount" class="form-control" step="0.01" min="0.01"
+                                                   required="required" placeholder="0.00"
+                                                   t-att-value="selected_invoice and '{:.2f}'.format(selected_invoice.amount_residual) or ''"/>
+                                        </div>
+                                    </div>
+
+                                    <!-- Hesap (Kasa/Banka) -->
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Hesap <span class="text-danger">*</span></label>
+                                        <select name="journal_id" class="form-select" required="required">
+                                            <option value="">— Kasa/Banka seçin —</option>
+                                            <t t-foreach="journals" t-as="j" t-key="j.id">
+                                                <option t-att-value="j.id">
+                                                    <t t-esc="j.name"/>
+                                                    (<t t-esc="'Kasa' if j.type == 'cash' else 'Banka'"/>)
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+
+                                    <!-- Tarih -->
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Tarih</label>
+                                        <input type="date" name="date" class="form-control"/>
+                                    </div>
+
+                                    <!-- Referans -->
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Açıklama / Referans</label>
+                                        <input type="text" name="ref" class="form-control" placeholder="Ödeme açıklaması..."/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sağ: Fatura eşleştirme -->
+                        <div class="col-md-5">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom py-3">
+                                    <h6 class="mb-0 fw-bold"><i class="fa fa-link me-2 text-muted"/>Fatura Eşleştirme</h6>
+                                </div>
+                                <div class="card-body" id="invoice_list_container">
+                                    <t t-if="open_invoices">
+                                        <t t-foreach="open_invoices" t-as="inv" t-key="inv.id">
+                                            <div class="form-check py-2 border-bottom">
+                                                <input class="form-check-input invoice-check" type="checkbox"
+                                                       t-att-value="inv.id" t-attf-id="inv_#{inv.id}"
+                                                       t-att-checked="selected_invoice and selected_invoice.id == inv.id"/>
+                                                <label class="form-check-label small w-100" t-attf-for="inv_#{inv.id}">
+                                                    <div class="d-flex justify-content-between">
+                                                        <span class="fw-semibold"><t t-esc="inv.name"/></span>
+                                                        <span class="text-danger fw-bold">₺ <t t-esc="'{:,.2f}'.format(inv.amount_residual)"/></span>
+                                                    </div>
+                                                    <div class="text-muted" style="font-size:11px;">
+                                                        Vade: <t t-esc="inv.invoice_date_due or '-'"/>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </t>
+                                    </t>
+                                    <t t-else="">
+                                        <div class="text-muted small text-center py-3">
+                                            <i class="fa fa-info-circle me-1"/>
+                                            Cari seçtikten sonra ödenmemiş faturalar burada görünecek.
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+
+                            <!-- Seçili fatura ID'leri (hidden) -->
+                            <input type="hidden" name="invoice_ids" id="invoice_ids_input" value=""/>
+                        </div>
+                    </div>
+
+                    <!-- Kaydet -->
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" onclick="collectInvoiceIds()">
+                            <i class="fa fa-check me-1"/>Kaydet ve Onayla
+                        </button>
+                        <a href="/mobilsoft/odemeler" class="btn btn-outline-secondary">İptal</a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Script: Fatura checkbox'larını topla -->
+            <script>
+                function collectInvoiceIds() {
+                    var checks = document.querySelectorAll('.invoice-check:checked');
+                    var ids = [];
+                    checks.forEach(function(c) { ids.push(c.value); });
+                    document.getElementById('invoice_ids_input').value = ids.join(',');
+                }
+            </script>
+        </t>
+    </template>
+
+</odoo>

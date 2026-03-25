@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Ana Portal Layout — Sidebar + Topbar -->
+    <template id="portal_layout" name="MobilSoft Portal Layout">
+        <t t-call="website.layout">
+            <t t-set="no_header" t-value="True"/>
+            <t t-set="no_footer" t-value="True"/>
+
+            <div class="ms-portal">
+                <!-- TOPBAR -->
+                <header class="ms-portal__topbar">
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="ms-portal__hamburger d-md-none" onclick="document.querySelector('.ms-portal__sidebar').classList.toggle('show')">
+                            <i class="fa fa-bars"/>
+                        </button>
+                        <a href="/mobilsoft/" class="text-white text-decoration-none d-flex align-items-center gap-2">
+                            <i class="fa fa-building-o" style="font-size:18px;"/>
+                            <span class="fw-bold">MobilSoft</span>
+                        </a>
+                        <span class="d-none d-sm-inline text-white-50 ms-2" style="font-size:13px;">
+                            <i class="fa fa-angle-right me-1"/>
+                            <t t-esc="request.env.company.name"/>
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-white-50 small d-none d-md-flex align-items-center gap-1">
+                            <i class="fa fa-user-circle-o"/>
+                            <t t-esc="request.env.user.name"/>
+                        </span>
+                        <a href="/mobilsoft/logout" class="btn btn-sm btn-outline-light px-3" style="font-size:12px;">
+                            <i class="fa fa-sign-out me-1"/>Çıkış
+                        </a>
+                    </div>
+                </header>
+
+                <div class="ms-portal__body">
+                    <!-- SIDEBAR -->
+                    <nav class="ms-portal__sidebar">
+                        <div class="py-2">
+                            <div class="ms-portal__nav-section">Modüller</div>
+                            <ul class="list-unstyled mb-0">
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/dashboard</t>
+                                    <t t-set="item_icon">fa fa-home</t>
+                                    <t t-set="item_label">Ana Sayfa</t>
+                                    <t t-set="item_id">dashboard</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/cariler</t>
+                                    <t t-set="item_icon">fa fa-users</t>
+                                    <t t-set="item_label">Cariler</t>
+                                    <t t-set="item_id">cariler</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/urunler</t>
+                                    <t t-set="item_icon">fa fa-cube</t>
+                                    <t t-set="item_label">Ürünler</t>
+                                    <t t-set="item_id">urunler</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/faturalar</t>
+                                    <t t-set="item_icon">fa fa-file-text-o</t>
+                                    <t t-set="item_label">Faturalar</t>
+                                    <t t-set="item_id">faturalar</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/siparisler</t>
+                                    <t t-set="item_icon">fa fa-shopping-cart</t>
+                                    <t t-set="item_label">Siparişler</t>
+                                    <t t-set="item_id">siparisler</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/irsaliyeler</t>
+                                    <t t-set="item_icon">fa fa-truck</t>
+                                    <t t-set="item_label">İrsaliyeler</t>
+                                    <t t-set="item_id">irsaliyeler</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/odemeler</t>
+                                    <t t-set="item_icon">fa fa-money</t>
+                                    <t t-set="item_label">Ödemeler</t>
+                                    <t t-set="item_id">odemeler</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/cek-senet</t>
+                                    <t t-set="item_icon">fa fa-credit-card</t>
+                                    <t t-set="item_label">Çek / Senet</t>
+                                    <t t-set="item_id">cek_senet</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/kasa-banka</t>
+                                    <t t-set="item_icon">fa fa-university</t>
+                                    <t t-set="item_label">Kasa / Banka</t>
+                                    <t t-set="item_id">hesaplar</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/masraflar</t>
+                                    <t t-set="item_icon">fa fa-calculator</t>
+                                    <t t-set="item_label">Masraflar</t>
+                                    <t t-set="item_id">masraflar</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/ebelge</t>
+                                    <t t-set="item_icon">fa fa-file-code-o</t>
+                                    <t t-set="item_label">e-Belge</t>
+                                    <t t-set="item_id">ebelge</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/raporlar</t>
+                                    <t t-set="item_icon">fa fa-line-chart</t>
+                                    <t t-set="item_label">Raporlar</t>
+                                    <t t-set="item_id">raporlar</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/bildirimler</t>
+                                    <t t-set="item_icon">fa fa-bell</t>
+                                    <t t-set="item_label">Bildirimler</t>
+                                    <t t-set="item_id">bildirimler</t>
+                                </t>
+                            </ul>
+
+                            <div class="ms-portal__nav-section mt-3">Araçlar</div>
+                            <ul class="list-unstyled mb-0">
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/calisanlar</t>
+                                    <t t-set="item_icon">fa fa-id-badge</t>
+                                    <t t-set="item_label">Çalışanlar</t>
+                                    <t t-set="item_id">calisanlar</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/pos</t>
+                                    <t t-set="item_icon">fa fa-desktop</t>
+                                    <t t-set="item_label">Kasa (POS)</t>
+                                    <t t-set="item_id">pos</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/pazaryeri</t>
+                                    <t t-set="item_icon">fa fa-shopping-bag</t>
+                                    <t t-set="item_label">CepteTedarik</t>
+                                    <t t-set="item_id">pazaryeri</t>
+                                </t>
+                                <t t-call="mobilsoft_portal.sidebar_item">
+                                    <t t-set="item_url">/mobilsoft/ayarlar</t>
+                                    <t t-set="item_icon">fa fa-cog</t>
+                                    <t t-set="item_label">Ayarlar</t>
+                                    <t t-set="item_id">ayarlar</t>
+                                </t>
+                            </ul>
+                        </div>
+                    </nav>
+
+                    <!-- Sidebar overlay (mobile) -->
+                    <div class="ms-portal__overlay d-md-none" onclick="document.querySelector('.ms-portal__sidebar').classList.remove('show')"/>
+
+                    <!-- MAIN CONTENT -->
+                    <main class="ms-portal__content">
+                        <t t-out="0"/>
+                    </main>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- Sidebar Item Sub-template -->
+    <template id="sidebar_item" name="Sidebar Item">
+        <li>
+            <a t-att-href="item_url"
+               t-attf-class="ms-portal__nav-link #{'active' if page_name == item_id else ''}">
+                <span class="ms-portal__nav-icon"><i t-att-class="item_icon"/></span>
+                <span><t t-esc="item_label"/></span>
+            </a>
+        </li>
+    </template>
+
+</odoo>
