@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- xml.product.source formuna CepteTedarik sekmesi ekle -->
+    <record id="view_xml_source_ceptetedarik" model="ir.ui.view">
+        <field name="name">xml.product.source.ceptetedarik</field>
+        <field name="model">xml.product.source</field>
+        <field name="inherit_id" ref="mobilsoft_xml_import.xml_product_source_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="CepteTedarik" name="ceptetedarik_tab">
+                    <group col="2">
+                        <group string="Yayın Ayarları">
+                            <field name="ceptetedarik_publish"/>
+                            <field name="ceptetedarik_is_dropship"
+                                   invisible="not ceptetedarik_publish"/>
+                            <field name="sku_prefix"
+                                   invisible="not ceptetedarik_publish"/>
+                            <field name="ceptetedarik_company_id"
+                                   invisible="not ceptetedarik_publish"/>
+                        </group>
+                        <group string="Hızlı İşlemler"
+                               invisible="not ceptetedarik_publish">
+                            <div>
+                                <button name="action_publish_on_ceptetedarik"
+                                        type="object"
+                                        string="CepteTedarik'te Yayınla"
+                                        class="btn-primary"
+                                        icon="fa-globe"/>
+                                <p class="text-muted mt-2">
+                                    Bu kaynaktan içe aktarılan tüm ürünleri
+                                    CepteTedarik pazaryerinde yayına alır.
+                                </p>
+                            </div>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="alert"
+                         invisible="ceptetedarik_publish">
+                        <strong>CepteTedarik yayını kapalı.</strong>
+                        Bu kaynaktan içe aktarılan ürünler CepteTedarik'te otomatik yayınlanmayacak.
+                        "CepteTedarik'te Yayınla" seçeneğini açarak etkinleştirebilirsiniz.
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- product.template listesine mobilsoft_marketplace_publish sütunu ekle -->
+    <record id="view_product_template_marketplace" model="ir.ui.view">
+        <field name="name">product.template.marketplace.list</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list/field[@name='name']" position="after">
+                <field name="mobilsoft_marketplace_publish" string="CepteTedarik'te Sat" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

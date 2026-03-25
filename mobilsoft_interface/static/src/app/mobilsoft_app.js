@@ -13,6 +13,7 @@ import { CustomersModule } from "../components/ms_customers/customers";
 import { SalesModule } from "../components/ms_sales/sales";
 import { InvoicesModule } from "../components/ms_invoices/invoices";
 import { StockModule } from "../components/ms_stock/stock";
+import { MarketplaceModule } from "../components/ms_marketplace/marketplace";
 
 /**
  * MobilSoftApp - Ana SPA Shell
@@ -30,6 +31,7 @@ export class MobilSoftApp extends Component {
         SalesModule,
         InvoicesModule,
         StockModule,
+        MarketplaceModule,
     };
 
     setup() {
@@ -196,6 +198,12 @@ export class MobilSoftApp extends Component {
                 id: "integrations",
                 icon: "🔌",
                 label: _t("Entegrasyonlar"),
+                section: "tools",
+            },
+            {
+                id: "marketplace",
+                icon: "🏪",
+                label: _t("CepteTedarik"),
                 section: "tools",
             },
         ];

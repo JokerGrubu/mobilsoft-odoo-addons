@@ -37,6 +37,7 @@ export class MobilSoftHome extends Component {
                 todaySales: 0,
                 pendingInvoices: 0,
                 stockAlerts: 0,
+                ceptetedarikProducts: 0,
             },
             posConfig: null,
             loading: true,
@@ -141,6 +142,16 @@ export class MobilSoftHome extends Component {
                 // POS erişim hatası - sessizce geç
             }
 
+            // CepteTedarik yayinlanan urun sayisi
+            try {
+                const ctCount = await this.orm.searchCount("product.template", [
+                    ["mobilsoft_marketplace_publish", "=", true],
+                ]);
+                if (this._mounted) this.state.stats.ceptetedarikProducts = ctCount;
+            } catch (e) {
+                // mobilsoft_marketplace_publish yoksa sessizce gec
+            }
+
         } catch (e) {
             console.error("MobilSoft dashboard hatası:", e);
         } finally {
@@ -193,6 +204,10 @@ export class MobilSoftHome extends Component {
 
     openNewProduct() {
         this.props.onNavigate("products");
+    }
+
+    openMarketplace() {
+        this.props.onNavigate("marketplace");
     }
 
     formatCurrency(val) {

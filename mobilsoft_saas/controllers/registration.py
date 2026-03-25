@@ -14,7 +14,7 @@ Auth: 'user' - Odoo admin kullanıcısı çağırır, sudo() ile çalışır.
 import json
 import logging
 
-from odoo import http
+from odoo import http, fields
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
@@ -180,6 +180,12 @@ class MobilSoftRegistrationController(http.Controller):
             except Exception as ae:
                 _logger.warning('MobilSoft SaaS: Home action ataması başarısız: %s', ae)
 
+            # ==================== 8. CepteTedarik PORTAL ERİŞİMİ ====================
+            # Firma, MobilSoft'a kayıt olduğunda CepteTedarik portalına da erişim kazanır.
+            # Internal Odoo kullanıcısı /my portala zaten erişebilir.
+            # Ek olarak: firma partner'ını CepteTedarik website'ine bağla.
+            self._setup_ceptetedarik_access(env, company, user)
+
             return {
                 'success': True,
                 'company_id': company.id,
@@ -324,3 +330,40 @@ class MobilSoftRegistrationController(http.Controller):
             json.dumps({'status': 'ok', 'module': 'mobilsoft_saas'}),
             headers=[('Content-Type', 'application/json')]
         )
+
+    def _setup_ceptetedarik_access(self, env, company, user):
+        """
+        Yeni şirket için CepteTedarik portal erişimi kur.
+
+        - Firma partner'ını CepteTedarik websitesiyle ilişkilendir
+        - mobilsoft_tenant = True işaretle
+        - MobilSoft Platform'un child company'si olarak işaretle (zaten Odoo multi-company yapısında)
+        """
+        try:
+            # CepteTedarik website'ini bul (ID=1, ceptetedarik.com)
+            ceptetedarik_website = env['website'].sudo().search([
+                ('domain', 'like', 'ceptetedarik.com')
+            ], limit=1)
+
+            if not ceptetedarik_website:
+                _logger.warning('MobilSoft SaaS: CepteTedarik website bulunamadı, portal kurulumu atlandı')
+                return
+
+            # Firma şirketini MobilSoft kiracısı olarak işaretle
+            company.sudo().write({
+                'mobilsoft_tenant': True,
+                'mobilsoft_registered_date': fields.Datetime.now(),
+            })
+
+            # Firma partner'ının website erişimi: partner zaten Odoo'da var.
+            # Internal user olduğu için /my portala otomatik erişimi var.
+            # Ek bilgi logu:
+            _logger.info(
+                'MobilSoft SaaS: %s şirketi CepteTedarik portalına erişim kazandı '
+                '(website: %s, kullanıcı: %s)',
+                company.name, ceptetedarik_website.name, user.login
+            )
+
+        except Exception as e:
+            _logger.warning('MobilSoft SaaS: CepteTedarik portal kurulumu başarısız: %s', e)
+            # Kritik değil — kayıt devam eder

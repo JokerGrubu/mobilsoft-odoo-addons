@@ -125,6 +125,11 @@
                         </div>
                     </div>
                 </t>
+
+                <!-- CepteTedarik -->
+                <t t-elif="state.currentPage === 'marketplace'">
+                    <MarketplaceModule/>
+                </t>
             </main>
 
         </div>

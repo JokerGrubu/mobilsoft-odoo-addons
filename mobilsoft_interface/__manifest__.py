@@ -62,6 +62,10 @@
             'mobilsoft_interface/static/src/components/ms_stock/stock.js',
             'mobilsoft_interface/static/src/components/ms_stock/stock.xml',
 
+            # CepteTedarik Pazaryeri modülü
+            'mobilsoft_interface/static/src/components/ms_marketplace/marketplace.js',
+            'mobilsoft_interface/static/src/components/ms_marketplace/marketplace.xml',
+
             # Ana SPA Shell (son yüklenmeli - alt bileşenleri import ediyor)
             'mobilsoft_interface/static/src/app/mobilsoft_app.js',
             'mobilsoft_interface/static/src/app/mobilsoft_app.xml',

@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+<t t-name="mobilsoft_interface.MarketplaceModule">
+    <div class="p-3 p-md-4">
+
+        <h3 class="fw-bold mb-3">🛍️ CepteTedarik Pazaryeri</h3>
+
+        <!-- Yuklenme -->
+        <t t-if="state.loading">
+            <div class="d-flex flex-column align-items-center justify-content-center" style="height:40vh;">
+                <div class="ms-spinner-icon mb-3"></div>
+                <span class="text-muted">CepteTedarik verileri yukleniyor...</span>
+            </div>
+        </t>
+
+        <t t-else="">
+            <!-- Bootstrap Tabs -->
+            <ul class="nav nav-tabs mb-3">
+                <li class="nav-item">
+                    <a t-attf-class="nav-link{{ state.activeTab === 'overview' ? ' active' : '' }}"
+                       href="#" t-on-click.prevent="() => setTab('overview')">Genel Bakis</a>
+                </li>
+                <li class="nav-item">
+                    <a t-attf-class="nav-link{{ state.activeTab === 'products' ? ' active' : '' }}"
+                       href="#" t-on-click.prevent="() => setTab('products')">Urunlerim</a>
+                </li>
+                <li class="nav-item">
+                    <a t-attf-class="nav-link{{ state.activeTab === 'orders' ? ' active' : '' }}"
+                       href="#" t-on-click.prevent="() => setTab('orders')">Siparisler</a>
+                </li>
+            </ul>
+
+            <!-- GENEL BAKIS -->
+            <t t-if="state.activeTab === 'overview'">
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    <button class="btn btn-outline-secondary d-flex align-items-center gap-2 px-3 py-2">
+                        <span style="font-size:20px;">📦</span>
+                        <div class="text-start">
+                            <span class="d-block fw-bold text-success"><t t-esc="state.stats.publishedCount"/></span>
+                            <span class="d-block small text-muted">Yayinlanan Urun</span>
+                        </div>
+                    </button>
+                    <button class="btn btn-outline-secondary d-flex align-items-center gap-2 px-3 py-2">
+                        <span style="font-size:20px;">🛒</span>
+                        <div class="text-start">
+                            <span class="d-block fw-bold text-primary"><t t-esc="state.stats.orderCount"/></span>
+                            <span class="d-block small text-muted">Toplam Siparis</span>
+                        </div>
+                    </button>
+                    <button class="btn btn-outline-secondary d-flex align-items-center gap-2 px-3 py-2">
+                        <span style="font-size:20px;">💰</span>
+                        <div class="text-start">
+                            <span class="d-block fw-bold text-warning">₺ <t t-esc="formatCurrency(state.stats.totalRevenue)"/></span>
+                            <span class="d-block small text-muted">Toplam Ciro</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="alert alert-success d-flex align-items-start gap-3">
+                    <span style="font-size:24px;">🌐</span>
+                    <div>
+                        <h6 class="alert-heading fw-bold mb-1">CepteTedarik Nedir?</h6>
+                        <small>Urunleriniz otomatik olarak ceptetedarik.com pazaryerinde yayinlanir.
+                        Diger firmalar sizin urunlerinizi gorup siparis verebilir.
+                        Toggle ile hangi urunlerin gorunur olacagini kontrol edebilirsiniz.</small>
+                    </div>
+                </div>
+            </t>
+
+            <!-- URUNLERIM -->
+            <t t-if="state.activeTab === 'products'">
+                <div class="mb-3">
+                    <input type="text" class="form-control" style="max-width:320px;"
+                           placeholder="Urun ara..."
+                           t-model="state.productSearch"/>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Urun</th>
+                                <th>Kod</th>
+                                <th class="text-end">Fiyat</th>
+                                <th class="text-center">CepteTedarik</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="filteredProducts" t-as="product" t-key="product.id">
+                                <tr>
+                                    <td><t t-esc="product.name"/></td>
+                                    <td class="text-muted"><t t-esc="product.default_code || '-'"/></td>
+                                    <td class="text-end">₺ <t t-esc="formatCurrency(product.list_price)"/></td>
+                                    <td class="text-center">
+                                        <button t-on-click="() => togglePublish(product)"
+                                                t-attf-class="btn btn-sm {{ product.mobilsoft_marketplace_publish ? 'btn-success' : 'btn-outline-secondary' }}">
+                                            <t t-if="product.mobilsoft_marketplace_publish">Yayinda</t>
+                                            <t t-else="">Kapali</t>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </t>
+                            <t t-if="filteredProducts.length === 0">
+                                <tr><td colspan="4" class="text-center text-muted py-4">Urun bulunamadi</td></tr>
+                            </t>
+                        </tbody>
+                    </table>
+                </div>
+            </t>
+
+            <!-- SIPARISLER -->
+            <t t-if="state.activeTab === 'orders'">
+                <t t-if="state.orders.length === 0">
+                    <div class="text-center py-5">
+                        <div style="font-size:48px;" class="mb-3">🛒</div>
+                        <h5 class="text-muted">Henuz Siparis Yok</h5>
+                        <p class="text-muted small">CepteTedarik uzerinden gelen siparisler burada gorunecek.</p>
+                    </div>
+                </t>
+                <t t-else="">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Siparis No</th>
+                                    <th>Musteri</th>
+                                    <th>Tarih</th>
+                                    <th class="text-end">Tutar</th>
+                                    <th>Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="state.orders" t-as="order" t-key="order.id">
+                                    <tr>
+                                        <td class="fw-semibold"><t t-esc="order.name"/></td>
+                                        <td><t t-esc="order.partner_id ? order.partner_id[1] : '-'"/></td>
+                                        <td class="text-muted"><t t-esc="formatDate(order.date_order)"/></td>
+                                        <td class="text-end">₺ <t t-esc="formatCurrency(order.amount_total)"/></td>
+                                        <td><span class="badge bg-info text-dark"><t t-esc="getStateLabel(order.state)"/></span></td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </div>
+</t>
+
+</templates>
