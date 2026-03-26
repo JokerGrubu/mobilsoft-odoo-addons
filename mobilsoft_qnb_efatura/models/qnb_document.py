@@ -804,8 +804,15 @@ class QnbDocument(models.Model):
                 if vkn_elem is not None and vkn_elem.text:
                     result['partner']['vat'] = vkn_elem.text.strip()
 
-                # Firma İsmi
-                result['partner']['name'] = self._get_xml_text(party, './/cac:PartyName/cbc:Name', ns)
+                # Firma/kişi ünvanı
+                partner_name = self._get_xml_text(party, './/cac:PartyName/cbc:Name', ns)
+                if not partner_name:
+                    partner_name = self._get_xml_text(party, './/cac:PartyLegalEntity/cbc:RegistrationName', ns)
+                if not partner_name:
+                    first_name = self._get_xml_text(party, './/cac:Person/cbc:FirstName', ns)
+                    family_name = self._get_xml_text(party, './/cac:Person/cbc:FamilyName', ns)
+                    partner_name = ' '.join(part for part in [first_name, family_name] if part).strip()
+                result['partner']['name'] = partner_name
 
                 # Adres
                 address = party.find('.//cac:PostalAddress', ns)
