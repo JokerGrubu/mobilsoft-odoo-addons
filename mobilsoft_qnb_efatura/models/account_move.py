@@ -1324,3 +1324,135 @@ class AccountMove(models.Model):
         invoices_to_fetch = invoices.filtered(lambda m: m.message_main_attachment_id == m.invoice_pdf_report_id)
         for invoice in invoices_to_fetch:
             invoice._qnb_fetch_outgoing_pdf()
+
+    @api.model
+    def action_qnb_backfill_history(self, start_date='2025-01-01', outgoing_batch_size=500):
+        companies = self.env['res.company'].search([('qnb_enabled', '=', True)])
+        results = []
+        for company in companies:
+            self._qnb_set_last_fetch_date(company, start_date)
+            self._qnb_set_outgoing_last_fetch_date(company, start_date)
+            company_moves = self.with_company(company).with_context(allowed_company_ids=[company.id])
+            company_moves._qnb_fetch_incoming_documents(min_start_date=start_date)
+            company_moves._qnb_fetch_outgoing_documents(batch_size=outgoing_batch_size)
+            delta_days = max((fields.Date.today() - fields.Date.from_string(start_date)).days + 1, 60)
+            company_moves._qnb_reconcile_outgoing_recent(days=delta_days, batch_size=outgoing_batch_size)
+            results.append({
+                'company_id': company.id,
+                'incoming_last_fetch_date': self._qnb_get_last_fetch_date(company),
+                'outgoing_last_fetch_date': fields.Date.to_string(self._qnb_get_outgoing_last_fetch_date(company)),
+            })
+        return results
+
+    @api.model
+    def action_qnb_repair_imported_moves(self, start_date='2025-01-01', limit=500):
+        api_client = self.env['qnb.api.client']
+        repaired = 0
+        line_refilled = 0
+        domains = [
+            ('qnb_ettn', '!=', False),
+            ('move_type', 'in', ['in_invoice', 'in_refund', 'out_invoice', 'out_refund']),
+            '|', ('invoice_date', '=', False), ('invoice_date', '>=', start_date),
+            '|', '|', ('partner_id', '=', False), ('invoice_line_ids', '=', False), ('ref', '=', False),
+        ]
+        moves = self.search(domains, limit=limit, order='id asc')
+        for move in moves:
+            company = move.company_id or self.env.company
+            if move.move_type in ('in_invoice', 'in_refund'):
+                download = api_client.download_incoming_document(move.qnb_ettn, document_type='EFATURA', company=company)
+                direction = 'incoming'
+                tax_use = 'purchase'
+            else:
+                download = api_client.download_outgoing_document(move.qnb_ettn, document_type='FATURA_UBL', company=company, format_type='UBL')
+                direction = 'outgoing'
+                tax_use = 'sale'
+            if not download.get('success'):
+                continue
+
+            xml_bytes = self._qnb_normalize_xml_bytes(download.get('content'))
+            if not xml_bytes:
+                continue
+            parsed = self.env['qnb.document']._parse_invoice_xml_full(xml_bytes, direction=direction)
+            doc_info = parsed.get('document_info') or {}
+            partner_data = parsed.get('partner') or {}
+            fallback = {
+                'vat': (partner_data.get('vat') or '').strip(),
+                'name': (partner_data.get('name') or '').strip(),
+            }
+            is_einvoice = True if move.move_type in ('in_invoice', 'in_refund') else ((doc_info.get('profile') or '').strip().upper() != 'EARSIVFATURA')
+            partner = move.partner_id or self._qnb_find_or_create_partner_from_data(company, partner_data, fallback, is_einvoice)
+
+            vals = {}
+            if partner and not move.partner_id:
+                vals['partner_id'] = partner.id
+            if not move.ref:
+                vals['ref'] = doc_info.get('invoice_id') or move.qnb_ettn
+            if not move.invoice_date:
+                raw = doc_info.get('issue_date')
+                if raw:
+                    try:
+                        if isinstance(raw, str) and len(raw) == 8 and raw.isdigit():
+                            raw = f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
+                        vals['invoice_date'] = fields.Date.from_string(raw)
+                    except Exception:
+                        pass
+            if not move.qnb_uuid and doc_info.get('uuid'):
+                vals['qnb_uuid'] = doc_info.get('uuid')
+            if vals:
+                move.write(vals)
+                repaired += 1
+
+            if not move.invoice_line_ids:
+                invoice_lines = []
+                for line in (parsed.get('lines') or []):
+                    product = self._qnb_find_or_create_product_from_line(company, line, partner=partner)
+                    qty = line.get('quantity') or 1.0
+                    unit_price = line.get('unit_price')
+                    if not unit_price and line.get('line_total') and qty:
+                        try:
+                            unit_price = float(line.get('line_total')) / float(qty)
+                        except Exception:
+                            unit_price = 0.0
+                    line_vals = {
+                        'name': line.get('product_description') or line.get('product_name') or (product.name if product else 'Ürün'),
+                        'quantity': qty,
+                        'price_unit': unit_price or 0.0,
+                    }
+                    if product:
+                        line_vals['product_id'] = product.id
+                    tax = self._qnb_find_tax(company, line.get('tax_percent'), tax_use=tax_use)
+                    if tax:
+                        line_vals['tax_ids'] = [(6, 0, [tax.id])]
+                    invoice_lines.append((0, 0, line_vals))
+                if invoice_lines:
+                    move.write({'invoice_line_ids': invoice_lines})
+                    line_refilled += len(invoice_lines)
+        return {'repaired_moves': repaired, 'refilled_lines': line_refilled}
+
+    @api.model
+    def action_qnb_match_invoice_lines(self, start_date='2025-01-01', limit=5000):
+        matched = 0
+        domain = [
+            ('display_type', '=', False),
+            ('product_id', '=', False),
+            ('move_id.move_type', 'in', ['in_invoice', 'out_invoice', 'in_refund', 'out_refund']),
+            '|', ('move_id.qnb_ettn', '!=', False), ('move_id.l10n_tr_nilvera_uuid', '!=', False),
+            '|', ('move_id.invoice_date', '=', False), ('move_id.invoice_date', '>=', start_date),
+        ]
+        lines = self.env['account.move.line'].search(domain, limit=limit, order='id asc')
+        for line in lines:
+            move = line.move_id
+            product = self._qnb_find_or_create_product_from_line(
+                move.company_id,
+                {
+                    'product_code': False,
+                    'product_name': line.name,
+                    'product_description': line.name,
+                    'barcode': False,
+                },
+                partner=move.partner_id,
+            )
+            if product:
+                line.write({'product_id': product.id})
+                matched += 1
+        return {'matched_lines': matched, 'processed_lines': len(lines)}
