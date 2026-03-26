@@ -52,6 +52,22 @@ class QnbApiClient(models.AbstractModel):
     USER_WSDL_TEST1 = 'https://erpefaturatest1.qnbesolutions.com.tr/efatura/ws/userService?wsdl'
     USER_WSDL_TEST2 = 'https://erpefaturatest2.qnbesolutions.com.tr/efatura/ws/userService?wsdl'
 
+    def _coerce_qnb_date_input(self, value):
+        if not value:
+            return False
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time())
+        if isinstance(value, str):
+            text = value.strip()
+            for fmt in ('%Y-%m-%d', '%Y%m%d', '%Y-%m-%dT%H:%M:%S'):
+                try:
+                    return datetime.strptime(text, fmt)
+                except Exception:
+                    continue
+        return value
+
     def _get_wsdl_url(self, company=None):
         """WSDL URL'sini döndür"""
         if not company:
@@ -774,6 +790,8 @@ class QnbApiClient(models.AbstractModel):
         # QNB outbox için yaygın değerler: FATURA, FATURA_UBL, UYGULAMA_YANITI(_UBL), IRSALIYE(_UBL), ...
         # 'EFATURA' gibi Odoo içi kavramları normalize ediyoruz.
         belge_turu = 'FATURA' if document_type in ('EFATURA', 'EARSIV') else document_type
+        start_date = self._coerce_qnb_date_input(start_date)
+        end_date = self._coerce_qnb_date_input(end_date)
 
         try:
             result = client.service.gidenBelgeleriListele(
