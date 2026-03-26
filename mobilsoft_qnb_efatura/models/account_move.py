@@ -572,7 +572,7 @@ class AccountMove(models.Model):
                 create_vals['country_id'] = self.env.ref('base.tr').id
             if partner_data.get('tax_office') and 'l10n_tr_tax_office_id' in Partner._fields:
                 tax_office = (partner_data.get('tax_office') or '').strip()
-                if tax_office:
+                if tax_office and 'l10n.tr.tax.office' in self.env:
                     tax_rec = self.env['l10n.tr.tax.office'].search([
                         ('name', 'ilike', tax_office)
                     ], limit=1)
