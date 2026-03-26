@@ -1268,10 +1268,14 @@ class XmlProductSource(models.Model):
 
         def _variation_label(parent_product, variation_data):
             attrs = variation_data.get('variation') or variation_data.get('attributes') or []
+            if isinstance(attrs, str):
+                return attrs.replace(':', ': ').strip()
             attr_terms = {attr.get('taxonomy'): {term.get('slug'): term.get('name') for term in (attr.get('terms') or [])}
                           for attr in (parent_product.get('attributes') or []) if attr.get('taxonomy')}
             labels = []
             for attr in attrs:
+                if not isinstance(attr, dict):
+                    continue
                 name = (attr.get('name') or '').strip()
                 value = (attr.get('value') or '').strip()
                 mapped = attr_terms.get(name, {}).get(value)
