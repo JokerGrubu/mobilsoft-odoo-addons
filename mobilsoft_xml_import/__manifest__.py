@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'MobilSoft XML Ürün İçe Aktarma',
-    'version': '19.0.2.9.0',
+    'version': '19.0.2.9.1',
     'category': 'MobilSoft/Integrations',
     'summary': 'XML ile ürün içe/dışa aktarma - Zenginleştirme ve Dropshipping desteği',
     'description': """

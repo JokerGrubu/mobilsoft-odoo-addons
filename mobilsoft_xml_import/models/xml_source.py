@@ -1953,6 +1953,23 @@ class XmlProductSource(models.Model):
                     if detail_url not in data.get('extra_images', []):
                         data['extra_images'].append(detail_url)
 
+        # Varyant normalizasyonu: parantez içini varyant olarak taşı,
+        # ana ürün adı/kodunu ayrı alanlarda sakla.
+        raw_name = str(data.get('name') or '').strip()
+        raw_sku = str(data.get('sku') or '').strip()
+        base_name, variant_from_name = self._extract_base_and_variant(raw_name)
+        base_sku, variant_from_sku = self._extract_base_and_variant(raw_sku)
+        variant_name = variant_from_name or variant_from_sku
+
+        if base_name:
+            data['base_name'] = base_name
+        if base_sku:
+            data['base_sku'] = base_sku
+        if variant_name:
+            data['variant_name'] = variant_name
+            if not data.get('variant_group'):
+                data['variant_group'] = base_sku or base_name
+
         return data
 
     def _classify_usage(self, data):
@@ -2474,7 +2491,7 @@ class XmlProductSource(models.Model):
         ProductT = self.env['product.template'].with_context(active_test=False)
         ProductP = self.env['product.product'].with_context(active_test=False)
 
-        sku = str(data.get('sku', '')).strip() if data.get('sku') else ''
+        sku = str(data.get('base_sku') or data.get('sku') or '').strip()
         sku_prefix = sku.split()[0] if sku else ''
 
         external_product_id = str(data.get('external_product_id', '')).strip() if data.get('external_product_id') else ''
@@ -2488,6 +2505,12 @@ class XmlProductSource(models.Model):
             product = ProductT.search([('xml_stock_id', '=', source_stock_id)], limit=1)
             if product:
                 return product, 'source_stock_id'
+
+        variant_group = str(data.get('variant_group', '')).strip() if data.get('variant_group') else ''
+        if variant_group:
+            product = ProductT.search([('xml_variant_group', '=', variant_group)], limit=1)
+            if product:
+                return product, 'variant_group'
 
         # 0. Odoo standart _retrieve_product (Nilvera/UBL ile aynı mantık) — öncelikli
         product_vals = {}
@@ -3025,6 +3048,9 @@ class XmlProductSource(models.Model):
 
         name = str(data.get('name', '')).strip() if data.get('name') else ''
         sku = str(data.get('sku', '')).strip() if data.get('sku') else ''
+        base_name = str(data.get('base_name') or name).strip()
+        base_sku = str(data.get('base_sku') or sku).strip()
+        variant_name = str(data.get('variant_name') or '').strip()
 
         # ═══════════════════════════════════════════════════════════════
         # PARANTEZDEN VARYANT MODU
@@ -3089,9 +3115,12 @@ class XmlProductSource(models.Model):
 
         sale_price = self._calculate_sale_price(cost_price)
 
+        template_name = base_name if variant_name else data.get('name')
+        template_code = base_sku if variant_name else data.get('sku')
+
         vals = {
-            'name': data.get('name'),
-            'default_code': data.get('sku'),
+            'name': template_name,
+            'default_code': template_code,
             'barcode': data.get('barcode'),
             'description_sale': data.get('description'),
             'list_price': sale_price,
@@ -3338,13 +3367,14 @@ class XmlProductSource(models.Model):
         }
         vals.update(self._normalized_product_defaults(data, protect_core=protect_core))
 
-        # Muhasebeye bağlanmış ürünlerde ad/kod gibi çekirdek kimlikleri oynatma.
-        if data.get('name') and not protect_core:
-            vals['name'] = data['name']
+        variant_name = str(data.get('variant_name') or '').strip()
+        base_name = str(data.get('base_name') or data.get('name') or '').strip()
+        base_sku = str(data.get('base_sku') or data.get('sku') or '').strip()
 
-        # İç referans (default_code) güncelleme
-        if data.get('sku') and not protect_core:
-            base_sku, _ = self._extract_base_and_variant(str(data['sku']).strip())
+        # Muhasebeye bağlanmış ürünlerde ad/kod gibi çekirdek kimlikleri oynatma.
+        if not protect_core:
+            if base_name:
+                vals['name'] = base_name if variant_name else (data.get('name') or base_name)
             if base_sku:
                 vals['default_code'] = base_sku
 
