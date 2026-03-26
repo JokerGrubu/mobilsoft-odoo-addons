@@ -21,9 +21,5 @@
             <field name="interval_number">15</field>
             <field name="interval_type">minutes</field>
         </record>
-        <record id="l10n_tr_nilvera_einvoice.ir_cron_nilvera_get_sale_pdf" model="ir.cron">
-            <field name="interval_number">15</field>
-            <field name="interval_type">minutes</field>
-        </record>
     </data>
 </odoo>
