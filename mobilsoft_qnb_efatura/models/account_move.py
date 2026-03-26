@@ -3,6 +3,7 @@
 import uuid
 import base64
 import logging
+import re
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
@@ -446,6 +447,61 @@ class AccountMove(models.Model):
             value = fields.Date.to_string(value)
         self.env['ir.config_parameter'].sudo().set_param(param_key, value)
 
+    def _qnb_extract_product_codes_from_text(self, *values):
+        codes = []
+        seen = set()
+        pattern = r'\b([A-Z]{2,5}\d{1,5}[A-Z]{0,3}|[A-Z]{1,4}\d{2,6}|[A-Z]{2,6}\d{1,4}[A-Z]{0,4})\b'
+        blacklist = {
+            'ADET', 'KDV', 'TRY', 'USD', 'EUR', 'TL', 'PCS', 'XML', 'UBL',
+            'FATURA', 'EFATURA', 'EARSIV', 'POWERWAY',
+        }
+
+        for value in values:
+            if not value:
+                continue
+            text = str(value).upper()
+            for token in re.findall(pattern, text):
+                token = token.strip()
+                if len(token) < 3 or token in blacklist:
+                    continue
+                if not any(ch.isdigit() for ch in token):
+                    continue
+                if token not in seen:
+                    seen.add(token)
+                    codes.append(token)
+        return codes
+
+    def _qnb_find_product_by_code_candidates(self, candidates, partner=None):
+        Product = self.env['product.product']
+        SupplierInfo = self.env['product.supplierinfo']
+        BarcodeModel = self.env['product.barcode']
+        normalized = [c.strip().upper() for c in candidates if c and c.strip()]
+        if not normalized:
+            return False
+
+        if partner:
+            si = SupplierInfo.search([
+                ('partner_id', '=', partner.id),
+                ('product_code', 'in', normalized),
+            ], limit=1)
+            if si and si.product_tmpl_id:
+                product = Product.search([('product_tmpl_id', '=', si.product_tmpl_id.id)], limit=1)
+                if product:
+                    return product
+
+        product = Product.search([('default_code', 'in', normalized)], limit=1)
+        if product:
+            return product
+
+        barcode_rec = BarcodeModel.search([('name', 'in', normalized)], limit=1)
+        if barcode_rec and barcode_rec.product_id:
+            return barcode_rec.product_id
+
+        product = Product.search([('barcode', 'in', normalized)], limit=1)
+        if product:
+            return product
+        return False
+
     def _qnb_find_or_create_partner_from_data(self, company, partner_data, fallback_data, is_einvoice):
         Partner = self.env['res.partner']
         match_by = company.qnb_match_partner_by or 'vat'
@@ -539,18 +595,24 @@ class AccountMove(models.Model):
 
         product_code = (line_data.get('product_code') or '').strip()
         product_name = (line_data.get('product_name') or line_data.get('product_description') or '').strip()
+        product_description = (line_data.get('product_description') or '').strip()
         barcode = (line_data.get('barcode') or '').strip()
+        code_candidates = []
+
+        if product_code:
+            code_candidates.append(product_code)
+        code_candidates.extend(self._qnb_extract_product_codes_from_text(product_name, product_description))
+        deduped_candidates = []
+        for candidate in code_candidates:
+            candidate = (candidate or '').strip().upper()
+            if candidate and candidate not in deduped_candidates:
+                deduped_candidates.append(candidate)
+        product_code = deduped_candidates[0] if deduped_candidates else product_code
 
         # 1. Tedarikçi + ürün kodu (B2B standart supplierinfo)
-        if product_code and partner:
-            si = self.env['product.supplierinfo'].search([
-                ('partner_id', '=', partner.id),
-                ('product_code', '=', product_code),
-            ], limit=1)
-            if si and si.product_tmpl_id:
-                product = Product.search([('product_tmpl_id', '=', si.product_tmpl_id.id)], limit=1)
-                if product:
-                    return product
+        product = self._qnb_find_product_by_code_candidates(deduped_candidates, partner=partner)
+        if product:
+            return product
 
         # 2. Odoo standart _retrieve_product (barkod → default_code → name)
         product_vals = {}
@@ -627,12 +689,12 @@ class AccountMove(models.Model):
         except Exception:
             return None
 
-    def _qnb_fetch_incoming_documents(self, overlap_days=15, min_start_date='2026-01-01'):
+    def _qnb_fetch_incoming_documents(self, overlap_days=15, min_start_date='2025-01-01'):
         """Gelen e-belgeleri QNB API'den çeker ve Odoo'da draft fatura oluşturur.
 
         Notlar:
         - Eksik belge kalmaması için son çekim tarihinden geriye doğru `overlap_days` kadar da kontrol eder.
-        - 2026+ için draft aktarım hedeflenir; `min_start_date` performans sınırı için kullanılır.
+        - 2025+ için draft aktarım hedeflenir; `min_start_date` performans sınırı için kullanılır.
         - Ürün eşleştirme: XML satırlarından ürün bulur/oluşturur ve fatura satırına bağlar.
         """
         company = self.env.company
@@ -648,7 +710,7 @@ class AccountMove(models.Model):
         try:
             min_start = fields.Date.from_string(min_start_date)
         except Exception:
-            min_start = fields.Date.to_date('2026-01-01')
+            min_start = fields.Date.to_date('2025-01-01')
 
         start_date = max(min_start, last_fetched - timedelta(days=overlap_days))
 
@@ -854,7 +916,7 @@ class AccountMove(models.Model):
         api_client = self.env['qnb.api.client']
         end_date = fields.Date.today()
         start_date = end_date - timedelta(days=days)
-        start_date = max(start_date, fields.Date.to_date('2026-01-01'))
+        start_date = max(start_date, fields.Date.to_date('2025-01-01'))
 
         journal = self._qnb_get_sale_journal(company)
         if not journal:
@@ -1252,7 +1314,7 @@ class AccountMove(models.Model):
         if not companies:
             return
         for company in companies:
-            self.with_company(company)._qnb_fetch_outgoing_documents(batch_size=3)
+            self.with_company(company)._qnb_fetch_outgoing_documents(batch_size=batch_size)
         invoices = self.search([
             ('qnb_state', 'in', ['sent', 'delivered', 'accepted']),
             ('qnb_ettn', '!=', False),
