@@ -52,6 +52,17 @@ class QnbApiClient(models.AbstractModel):
     USER_WSDL_TEST1 = 'https://erpefaturatest1.qnbesolutions.com.tr/efatura/ws/userService?wsdl'
     USER_WSDL_TEST2 = 'https://erpefaturatest2.qnbesolutions.com.tr/efatura/ws/userService?wsdl'
 
+    def _coerce_company(self, company=None):
+        if not company:
+            return self.env.company
+        if isinstance(company, models.BaseModel):
+            return company
+        if isinstance(company, (list, tuple)) and company:
+            company = company[0]
+        if isinstance(company, int):
+            return self.env['res.company'].browse(company)
+        return company
+
     def _coerce_qnb_date_input(self, value):
         if not value:
             return False
@@ -70,8 +81,7 @@ class QnbApiClient(models.AbstractModel):
 
     def _get_wsdl_url(self, company=None):
         """WSDL URL'sini döndür"""
-        if not company:
-            company = self.env.company
+        company = self._coerce_company(company)
 
         if company.qnb_environment == 'test':
             # Şirket ayarlarından özel URL varsa onu kullan
@@ -85,8 +95,7 @@ class QnbApiClient(models.AbstractModel):
         if not ZEEP_INSTALLED:
             raise UserError(_("zeep kütüphanesi kurulu değil. Lütfen 'pip install zeep' komutunu çalıştırın."))
 
-        if not company:
-            company = self.env.company
+        company = self._coerce_company(company)
 
         if not company.qnb_username or not company.qnb_password:
             raise UserError(_("QNB e-Solutions API kullanıcı bilgileri tanımlanmamış. Ayarlar menüsünden yapılandırın."))
@@ -140,8 +149,7 @@ class QnbApiClient(models.AbstractModel):
         QNB API için 10 haneli VKN gerekir. TCKN (11 hane) ile çalışmaz.
         Öncelik: qnb_username > vat (sadece 10 hane ise)
         """
-        if not company:
-            company = self.env.company
+        company = self._coerce_company(company)
 
         # Önce qnb_username'den VKN çıkar (genelde "VKN.ws" formatında)
         if company.qnb_username:
@@ -188,6 +196,7 @@ class QnbApiClient(models.AbstractModel):
         WSDL'e bağlanıp kullanılabilir metodları kontrol et
         """
         try:
+            company = self._coerce_company(company)
             client, history = self._get_client(company)
 
             # WSDL başarıyla yüklendiyse bağlantı başarılı
@@ -246,6 +255,7 @@ class QnbApiClient(models.AbstractModel):
         :param company: Şirket kaydı
         :return: dict - Kullanıcı bilgileri
         """
+        company = self._coerce_company(company)
         client, history = self._get_client(company)
 
         try:
@@ -300,6 +310,7 @@ class QnbApiClient(models.AbstractModel):
         :param company: Şirket kaydı
         :return: bytes - ZIP dosyası içeriği
         """
+        company = self._coerce_company(company)
         client, history = self._get_client(company)
 
         try:
@@ -338,6 +349,7 @@ class QnbApiClient(models.AbstractModel):
         :param document_type: Belge türü (FATURA_UBL, FATURA_CSXML)
         :return: dict - Gönderim sonucu
         """
+        company = self._coerce_company(company)
         client, history = self._get_client(company)
 
         if isinstance(invoice_xml, str):
@@ -389,6 +401,7 @@ class QnbApiClient(models.AbstractModel):
         :param company: Şirket kaydı
         :return: dict - Gönderim sonucu
         """
+        company = self._coerce_company(company)
         client, history = self._get_client(company)
 
         if isinstance(invoice_xml, str):
@@ -434,6 +447,7 @@ class QnbApiClient(models.AbstractModel):
         :param company: Şirket kaydı
         :return: dict - Gönderim sonucu
         """
+        company = self._coerce_company(company)
         client, history = self._get_client(company)
 
         if isinstance(despatch_xml, str):
@@ -497,12 +511,10 @@ class QnbApiClient(models.AbstractModel):
         :param company: Şirket kaydı
         :return: dict - Belge durumu
         """
+        company = self._coerce_company(company)
         client, history = self._get_client(company)
 
         try:
-            if not company:
-                company = self.env.company
-
             vkn = self._get_company_vkn(company)
 
             # WSDL versiyonları farklı olabiliyor:
@@ -588,6 +600,7 @@ class QnbApiClient(models.AbstractModel):
         :param company: Şirket kaydı
         :return: dict - Gelen belgeler listesi
         """
+        company = self._coerce_company(company)
         client, history = self._get_client(company)
 
         try:
@@ -712,13 +725,11 @@ class QnbApiClient(models.AbstractModel):
         :param company: Şirket kaydı
         :return: dict - Belge içeriği
         """
+        company = self._coerce_company(company)
         client, history = self._get_client(company)
 
         try:
             # QNB API signature: vergiTcKimlikNo, belgeEttn, belgeTuru, belgeFormati
-            if not company:
-                company = self.env.company
-
             vkn = self._get_company_vkn(company)
 
             belge_turu = 'FATURA' if document_type == 'EFATURA' else document_type
@@ -778,10 +789,8 @@ class QnbApiClient(models.AbstractModel):
         Giden belgeleri listele
         QNB API Signature: parametreler object içinde tüm parametreler
         """
+        company = self._coerce_company(company)
         client, history = self._get_client(company)
-
-        if not company:
-            company = self.env.company
 
         # VKN'yi al
         vkn = self._get_company_vkn(company)
@@ -850,12 +859,10 @@ class QnbApiClient(models.AbstractModel):
         Giden belgeyi indir (UBL/PDF/HTML)
         QNB API signature: vergiTcKimlikNo, belgeEttn, belgeTuru, belgeFormati
         """
+        company = self._coerce_company(company)
         client, history = self._get_client(company)
 
         try:
-            if not company:
-                company = self.env.company
-
             vkn = self._get_company_vkn(company)
             belge_turu = self._normalize_outgoing_belge_turu(document_type)
 

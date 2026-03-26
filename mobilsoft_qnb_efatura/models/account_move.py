@@ -503,6 +503,41 @@ class AccountMove(models.Model):
             return product
         return False
 
+    def _qnb_normalize_company_name(self, value):
+        text = (value or '').upper().strip()
+        if not text:
+            return ''
+        repl = str.maketrans({
+            'Ç': 'C', 'Ğ': 'G', 'İ': 'I', 'I': 'I', 'Ö': 'O', 'Ş': 'S', 'Ü': 'U',
+            '.': ' ', ',': ' ', ';': ' ', ':': ' ', '/': ' ', '\\': ' ', '-': ' ',
+            '(': ' ', ')': ' ', '&': ' ', "'": ' ', '"': ' ',
+        })
+        text = text.translate(repl)
+        text = re.sub(r'\s+', ' ', text).strip()
+        suffixes = {
+            'ANONIM SIRKETI', 'ANONIM SIRKET', 'LIMITED SIRKETI', 'LIMITED SIRKET',
+            'LTD STI', 'LTD', 'STI', 'AS', 'A S', 'TICARET', 'SANAYI', 'SAN',
+            'VE', 'HIZMETLERI', 'HIZMETLER', 'TEKNOLOJI', 'ELEKTRONIK',
+        }
+        parts = [p for p in text.split(' ') if p and p not in suffixes]
+        return ' '.join(parts).strip()
+
+    def _qnb_find_partner_by_company_name(self, company, name):
+        Partner = self.env['res.partner'].with_company(company)
+        normalized = self._qnb_normalize_company_name(name)
+        if not normalized:
+            return False
+
+        candidates = Partner.search([('is_company', '=', True), ('active', 'in', [True, False])])
+        exact = candidates.filtered(lambda p: self._qnb_normalize_company_name(p.name) == normalized)
+        if exact:
+            return exact[0]
+
+        loose = candidates.filtered(lambda p: normalized in self._qnb_normalize_company_name(p.name))
+        if loose:
+            return loose[0]
+        return False
+
     def _qnb_find_or_create_partner_from_data(self, company, partner_data, fallback_data, is_einvoice):
         Partner = self.env['res.partner']
         match_by = company.qnb_match_partner_by or 'vat'
@@ -531,6 +566,11 @@ class AccountMove(models.Model):
 
         if partner:
             return partner
+
+        if name:
+            partner = self._qnb_find_partner_by_company_name(company, name)
+            if partner:
+                return partner
 
         if create_new and (vat or name):
             vat_number = vat if str(vat).upper().startswith('TR') else (f"TR{vat}" if vat else False)
