@@ -474,7 +474,7 @@ class AccountMove(models.Model):
     def _qnb_find_product_by_code_candidates(self, candidates, partner=None):
         Product = self.env['product.product']
         SupplierInfo = self.env['product.supplierinfo']
-        BarcodeModel = self.env['product.barcode']
+        BarcodeModel = self.env['product.barcode'] if 'product.barcode' in self.env else False
         normalized = [c.strip().upper() for c in candidates if c and c.strip()]
         if not normalized:
             return False
@@ -493,9 +493,10 @@ class AccountMove(models.Model):
         if product:
             return product
 
-        barcode_rec = BarcodeModel.search([('name', 'in', normalized)], limit=1)
-        if barcode_rec and barcode_rec.product_id:
-            return barcode_rec.product_id
+        if BarcodeModel:
+            barcode_rec = BarcodeModel.search([('name', 'in', normalized)], limit=1)
+            if barcode_rec and barcode_rec.product_id:
+                return barcode_rec.product_id
 
         product = Product.search([('barcode', 'in', normalized)], limit=1)
         if product:
