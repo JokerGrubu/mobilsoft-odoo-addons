@@ -7,6 +7,7 @@ Gelen ve giden belgelerin takibi
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import base64
+import binascii
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -184,6 +185,120 @@ class QnbDocument(models.Model):
     def _compute_line_count(self):
         for doc in self:
             doc.line_count = len(doc.line_ids)
+
+    def _qnb_decode_xml_payload(self):
+        self.ensure_one()
+        if not self.xml_content:
+            return b''
+        payload = self.xml_content
+        if isinstance(payload, str):
+            payload = payload.encode('utf-8')
+        try:
+            decoded = base64.b64decode(payload, validate=True)
+            if decoded.lstrip().startswith(b'<'):
+                return decoded
+        except (binascii.Error, ValueError):
+            pass
+        return payload if isinstance(payload, (bytes, bytearray)) else bytes(payload)
+
+    def _qnb_get_import_move_type(self):
+        self.ensure_one()
+        return 'in_invoice' if self.direction == 'incoming' else 'out_invoice'
+
+    def _qnb_get_import_journal(self, move_type):
+        self.ensure_one()
+        company = self.company_id or self.env.company
+        if move_type == 'in_invoice' and company.l10n_tr_nilvera_purchase_journal_id:
+            return company.l10n_tr_nilvera_purchase_journal_id
+        journal_type = 'purchase' if move_type in ('in_invoice', 'in_refund') else 'sale'
+        return self.env['account.journal'].search([
+            *self.env['account.journal']._check_company_domain(company),
+            ('type', '=', journal_type),
+        ], limit=1)
+
+    def _qnb_sync_lines_from_move(self, move):
+        self.ensure_one()
+        invoice_lines = move.invoice_line_ids.filtered(lambda line: not line.display_type and line.product_id)
+        if not invoice_lines:
+            return
+        for doc_line in self.line_ids.filtered(lambda l: not l.product_id):
+            matched_line = invoice_lines.filtered(
+                lambda inv_line:
+                    (doc_line.barcode and inv_line.product_id.barcode == doc_line.barcode)
+                    or (doc_line.product_code and inv_line.product_id.default_code == doc_line.product_code)
+                    or ((doc_line.product_name or '').strip().upper() == (inv_line.product_id.display_name or inv_line.product_id.name or '').strip().upper())
+            )[:1]
+            if matched_line:
+                status = 'matched_barcode' if doc_line.barcode and matched_line.product_id.barcode == doc_line.barcode else 'matched_code'
+                if status != 'matched_barcode' and not doc_line.product_code:
+                    status = 'matched_name'
+                doc_line.write({
+                    'product_id': matched_line.product_id.id,
+                    'match_status': status,
+                    'match_score': 100.0,
+                })
+
+    def _qnb_import_xml_to_move(self):
+        self.ensure_one()
+        if self.move_id:
+            return self.move_id
+        if not self.xml_content:
+            return self.env['account.move']
+
+        existing_move = self.env['account.move'].search([
+            ('company_id', '=', self.company_id.id),
+            '|',
+            ('qnb_ettn', '=', self.ettn),
+            ('ref', '=', self.name),
+        ], limit=1)
+        if existing_move:
+            vals = {'move_id': existing_move.id}
+            if not self.partner_id and existing_move.partner_id:
+                vals['partner_id'] = existing_move.partner_id.id
+            if self.direction == 'incoming':
+                vals['state'] = 'delivered'
+            self.write(vals)
+            self._qnb_sync_lines_from_move(existing_move)
+            return existing_move
+
+        raw_xml = self._qnb_decode_xml_payload()
+        if not raw_xml:
+            return self.env['account.move']
+
+        move_type = self._qnb_get_import_move_type()
+        journal = self._qnb_get_import_journal(move_type)
+        if not journal:
+            raise UserError(_("QNB XML importu için uygun bir yevmiye bulunamadı."))
+
+        attachment = self.env['ir.attachment'].create({
+            'name': self.xml_filename or f"{self.name or self.ettn or 'qnb'}.xml",
+            'raw': raw_xml,
+            'type': 'binary',
+            'mimetype': 'application/xml',
+        })
+        move = journal.with_context(
+            default_move_type=move_type,
+            default_message_main_attachment_id=attachment.id,
+            default_qnb_ettn=self.ettn,
+            default_qnb_state='delivered' if self.direction == 'incoming' else 'sent',
+        )._create_document_from_attachment(attachment.id)
+
+        update_vals = {'qnb_ettn': self.ettn}
+        if self.direction == 'incoming':
+            update_vals['qnb_state'] = 'delivered'
+        move.write(update_vals)
+        if move.ref:
+            attachment.name = f"{move.ref}.xml"
+
+        vals = {
+            'move_id': move.id,
+            'state': 'delivered' if self.direction == 'incoming' else self.state,
+        }
+        if move.partner_id:
+            vals['partner_id'] = move.partner_id.id
+        self.write(vals)
+        self._qnb_sync_lines_from_move(move)
+        return move
 
     def action_send(self):
         """Belgeyi gönder"""
@@ -852,6 +967,26 @@ class QnbDocument(models.Model):
                 }
             }
 
+        if self.xml_content:
+            move = self._qnb_import_xml_to_move()
+            if move:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': '✅ XML İçe Aktarıldı',
+                        'message': f'QNB XML standard Odoo import ile işlendi: {move.name or move.ref}',
+                        'type': 'success',
+                        'sticky': False,
+                        'next': {
+                            'type': 'ir.actions.act_window',
+                            'res_model': 'account.move',
+                            'res_id': move.id,
+                            'views': [[False, 'form']],
+                        }
+                    }
+                }
+
         if not self.partner_id:
             raise UserError(_("Partner bilgisi eksik! Önce XML'den partner eşleştirmesi yapılmalı."))
 
@@ -957,6 +1092,8 @@ class QnbDocument(models.Model):
             'company_id': self.company_id.id,
             'currency_id': self.currency_id.id,
             'invoice_line_ids': invoice_lines,
+            'qnb_ettn': self.ettn,
+            'qnb_state': 'delivered' if self.direction == 'incoming' else 'sent',
         }
 
         invoice = self.env['account.move'].create(invoice_vals)
@@ -1214,6 +1351,11 @@ class QnbDocument(models.Model):
                                     ('name', '=', doc.get('currency', 'TRY'))
                                 ], limit=1).id,
                             })
+                            if new_document.xml_content:
+                                try:
+                                    new_document._qnb_import_xml_to_move()
+                                except Exception as err:
+                                    _logger.warning("QNB standard import failed for %s: %s", new_document.name, err)
                             incoming_count += 1
 
                     # Sonraki aya geç
@@ -1290,21 +1432,22 @@ class QnbDocument(models.Model):
                                 vat_number = (partner_data.get('vat') or '').strip()
                                 partner_name = (partner_data.get('name') or '').strip()
                                 if vat_number or partner_name:
-                                    partner, matched, match_type = self.env['res.partner'].match_or_create_from_external('qnb', {
-                                        'vat': vat_number,
-                                        'name': partner_name,
-                                        'email': partner_data.get('email') or '',
-                                    })
+                                    partner_id = self._find_or_create_partner({
+                                        'sender_vat': vat_number,
+                                        'sender_name': partner_name,
+                                    }, company)
+                                    partner = self.env['res.partner'].browse(partner_id) if partner_id else self.env['res.partner']
 
                             # XML yoksa: liste verisinden partner eşleştir / oluştur
                             if not partner:
                                 recipient_vkn = (doc.get('recipient_vkn') or doc.get('receiver_vkn') or '').strip()
                                 recipient_title = (doc.get('recipient_title') or doc.get('receiver_title') or '').strip()
                                 if recipient_vkn or recipient_title:
-                                    partner, matched, match_type = self.env['res.partner'].match_or_create_from_external('qnb', {
-                                        'vat': recipient_vkn,
-                                        'name': recipient_title or (f'Firma {recipient_vkn}' if recipient_vkn else 'Firma'),
-                                    })
+                                    partner_id = self._find_or_create_partner({
+                                        'sender_vat': recipient_vkn,
+                                        'sender_name': recipient_title or (f'Firma {recipient_vkn}' if recipient_vkn else 'Firma'),
+                                    }, company)
+                                    partner = self.env['res.partner'].browse(partner_id) if partner_id else self.env['res.partner']
 
                             # Belge no boş gelebiliyor; XML içinden ID veya en kötü ETTN ile doldur.
                             doc_no = (doc.get('belge_no') or '').strip()
@@ -1337,7 +1480,7 @@ class QnbDocument(models.Model):
                                         'tax_amount': line_data.get('tax_amount', 0.0),
                                     }))
 
-                            self.create({
+                            new_document = self.create({
                                 'name': doc_no,
                                 'ettn': ettn,
                                 'document_type': odoo_type,
@@ -1357,6 +1500,11 @@ class QnbDocument(models.Model):
                                     ('name', '=', doc.get('currency', 'TRY'))
                                 ], limit=1).id,
                             })
+                            if new_document.xml_content:
+                                try:
+                                    new_document._qnb_import_xml_to_move()
+                                except Exception as err:
+                                    _logger.warning("QNB standard import failed for %s: %s", new_document.name, err)
                             outgoing_count += 1
 
                     # Sonraki döneme geç
