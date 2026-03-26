@@ -57,6 +57,11 @@ class XmlProductSource(models.Model):
         help='HTTP Basic Auth şifresi (opsiyonel)',
     )
 
+    xml_token = fields.Char(
+        string='API Token',
+        help='Token tabanlı servisler için opsiyonel API anahtarı',
+    )
+
     # Index Grup / Netex ayrı feed URL'leri
     xml_stock_url = fields.Char(
         string='Stok XML URL',
