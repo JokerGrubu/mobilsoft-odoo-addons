@@ -12,6 +12,7 @@ import base64
 import time
 from difflib import SequenceMatcher
 from io import BytesIO
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 _logger = logging.getLogger(__name__)
 
@@ -76,6 +77,7 @@ class XmlProductSource(models.Model):
         ('google_rss', 'Google RSS / Merchant Feed'),
         ('opencart', 'OpenCart'),
         ('woocommerce', 'WooCommerce'),
+        ('woocommerce_api', 'WooCommerce API'),
         ('prestashop', 'PrestaShop'),
         ('shopify', 'Shopify'),
         ('magento', 'Magento'),
@@ -364,6 +366,7 @@ class XmlProductSource(models.Model):
             'google_rss': '//rss/channel/item',
             'opencart': '//products/product',
             'woocommerce': '//rss/channel/item',
+            'woocommerce_api': '//products/product',
             'prestashop': '//products/product',
             'shopify': '//products/product',
             'magento': '//products/product',
@@ -497,6 +500,21 @@ class XmlProductSource(models.Model):
                 'category': 'g:product_type',
                 'brand': 'g:brand',
                 'image': 'g:image_link',
+            },
+            'woocommerce_api': {
+                'sku': 'SKU',
+                'barcode': 'Barcode',
+                'name': 'Name',
+                'description': 'Description',
+                'price': 'Price',
+                'cost_price': 'RegularPrice',
+                'stock': 'Stock',
+                'category': 'Category',
+                'brand': 'Brand',
+                'image': 'Image',
+                'images': 'Images/Image',
+                'currency': 'Currency',
+                'extra1': 'Attributes',
             },
             'prestashop': {
                 'sku': 'reference',
@@ -1033,6 +1051,9 @@ class XmlProductSource(models.Model):
         self.ensure_one()
 
         try:
+            if self.xml_template == 'woocommerce_api':
+                return self._fetch_woocommerce_api_xml()
+
             headers = {
                 'User-Agent': (
                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -1128,6 +1149,243 @@ class XmlProductSource(models.Model):
 
         except requests.exceptions.RequestException as e:
             raise UserError(_('XML çekilemedi: %s') % str(e))
+
+    def _build_woocommerce_api_url(self, page=1, per_page=100):
+        """WooCommerce Store API URL'ine sayfalama parametreleri ekle."""
+        parsed = urlparse((self.xml_url or '').strip())
+        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        query['page'] = str(page)
+        query['per_page'] = str(per_page)
+        new_query = urlencode(query)
+        return urlunparse(parsed._replace(query=new_query))
+
+    def _fetch_woocommerce_api_xml(self):
+        """WooCommerce Store API'den ürünleri çekip normalize XML'e dönüştür."""
+        headers = {
+            'User-Agent': (
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/133.0.0.0 Safari/537.36'
+            ),
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+        }
+        auth = None
+        if self.xml_username and self.xml_password:
+            auth = (self.xml_username, self.xml_password)
+
+        session = requests.Session()
+        products = []
+        page = 1
+        per_page = 100
+
+        while True:
+            url = self._build_woocommerce_api_url(page=page, per_page=per_page)
+            response = session.get(
+                url,
+                headers=headers,
+                auth=auth,
+                allow_redirects=True,
+                timeout=(15, 180),
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, list):
+                raise UserError(_('WooCommerce API listesi bekleniyordu, farkli veri dondu.'))
+
+            if not payload:
+                break
+
+            products.extend(payload)
+            total_pages = response.headers.get('X-WP-TotalPages')
+            if total_pages and page >= int(total_pages):
+                break
+            if len(payload) < per_page:
+                break
+            page += 1
+
+        xml_text = self._woocommerce_api_payload_to_xml(products, session, headers, auth)
+        _logger.info("WooCommerce API: %d ürün/variasyon normalize edildi", len(products))
+        return xml_text
+
+    def _woocommerce_api_payload_to_xml(self, products, session, headers, auth):
+        """WooCommerce Store API ürün listesini standart XML parse akışına uydur."""
+
+        def _minor_to_price(price_info):
+            if not price_info:
+                return ''
+            minor_unit = int(price_info.get('currency_minor_unit') or 0)
+            raw = str(price_info.get('price') or price_info.get('regular_price') or '0').strip()
+            if not raw:
+                return ''
+            try:
+                raw_int = int(raw)
+                return str(raw_int / (10 ** minor_unit))
+            except Exception:
+                return raw
+
+        def _minor_to_regular(price_info):
+            if not price_info:
+                return ''
+            minor_unit = int(price_info.get('currency_minor_unit') or 0)
+            raw = str(price_info.get('regular_price') or price_info.get('price') or '0').strip()
+            if not raw:
+                return ''
+            try:
+                raw_int = int(raw)
+                return str(raw_int / (10 ** minor_unit))
+            except Exception:
+                return raw
+
+        def _choose_category(product_data):
+            categories = product_data.get('categories') or []
+            if not categories:
+                return ''
+            names = [c.get('name') for c in categories if c.get('name')]
+            return names[-1] if names else ''
+
+        def _brand_name(product_data):
+            brands = product_data.get('brands') or []
+            return (brands[0].get('name') if brands and brands[0].get('name') else '')
+
+        def _attributes_text(product_data):
+            attrs = []
+            for attr in product_data.get('attributes') or []:
+                terms = [term.get('name') for term in (attr.get('terms') or []) if term.get('name')]
+                if terms:
+                    attrs.append('%s: %s' % (attr.get('name') or '', ', '.join(terms)))
+            return ' | '.join([item for item in attrs if item])
+
+        def _image_urls(product_data):
+            urls = []
+            for image in product_data.get('images') or []:
+                src = (image.get('src') or '').strip()
+                if src and src not in urls:
+                    urls.append(src)
+            return urls
+
+        def _variation_label(parent_product, variation_data):
+            attrs = variation_data.get('variation') or variation_data.get('attributes') or []
+            attr_terms = {attr.get('taxonomy'): {term.get('slug'): term.get('name') for term in (attr.get('terms') or [])}
+                          for attr in (parent_product.get('attributes') or []) if attr.get('taxonomy')}
+            labels = []
+            for attr in attrs:
+                name = (attr.get('name') or '').strip()
+                value = (attr.get('value') or '').strip()
+                mapped = attr_terms.get(name, {}).get(value)
+                if mapped:
+                    value = mapped
+                value = value.replace('-', ' ').strip()
+                if value:
+                    labels.append(value.upper() if value.islower() else value)
+            return ' / '.join(labels)
+
+        def _fetch_variation(variation_id):
+            base_url = (self.xml_url or '').split('?')[0].rstrip('/')
+            response = session.get(
+                '%s/%s' % (base_url, variation_id),
+                headers=headers,
+                auth=auth,
+                allow_redirects=True,
+                timeout=(15, 120),
+            )
+            response.raise_for_status()
+            return response.json()
+
+        root = ET.Element('products')
+
+        for product in products:
+            ptype = (product.get('type') or '').strip().lower()
+            if ptype == 'variation':
+                continue
+
+            rows = []
+            if ptype == 'variable' and product.get('variations'):
+                for variation_ref in product.get('variations') or []:
+                    variation_id = variation_ref.get('id')
+                    if not variation_id:
+                        continue
+                    try:
+                        variation = _fetch_variation(variation_id)
+                    except Exception as exc:
+                        _logger.warning("WooCommerce variation okunamadi (%s): %s", variation_id, exc)
+                        continue
+                    label = _variation_label(product, variation)
+                    rows.append({
+                        'external_id': str(product.get('id') or ''),
+                        'stock_id': str(variation.get('id') or ''),
+                        'variant_group': str(product.get('id') or product.get('sku') or ''),
+                        'name': '%s (%s)' % (product.get('name') or '', label) if label else (product.get('name') or ''),
+                        'sku': (variation.get('sku') or product.get('sku') or '').strip(),
+                        'barcode': '',
+                        'description': variation.get('description') or product.get('description') or '',
+                        'short_description': variation.get('short_description') or product.get('short_description') or '',
+                        'price': _minor_to_price(variation.get('prices') or {}),
+                        'regular_price': _minor_to_regular(variation.get('prices') or product.get('prices') or {}),
+                        'stock': '1' if variation.get('is_in_stock') else '0',
+                        'currency': (variation.get('prices') or product.get('prices') or {}).get('currency_code') or '',
+                        'category': _choose_category(product),
+                        'brand': _brand_name(product),
+                        'attributes': _attributes_text(product),
+                        'images': _image_urls(variation) or _image_urls(product),
+                    })
+            else:
+                rows.append({
+                    'external_id': str(product.get('id') or ''),
+                    'stock_id': str(product.get('id') or ''),
+                    'variant_group': str(product.get('id') or product.get('sku') or ''),
+                    'name': product.get('name') or '',
+                    'sku': (product.get('sku') or '').strip(),
+                    'barcode': '',
+                    'description': product.get('description') or '',
+                    'short_description': product.get('short_description') or '',
+                    'price': _minor_to_price(product.get('prices') or {}),
+                    'regular_price': _minor_to_regular(product.get('prices') or {}),
+                    'stock': '1' if product.get('is_in_stock') else '0',
+                    'currency': (product.get('prices') or {}).get('currency_code') or '',
+                    'category': _choose_category(product),
+                    'brand': _brand_name(product),
+                    'attributes': _attributes_text(product),
+                    'images': _image_urls(product),
+                })
+
+            for row in rows:
+                item = ET.SubElement(root, 'product')
+                for key, value in (
+                    ('SKU', row['sku']),
+                    ('Barcode', row['barcode']),
+                    ('Name', row['name']),
+                    ('Price', row['price']),
+                    ('RegularPrice', row['regular_price']),
+                    ('Stock', row['stock']),
+                    ('Category', row['category']),
+                    ('Brand', row['brand']),
+                    ('Currency', row['currency']),
+                    ('Attributes', row['attributes']),
+                    ('ExternalProductId', row['external_id']),
+                    ('SourceStockId', row['stock_id']),
+                    ('VariantGroup', row['variant_group']),
+                    ('UsageClass', 'commercial'),
+                ):
+                    child = ET.SubElement(item, key)
+                    child.text = value or ''
+
+                desc = ET.SubElement(item, 'Description')
+                desc.text = row['description'] or ''
+                short_desc = ET.SubElement(item, 'ShortDescription')
+                short_desc.text = row['short_description'] or ''
+
+                if row['images']:
+                    img = ET.SubElement(item, 'Image')
+                    img.text = row['images'][0]
+                    images_el = ET.SubElement(item, 'Images')
+                    for image_url in row['images']:
+                        img_el = ET.SubElement(images_el, 'Image')
+                        img_el.text = image_url
+
+        return ET.tostring(root, encoding='unicode')
 
     def _parse_xml(self, xml_content):
         """XML içeriğini parse et"""
