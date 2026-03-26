@@ -6,6 +6,20 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) standardini taki
 
 ---
 
+## [19.0.4.0.0] - 2026-03-26 (Odoo Sync Geliştirme Ortamı)
+
+### Eklenenler
+- **Odoo 19 Multi-DB Transport:** XML-RPC X-Odoo-Database header desteği — multi-DB ortamda 404 hatası düzeltildi
+- **pyproject.toml:** Ruff lint+format, MyPy type check, Pytest yapılandırması
+- **VS Code ayarları:** settings.json ve launch.json (debug konfigürasyonları)
+- **Test altyapısı:** tests/ klasörü — 22 unit test, entegrasyon testleri
+- **Geliştirme workflow:** .agents/workflows/sync-dev.md
+
+### Düzeltmeler
+- **Community URL:** ODOO_COMMUNITY_URL https → http://127.0.0.1:8069 (301 redirect düzeltmesi)
+
+---
+
 ## [19.0.3.0.0] - 2026-02-15 (Pazaryeri, Q-Commerce & Dashboard)
 
 ### Eklenenler
