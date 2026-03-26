@@ -2358,41 +2358,55 @@ class XmlProductSource(models.Model):
                 result['categ_id'] = self.default_category_id.id
             return result
 
-        # Tam kategori yolunu oluştur
         full_category_path = str(category_name).strip()
         if subcategory_name:
             separator = self.category_separator or ' > '
             full_category_path = f"{full_category_path}{separator}{str(subcategory_name).strip()}"
 
-        # 1. Manuel eşleştirmeleri kontrol et
         CategoryMapping = self.env['xml.category.mapping']
         mapping = CategoryMapping.find_mapping(self.id, full_category_path)
-
-        # Alt kategori olmadan da dene
         if not mapping and subcategory_name:
             mapping = CategoryMapping.find_mapping(self.id, str(category_name).strip())
 
+        auto_category = self._find_or_create_category(category_name, subcategory_name)
+        public_parts = self._public_category_path_from_xml(full_category_path)
+        public_leaf = self._find_or_create_public_category_path(public_parts) if public_parts else self.env['product.public.category'].browse()
+
         if mapping:
-            _logger.info(f"Kategori eşleştirmesi bulundu: '{full_category_path}' → "
-                        f"Odoo: {mapping.odoo_category_id.name if mapping.odoo_category_id else 'Yok'}, "
-                        f"E-Ticaret: {[c.name for c in mapping.ecommerce_category_ids]}")
+            _logger.info(
+                "Kategori eşleştirmesi bulundu: '%s' → Odoo: %s, E-Ticaret: %s",
+                full_category_path,
+                mapping.odoo_category_id.name if mapping.odoo_category_id else 'Yok',
+                [c.name for c in mapping.ecommerce_category_ids],
+            )
 
             if mapping.odoo_category_id:
                 result['categ_id'] = mapping.odoo_category_id.id
+            elif auto_category:
+                result['categ_id'] = auto_category.id
+                try:
+                    mapping.write({'odoo_category_id': auto_category.id})
+                except Exception as exc:
+                    _logger.warning("Kategori mapping Odoo kategorisi yazılamadı: %s", exc)
 
             if mapping.ecommerce_category_ids:
                 result['public_categ_ids'] = [(6, 0, mapping.ecommerce_category_ids.ids)]
+            elif public_leaf:
+                result['public_categ_ids'] = [(6, 0, [public_leaf.id])]
+                try:
+                    mapping.write({'ecommerce_category_ids': [(6, 0, [public_leaf.id])]})
+                except Exception as exc:
+                    _logger.warning("Kategori mapping e-ticaret kategorisi yazılamadı: %s", exc)
 
-            # Eğer Odoo kategorisi yoksa varsayılanı kullan
             if not result['categ_id'] and self.default_category_id:
                 result['categ_id'] = self.default_category_id.id
 
             return result
 
-        # 2. Manuel eşleştirme yoksa otomatik eşleştirme yap
-        category = self._find_or_create_category(category_name, subcategory_name)
-        if category:
-            result['categ_id'] = category.id
+        if auto_category:
+            result['categ_id'] = auto_category.id
+        if public_leaf:
+            result['public_categ_ids'] = [(6, 0, [public_leaf.id])]
 
         return result
 
