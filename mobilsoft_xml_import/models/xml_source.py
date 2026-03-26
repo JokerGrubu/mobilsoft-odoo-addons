@@ -2296,6 +2296,23 @@ class XmlProductSource(models.Model):
             _logger.debug("KDV bulunamadı: %s (oran: %.0f)", tax_value, rate)
         return tax
 
+    def _get_tax_vals_from_xml(self, tax_value):
+        """XML vergi değerinden satış ve alış vergisi M2M yazma değerlerini üretir."""
+        sale_tax = self._find_tax_by_value(tax_value)
+        if not sale_tax:
+            return {}
+
+        vals = {'taxes_id': [(6, 0, [sale_tax.id])]}
+
+        purchase_tax = self.env['account.tax'].search([
+            ('type_tax_use', '=', 'purchase'),
+            ('amount', '=', sale_tax.amount),
+            ('active', '=', True),
+        ], limit=1)
+        if purchase_tax:
+            vals['supplier_taxes_id'] = [(6, 0, [purchase_tax.id])]
+        return vals
+
     # ══════════════════════════════════════════════════════════════════════════
     # CATEGORY MATCHING
     # ══════════════════════════════════════════════════════════════════════════
@@ -2860,7 +2877,6 @@ class XmlProductSource(models.Model):
                                 data['price'] = str(pinfo.get('dealer_price', 0) or pinfo.get('cost_price', 0))
                                 if pinfo.get('currency'):
                                     data['currency'] = pinfo['currency']
-                        data = self._extract_product_data(element)
 
                         if not data.get('name'):
                             skipped += 1
@@ -3168,11 +3184,9 @@ class XmlProductSource(models.Model):
         if data.get('extra3'):
             vals['xml_extra3'] = str(data['extra3']).strip()
 
-        # KDV (taxes_id)
+        # Vergiler (satis + alis)
         if data.get('tax'):
-            tax = self._find_tax_by_value(data['tax'])
-            if tax:
-                vals['taxes_id'] = [(6, 0, [tax.id])]
+            vals.update(self._get_tax_vals_from_xml(data['tax']))
 
         product = self.env['product.template'].create(vals)
 
@@ -3426,11 +3440,16 @@ class XmlProductSource(models.Model):
         if data.get('extra3'):
             vals['xml_extra3'] = str(data['extra3']).strip()
 
-        # KDV (taxes_id) — sadece mevcut yoksa ekle, üzerine yazma
-        if data.get('tax') and not product.taxes_id:
-            tax = self._find_tax_by_value(data['tax'])
-            if tax:
-                vals['taxes_id'] = [(6, 0, [tax.id])]
+        # Vergiler (satis + alis)
+        # update_existing acikken XML'den gelen vergi oranini urun kartina uygula.
+        # Gecmis muhasebe hareketleri korunur.
+        if data.get('tax'):
+            tax_vals = self._get_tax_vals_from_xml(data['tax'])
+            if tax_vals:
+                if not product.taxes_id and tax_vals.get('taxes_id'):
+                    vals['taxes_id'] = tax_vals['taxes_id']
+                if not product.supplier_taxes_id and tax_vals.get('supplier_taxes_id'):
+                    vals['supplier_taxes_id'] = tax_vals['supplier_taxes_id']
 
         product.write(vals)
 
