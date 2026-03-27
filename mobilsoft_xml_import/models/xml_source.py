@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import logging
 import re
 import json
+import html
 import base64
 import time
 from difflib import SequenceMatcher
@@ -56,7 +57,6 @@ class XmlProductSource(models.Model):
         string='Şifre',
         help='HTTP Basic Auth şifresi (opsiyonel)',
     )
-
     xml_token = fields.Char(
         string='API Token',
         help='Token tabanlı servisler için opsiyonel API anahtarı',
@@ -83,6 +83,7 @@ class XmlProductSource(models.Model):
         ('opencart', 'OpenCart'),
         ('woocommerce', 'WooCommerce'),
         ('woocommerce_api', 'WooCommerce API'),
+        ('tesan_soap', 'Tesan SOAP'),
         ('prestashop', 'PrestaShop'),
         ('shopify', 'Shopify'),
         ('magento', 'Magento'),
@@ -372,6 +373,7 @@ class XmlProductSource(models.Model):
             'opencart': '//products/product',
             'woocommerce': '//rss/channel/item',
             'woocommerce_api': '//products/product',
+            'tesan_soap': '//Products/Product',
             'prestashop': '//products/product',
             'shopify': '//products/product',
             'magento': '//products/product',
@@ -520,6 +522,21 @@ class XmlProductSource(models.Model):
                 'images': 'Images/Image',
                 'currency': 'Currency',
                 'extra1': 'Attributes',
+            },
+            'tesan_soap': {
+                'sku': 'SKU',
+                'barcode': 'Barcode',
+                'name': 'Name',
+                'description': 'Description',
+                'price': 'Price',
+                'cost_price': 'CostPrice',
+                'stock': 'Stock',
+                'category': 'Category',
+                'brand': 'Brand',
+                'image': 'Image',
+                'images': 'Images/Image',
+                'currency': 'Currency',
+                'extra1': 'SubCategory',
             },
             'prestashop': {
                 'sku': 'reference',
@@ -1058,6 +1075,8 @@ class XmlProductSource(models.Model):
         try:
             if self.xml_template == 'woocommerce_api':
                 return self._fetch_woocommerce_api_xml()
+            if self.xml_template == 'tesan_soap':
+                return self._fetch_tesan_soap_xml()
 
             headers = {
                 'User-Agent': (
@@ -1394,6 +1413,279 @@ class XmlProductSource(models.Model):
                         img_el = ET.SubElement(images_el, 'Image')
                         img_el.text = image_url
 
+        return ET.tostring(root, encoding='unicode')
+
+    def _fetch_tesan_soap_xml(self):
+        """Tesan SOAP servislerinden ürün verilerini çekip normalize XML'e dönüştür."""
+
+        def _soap_url():
+            return (self.xml_url or 'http://www.tesaniletisim.com/webservice/ProductServices.asmx').strip()
+
+        def _soap_envelope(method, body_xml=''):
+            header = (
+                '<soap:Header>'
+                '<AuthUsers xmlns="http://tempuri.org/">'
+                '<userName>%s</userName>'
+                '<password>%s</password>'
+                '<token>%s</token>'
+                '</AuthUsers>'
+                '</soap:Header>'
+            ) % (
+                self.xml_username or '',
+                self.xml_password or '',
+                self.xml_token or '',
+            )
+            body = '<soap:Body><%s xmlns="http://tempuri.org/">%s</%s></soap:Body>' % (
+                method, body_xml or '', method,
+            )
+            return (
+                '<?xml version="1.0" encoding="utf-8"?>'
+                '<soap:Envelope '
+                'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+                'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+                'xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
+                '%s%s</soap:Envelope>'
+            ) % (header, body)
+
+        def _soap_call(method, body_xml=''):
+            headers = {
+                'Content-Type': 'text/xml; charset=utf-8',
+                'SOAPAction': 'http://tempuri.org/%s' % method,
+                'User-Agent': 'mobilsoft_xml_import/tesan_soap',
+            }
+            auth = None
+            if self.xml_username and self.xml_password:
+                auth = (self.xml_username, self.xml_password)
+            response = requests.post(
+                _soap_url(),
+                data=_soap_envelope(method, body_xml).encode('utf-8'),
+                headers=headers,
+                auth=auth,
+                timeout=(15, 300),
+            )
+            response.raise_for_status()
+            return ET.fromstring(response.text)
+
+        def _strip_ns(elem):
+            for el in elem.iter():
+                if '}' in el.tag:
+                    el.tag = el.tag.split('}', 1)[1]
+
+        def _get_text(parent, tag, default=''):
+            el = parent.find(tag)
+            if el is None or el.text is None:
+                return default
+            return el.text.strip()
+
+        def _parse_categories(root):
+            _strip_ns(root)
+            items = []
+            for cat in root.findall('.//GetProductCategoriesResult/ProductCategory'):
+                items.append({
+                    'LowerGroupId': _get_text(cat, 'LowerGroupId'),
+                    'MainGroup': _get_text(cat, 'MainGroup'),
+                    'LowerGroup': _get_text(cat, 'LowerGroup'),
+                    'Departman': _get_text(cat, 'Departman'),
+                    'ProductCatId': _get_text(cat, 'ProductCatId'),
+                    'ProductCat': _get_text(cat, 'ProductCat'),
+                    'ProductTypeId': _get_text(cat, 'ProductTypeId'),
+                    'ProductType': _get_text(cat, 'ProductType'),
+                    'BrandId': _get_text(cat, 'BrandId'),
+                    'Brand': _get_text(cat, 'Brand'),
+                })
+            return items
+
+        def _parse_product_list(root):
+            _strip_ns(root)
+            items = []
+            for product in root.findall('.//GetProductListsResult/ProductList'):
+                items.append({
+                    'StockId': _get_text(product, 'StockId'),
+                    'StockCode': _get_text(product, 'StockCode'),
+                    'ProductCode': _get_text(product, 'ProductCode'),
+                    'Product': _get_text(product, 'Product'),
+                    'Unit': _get_text(product, 'Unit'),
+                    'Tax': _get_text(product, 'Tax'),
+                    'LowerGroupId': _get_text(product, 'LowerGroupId'),
+                    'SpecialCode': _get_text(product, 'SpecialCode'),
+                    'ProductCatId': _get_text(product, 'ProductCatId'),
+                    'ProductTypeId': _get_text(product, 'ProductTypeId'),
+                    'BrandId': _get_text(product, 'BrandId'),
+                    'ProductId': _get_text(product, 'ProductId'),
+                    'ProductStatus': _get_text(product, 'ProductStatus'),
+                    'StockStatus': _get_text(product, 'StockStatus'),
+                    'Barcode': _get_text(product, 'Barcode'),
+                })
+            return items
+
+        def _parse_features(root):
+            _strip_ns(root)
+            out = {}
+            for feat in root.findall('.//GetProductFeaturesResult/ProductFeatures'):
+                product_id = _get_text(feat, 'ProductId')
+                features = _get_text(feat, 'Features')
+                if product_id and features:
+                    out[product_id] = html.unescape(features)
+            return out
+
+        def _parse_images(root):
+            _strip_ns(root)
+            out = {}
+            for image in root.findall('.//GetProductImagesResult/ProductImages'):
+                stock_id = _get_text(image, 'StockId')
+                url = _get_text(image, 'Image')
+                if stock_id and url:
+                    out.setdefault(stock_id, []).append(url)
+            return out
+
+        def _parse_prices(root):
+            _strip_ns(root)
+            out = {}
+            for price in root.findall('.//GetStockPricesResult/StockPrice'):
+                stock_id = _get_text(price, 'StockId')
+                product_id = _get_text(price, 'ProductId')
+                if stock_id and product_id:
+                    out[(stock_id, product_id)] = {
+                        'Price': _get_text(price, 'Price'),
+                        'Currency': _get_text(price, 'Currency'),
+                        'StandartPrice': _get_text(price, 'StandartPrice'),
+                        'StandartPriceCurrency': _get_text(price, 'StandartPriceCurrency'),
+                    }
+            return out
+
+        def _parse_stocks(root):
+            _strip_ns(root)
+            out = {}
+            for stock in root.findall('.//GetWareHouseStocksResult/WareHouseStock'):
+                stock_id = _get_text(stock, 'StockId')
+                product_id = _get_text(stock, 'ProductId')
+                qty = _get_text(stock, 'Quantity')
+                if not stock_id or not product_id:
+                    continue
+                try:
+                    quantity = int(float(qty))
+                except Exception:
+                    quantity = 0
+                key = (stock_id, product_id)
+                out[key] = out.get(key, 0) + quantity
+            return out
+
+        def _best_category(categories, product):
+            if not categories:
+                return {}
+            full_key = (
+                product.get('LowerGroupId'),
+                product.get('ProductCatId'),
+                product.get('ProductTypeId'),
+                product.get('BrandId'),
+            )
+            for category in categories:
+                if (
+                    category.get('LowerGroupId'),
+                    category.get('ProductCatId'),
+                    category.get('ProductTypeId'),
+                    category.get('BrandId'),
+                ) == full_key:
+                    return category
+            for category in categories:
+                if category.get('ProductCatId') and category.get('ProductCatId') == product.get('ProductCatId'):
+                    return category
+            for category in categories:
+                if category.get('LowerGroupId') and category.get('LowerGroupId') == product.get('LowerGroupId'):
+                    return category
+            return categories[0]
+
+        def _classify_usage(name, main_group, lower_group, description):
+            haystack = ' '.join([name or '', main_group or '', lower_group or '', description or '']).lower()
+            service_tokens = (
+                ' hizmet', 'gider', 'masraf', 'nakliye', 'kargo', 'akaryakit',
+                'telekom', 'seyahat', 'abonelik', 'komisyon', 'premium', 'kep',
+            )
+            operational_tokens = ('ambalaj', 'karton', 'bant', 'etiket', 'paketleme', 'koli')
+            internal_tokens = ('demirbas', 'demirbaş', 'ofis', 'raf', 'ates olcer', 'ateş ölçer')
+            if any(token in haystack for token in service_tokens):
+                return 'service'
+            if any(token in haystack for token in operational_tokens):
+                return 'operational'
+            if any(token in haystack for token in internal_tokens):
+                return 'internal'
+            return 'commercial'
+
+        def _variant_group(sku, name, product_id, stock_id):
+            base_sku = (sku or '').strip().split()[0]
+            base_name = (name or '').strip()
+            if '(' in base_name and ')' in base_name:
+                base_name = base_name.split('(', 1)[0].strip()
+            return base_sku or base_name or product_id or stock_id or ''
+
+        if not (self.xml_username and self.xml_password and self.xml_token):
+            raise UserError(_('Tesan SOAP için kullanıcı adı, şifre ve token zorunludur.'))
+
+        categories = _parse_categories(_soap_call('GetProductCategories'))
+        products = _parse_product_list(_soap_call('GetProductLists', '<_departman>0</_departman>'))
+        features = _parse_features(_soap_call('GetProductFeatures'))
+        images = _parse_images(_soap_call('GetProductImages'))
+        prices = _parse_prices(_soap_call('GetStockPrices'))
+        stocks = _parse_stocks(_soap_call('GetWareHouseStocks'))
+
+        root = ET.Element('Products', attrib={'generated_at': datetime.utcnow().isoformat() + 'Z'})
+
+        for product in products:
+            if product.get('ProductStatus', '').lower() not in ('true', '1', 'yes'):
+                continue
+
+            stock_id = product.get('StockId', '')
+            product_id = product.get('ProductId', '')
+            price_key = (stock_id, product_id)
+            category = _best_category(categories, product)
+            main_group = category.get('MainGroup') or category.get('Departman') or ''
+            lower_group = category.get('LowerGroup') or category.get('ProductCat') or ''
+            brand = category.get('Brand') or ''
+            sku = product.get('ProductCode') or product.get('StockCode') or ''
+            barcode = product.get('Barcode') or ''
+            name = product.get('Product') or ''
+            description = features.get(product_id, '')
+            price_info = prices.get(price_key, {})
+            usage_class = _classify_usage(name, main_group, lower_group, description)
+            variant_group = _variant_group(sku, name, product_id, stock_id)
+            image_urls = images.get(stock_id, [])
+            stock_qty = stocks.get(price_key, 0)
+
+            item = ET.SubElement(root, 'Product')
+            for tag, value in (
+                ('SKU', sku),
+                ('Barcode', barcode),
+                ('Name', name),
+                ('Description', description),
+                ('Category', main_group),
+                ('SubCategory', lower_group),
+                ('Brand', brand),
+                ('Price', price_info.get('Price', '')),
+                ('CostPrice', price_info.get('StandartPrice', '') or price_info.get('Price', '')),
+                ('Currency', price_info.get('Currency', '') or price_info.get('StandartPriceCurrency', '')),
+                ('Stock', str(stock_qty)),
+                ('Tax', product.get('Tax') or ''),
+                ('ProductId', product_id),
+                ('StockId', stock_id),
+                ('ExternalProductId', product_id),
+                ('SourceStockId', stock_id),
+                ('VariantGroup', variant_group),
+                ('UsageClass', usage_class),
+                ('SpecialCode', product.get('SpecialCode') or ''),
+                ('Unit', product.get('Unit') or ''),
+            ):
+                child = ET.SubElement(item, tag)
+                child.text = value or ''
+
+            if image_urls:
+                image = ET.SubElement(item, 'Image')
+                image.text = image_urls[0]
+                images_el = ET.SubElement(item, 'Images')
+                for image_url in image_urls:
+                    image_el = ET.SubElement(images_el, 'Image')
+                    image_el.text = image_url
+
+        _logger.info("Tesan SOAP: %d ürün normalize edildi", len(root.findall('./Product')))
         return ET.tostring(root, encoding='unicode')
 
     def _parse_xml(self, xml_content):
@@ -1934,6 +2226,15 @@ class XmlProductSource(models.Model):
                         data['extra_images'].append(detail_url)
 
         return data
+
+    def _should_skip_product_data(self, data):
+        """İçe aktarım öncesi ürün bazlı atlama kuralları."""
+        category = (data.get('category') or '').strip().upper()
+        extra1 = (data.get('extra1') or '').strip().upper()
+        combined = ' '.join([category, extra1])
+        if 'YEDEK PARÇA' in combined or 'YEDEK PARCA' in combined:
+            return True, _('Yedek parçalar kategorisi atlandı')
+        return False, False
 
     def _classify_usage(self, data):
         """XML ürününü ticari / iç kullanım / hizmet sınıfına ayır."""
@@ -2830,6 +3131,12 @@ class XmlProductSource(models.Model):
 
                         if not data.get('name'):
                             skipped += 1
+                            continue
+
+                        skip_product, skip_reason = self._should_skip_product_data(data)
+                        if skip_product:
+                            skipped += 1
+                            _logger.info('XML import skip: %s - %s', data.get('name'), skip_reason)
                             continue
 
                         # Fiyat kontrolü
