@@ -3388,7 +3388,7 @@ class XmlProductSource(models.Model):
         if data.get('stock'):
             try:
                 vals['xml_supplier_stock'] = int(data.get('stock'))
-            except:
+            except (ValueError, TypeError):
                 pass
 
         # Kategori eşleştirme (manuel + otomatik)
@@ -3409,14 +3409,14 @@ class XmlProductSource(models.Model):
         if data.get('weight'):
             try:
                 vals['weight'] = float(data['weight'])
-            except:
+            except (ValueError, TypeError):
                 pass
 
         if data.get('deci'):
             try:
                 vals['volume'] = float(data['deci'])
                 vals['deci'] = float(data['deci'])
-            except:
+            except (ValueError, TypeError):
                 pass
 
         # Marka
@@ -3635,7 +3635,7 @@ class XmlProductSource(models.Model):
                     if usage_class == 'commercial' and stock_qty >= self.min_stock and not product.sale_ok:
                         vals['sale_ok'] = True
                         _logger.info(f"Stok yeterli ({stock_qty}) - ürün satışa tekrar açıldı: {product.name}")
-                except:
+                except (ValueError, TypeError):
                     pass
             elif not self.update_only_if_value:
                 # update_only_if_value kapalıysa, değer olmasa da güncelle (0 yap)

@@ -1,6 +1,9 @@
 import json
+import logging
 
 from odoo import api, fields, models
+
+_logger = logging.getLogger(__name__)
 
 
 class MarketplaceSyncLog(models.Model):
@@ -73,7 +76,8 @@ class MarketplaceSyncLog(models.Model):
             return {}
         try:
             return json.loads(self.error_details)
-        except:
+        except json.JSONDecodeError as e:
+            _logger.warning("Sync log error_details JSON parse hatası (id=%s): %s", self.id, e)
             return {}
 
     def set_error_details(self, error_dict):

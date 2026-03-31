@@ -200,7 +200,8 @@ class MarketplaceChannel(models.Model):
             return {}
         try:
             return json.loads(self.category_mapping)
-        except:
+        except json.JSONDecodeError as e:
+            _logger.warning("Kanal kategori eşleştirme JSON parse hatası (id=%s): %s", self.id, e)
             return {}
 
     def set_category_mapping(self, mapping_dict):

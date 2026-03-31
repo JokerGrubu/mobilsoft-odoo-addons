@@ -1,7 +1,10 @@
 import json
+import logging
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class MarketplaceProduct(models.Model):
@@ -119,7 +122,8 @@ class MarketplaceProduct(models.Model):
             return {}
         try:
             return json.loads(self.extra_data)
-        except:
+        except json.JSONDecodeError as e:
+            _logger.warning("Ürün extra_data JSON parse hatası (id=%s): %s", self.id, e)
             return {}
 
     def set_extra_data(self, data_dict):

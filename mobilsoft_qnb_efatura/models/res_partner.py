@@ -120,8 +120,8 @@ class ResPartner(models.Model):
                 if self._check_nilvera_customer():
                     self.qnb_last_check_date = fields.Datetime.now()
                     return True
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.debug("Nilvera müşteri kontrolü başarısız (id=%s): %s", self.id, e)
 
         # Nilvera yoksa QNB/GİB (geriye uyumluluk)
         api_client = self.env['qnb.api.client']
@@ -196,8 +196,8 @@ class ResPartner(models.Model):
         if hasattr(self, '_check_nilvera_customer'):
             try:
                 self._check_nilvera_customer()
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.debug("Nilvera müşteri kontrolü başarısız (id=%s): %s", self.id, e)
 
         return {
             'type': 'ir.actions.client',
@@ -276,8 +276,8 @@ class ResPartner(models.Model):
                 decoded = base64.b64decode(raw, validate=True)
                 if decoded.strip().startswith(b'<'):
                     xml_bytes = decoded
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.debug("base64 decode başarısız, ham veri kullanılıyor (doc id=%s): %s", doc.id, e)
             parsed = doc._parse_invoice_xml_full(xml_bytes, direction=doc.direction)
             partner_data = (parsed or {}).get('partner') or {}
             vat_raw = partner_data.get('vat') or ''
@@ -310,7 +310,8 @@ class ResPartner(models.Model):
                 elif att.datas:
                     try:
                         xml_bytes = base64.b64decode(att.datas)
-                    except Exception:
+                    except Exception as e:
+                        _logger.debug("Ek dosya base64 decode hatası (att id=%s): %s", att.id, e)
                         continue
                 if not xml_bytes or not xml_bytes.strip().startswith(b'<'):
                     continue
@@ -794,8 +795,8 @@ class ResPartner(models.Model):
                             if (title or alias_name) and not partner_data:
                                 updated += 1
                                 continue
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        _logger.debug("Nilvera alias/durum güncelleme başarısız (partner id=%s): %s", partner.id, e)
                 if not partner_data and partner.street and (not partner.city or not partner.state_id):
                     # Abdül Vehap Aktaş Bakkal vb: Nilvera/QNB veri yok, adresten il/ilçe parse
                     partner_data = {'street': partner.street}
@@ -808,8 +809,8 @@ class ResPartner(models.Model):
                     if hasattr(partner, '_check_nilvera_customer'):
                         try:
                             partner._check_nilvera_customer()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            _logger.debug("Nilvera müşteri kontrolü başarısız (partner id=%s): %s", partner.id, e)
                     updated += 1
             except Exception as e:
                 errors += 1
@@ -1006,7 +1007,8 @@ class ResPartner(models.Model):
                 break
             try:
                 partner._check_qnb_customer()
-            except Exception:
+            except Exception as e:
+                _logger.warning("Cron QNB müşteri kontrolü başarısız (partner id=%s): %s", partner.id, e)
                 continue
 
         return True

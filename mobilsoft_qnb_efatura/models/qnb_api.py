@@ -272,7 +272,8 @@ class QnbApiClient(models.AbstractModel):
                         urun='EFATURA',
                         gecmisEklensin=1
                     )
-                except Exception:
+                except Exception as e:
+                    _logger.debug("İlk WSDL çağrısı başarısız, alternatif format deneniyor: %s", e)
                     result = client.service.kayitliKullaniciListeleExtended(
                         parametreler={
                             'urun': 'EFATURA',
@@ -319,7 +320,8 @@ class QnbApiClient(models.AbstractModel):
                     urun='EFATURA',
                     gecmisEklensin=1
                 )
-            except Exception:
+            except Exception as e:
+                _logger.debug("İlk WSDL çağrısı başarısız, alternatif format deneniyor: %s", e)
                 result = client.service.kayitliKullaniciListeleExtended(
                     parametreler={
                         'urun': 'EFATURA',
@@ -676,7 +678,7 @@ class QnbApiClient(models.AbstractModel):
                             if not attr.startswith('_'):
                                 try:
                                     doc_dict[attr] = getattr(doc, attr)
-                                except:
+                                except (AttributeError, TypeError):
                                     pass
 
                     documents.append({
@@ -832,7 +834,7 @@ class QnbApiClient(models.AbstractModel):
                             if not attr.startswith('_'):
                                 try:
                                     doc_dict[attr] = getattr(doc, attr)
-                                except:
+                                except (AttributeError, TypeError):
                                     pass
 
                     documents.append({

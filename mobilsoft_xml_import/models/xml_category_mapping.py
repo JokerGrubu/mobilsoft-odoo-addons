@@ -104,7 +104,7 @@ class XmlCategoryMapping(models.Model):
                 try:
                     if re.match(m.xml_category, xml_category_name):
                         return m
-                except:
+                except re.error:
                     pass
 
         return False

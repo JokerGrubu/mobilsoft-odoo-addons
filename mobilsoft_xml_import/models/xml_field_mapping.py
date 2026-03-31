@@ -122,7 +122,7 @@ class XmlFieldMapping(models.Model):
             value = value.replace(',', '.')
             try:
                 value = str(float(value))
-            except:
+            except (ValueError, TypeError):
                 pass
         
         elif self.transform == 'price':
@@ -130,7 +130,7 @@ class XmlFieldMapping(models.Model):
             value = value.replace('.', '').replace(',', '.')
             try:
                 value = str(float(value))
-            except:
+            except (ValueError, TypeError):
                 pass
         
         elif self.transform == 'html_strip':
@@ -141,7 +141,7 @@ class XmlFieldMapping(models.Model):
         elif self.transform == 'regex' and self.regex_pattern:
             try:
                 value = re.sub(self.regex_pattern, self.regex_replace or '', value)
-            except:
+            except re.error:
                 pass
         
         return value or self.default_value
