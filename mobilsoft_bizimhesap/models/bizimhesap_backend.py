@@ -1741,15 +1741,16 @@ class BizimHesapBackend(models.Model):
         - quantity: Stok miktarı
         """
         # ── KDV oranı (fiyat hesabı için önce belirlenir) ──────────────────────
-        tax_rate = float(data.get('tax', 0) or 0)
+        tax_rate = max(0.0, float(data.get('tax', 0) or 0))  # negatif KDV geçersiz
 
         # BizimHesap 'price' KDV DAHİL → Odoo list_price KDV HARİÇ
         price_incl_tax = float(data.get('price', 0) or 0)
         list_price = round(price_incl_tax / (1 + tax_rate / 100), 2) if tax_rate > 0 else price_incl_tax
 
         # BizimHesap 'buyingPrice' USD cinsinden → şirket para birimine (TRY) çevir
+        # supplier_currency_rate=0 geçersiz; güvenli varsayılan 1.0
         buying_price_usd = float(data.get('buyingPrice', 0) or 0)
-        rate = self.supplier_currency_rate or 1.0
+        rate = self.supplier_currency_rate if self.supplier_currency_rate else 1.0
         standard_price = round(buying_price_usd * rate, 2)
 
         # ── Satın alma notu: orijinal note + Marka + Kategori ──────────────────
@@ -1793,7 +1794,8 @@ class BizimHesapBackend(models.Model):
         uom = self.env['uom.uom'].search([('name', 'ilike', odoo_unit)], limit=1)
         if uom:
             vals['uom_id'] = uom.id
-            # uom_po_id product.template üzerinde tanımlı; _inherits delegation ile yazılır
+        # uom_po_id product.template üzerinde tanımlı; _inherits delegation ile product.product'a yazılır.
+            # purchase modülü yüklü değilse alan mevcut olmayabilir.
             if 'uom_po_id' in self.env['product.template']._fields:
                 vals['uom_po_id'] = uom.id
 
@@ -1818,7 +1820,8 @@ class BizimHesapBackend(models.Model):
         # ── Tedarikçi fiyatı (product.supplierinfo) ───────────────────────────
         if self.sync_supplier_price and self.product_supplier_id:
             if buying_price_usd > 0:
-                supplier_price_try = round(buying_price_usd * rate, 2)
+                # standard_price zaten TRY'ye çevrilmiş; aynı değeri tedarikçi fiyatı olarak kullan
+                supplier_price_try = standard_price
                 Product = self.env['product.product']
                 if 'xml_supplier_id' in Product._fields and 'xml_supplier_price' in Product._fields:
                     vals['xml_supplier_id'] = self.product_supplier_id.id
@@ -1947,7 +1950,7 @@ class BizimHesapBackend(models.Model):
         if not date_str:
             return False
         try:
-            return str(date_str).split('T')[0][:10]
+            return str(date_str).split('T')[0]
         except Exception:
             return False
 
