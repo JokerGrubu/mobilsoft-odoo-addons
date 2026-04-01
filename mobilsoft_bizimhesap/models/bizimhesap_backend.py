@@ -1249,10 +1249,13 @@ class BizimHesapBackend(models.Model):
         # None değerleri temizle
         vals = {k: v for k, v in vals.items() if v is not None}
         
-        # Cari tipi: 1=Müşteri, 2=Tedarikçi
+        # Cari tipi: 1=Müşteri, 2=Tedarikçi, 3=Her ikisi
         if contact_type == 1:
             vals['customer_rank'] = 1
         elif contact_type == 2:
+            vals['supplier_rank'] = 1
+        elif contact_type == 3:
+            vals['customer_rank'] = 1
             vals['supplier_rank'] = 1
         
         # Vergi dairesi
@@ -1288,10 +1291,23 @@ class BizimHesapBackend(models.Model):
         return partner_vat == incoming_vat_norm
 
     def _get_missing_partner_vals(self, partner, incoming_vals):
-        """Sadece eksik alanları güncellemek için vals filtrele."""
+        """
+        Sadece eksik alanları güncelle; BizimHesap bakiye alanları her zaman güncellenir.
+
+        Kural:
+        - Standart partner alanları (name, phone, vat…) → sadece boşsa doldurulur
+        - bizimhesap_* bakiye/senkron alanları → her seferinde güncel değer yazılır
+        """
         if not incoming_vals:
             return {}
         skip_fields = {'company_id'}
+        # Bu alanlar her sync'te mutlaka güncellenir (bakiye ve senkron meta verileri)
+        always_update_fields = {
+            'bizimhesap_balance',
+            'bizimhesap_cheque_bond',
+            'bizimhesap_currency',
+            'bizimhesap_last_balance_update',
+        }
         missing_vals = {}
         for field, value in incoming_vals.items():
             if field in skip_fields:
@@ -1299,6 +1315,9 @@ class BizimHesapBackend(models.Model):
             if value in (None, False, '', [], {}):
                 continue
             if field not in partner._fields:
+                continue
+            if field in always_update_fields:
+                missing_vals[field] = value
                 continue
             current_value = partner[field]
             if not current_value:
@@ -1562,9 +1581,10 @@ class BizimHesapBackend(models.Model):
         # Tüm değerleri al
         product_vals = self._map_product_to_odoo(data)
 
-        # Mevcut ürünler için isim ve barkod güncellenmez - XML birincil kaynak
-        # Barkod çakışması sorunlarını önlemek için barkod da korunur
-        update_vals = {k: v for k, v in product_vals.items() if k not in ('name', 'barcode')}
+        # Mevcut ürünler için isim, barkod ve tip güncellenmez:
+        # - name/barcode: XML birincil kaynak, barkod çakışmasını önler
+        # - type: mevcut storable/consu tipini değiştirmek stok sorunlarına yol açar
+        update_vals = {k: v for k, v in product_vals.items() if k not in ('name', 'barcode', 'type')}
 
         if binding:
             # Mevcut kayıt - isim HARİÇ güncelle
@@ -1702,39 +1722,64 @@ class BizimHesapBackend(models.Model):
     def _map_product_to_odoo(self, data):
         """
         BizimHesap B2B API ürün → Odoo product dönüşümü
-        
+
         B2B API Field Mapping:
         - id: External ID
         - isActive: Aktif durum
         - code: Ürün kodu
         - barcode: Barkod
         - title: Ürün adı
-        - price: Satış fiyatı (KDV dahil)
-        - buyingPrice: Alış fiyatı
+        - price: Satış fiyatı (KDV DAHİL – Odoo list_price KDV HARİÇ gerektirir)
+        - buyingPrice: Alış fiyatı (USD cinsinden)
         - currency: Para birimi (TL)
-        - unit: Birim (Adet)
+        - unit: Birim (Adet, Kg, Lt, M, Paket, Koli)
         - tax: KDV oranı (%)
-        - photo: Ürün fotoğrafı JSON
-        - description: Açıklama
-        - brand: Marka
-        - category: Kategori
+        - description / ecommerceDescription: Satış açıklaması
+        - note: Satın alma notu
+        - brand: Marka adı
+        - category: Kategori adı
         - quantity: Stok miktarı
         """
+        # ── KDV oranı (fiyat hesabı için önce belirlenir) ──────────────────────
+        tax_rate = float(data.get('tax', 0) or 0)
+
+        # BizimHesap 'price' KDV DAHİL → Odoo list_price KDV HARİÇ
+        price_incl_tax = float(data.get('price', 0) or 0)
+        list_price = round(price_incl_tax / (1 + tax_rate / 100), 2) if tax_rate > 0 else price_incl_tax
+
+        # BizimHesap 'buyingPrice' USD cinsinden → şirket para birimine (TRY) çevir
+        buying_price_usd = float(data.get('buyingPrice', 0) or 0)
+        rate = self.supplier_currency_rate or 1.0
+        standard_price = round(buying_price_usd * rate, 2)
+
+        # ── Satın alma notu: orijinal note + Marka + Kategori ──────────────────
+        note_parts = []
+        bh_note = (data.get('note') or '').strip()
+        brand = (data.get('brand') or '').strip()
+        category_name = (data.get('category') or '').strip()
+        if bh_note:
+            note_parts.append(bh_note)
+        if brand:
+            note_parts.append(f"Marka: {brand}")
+        if category_name:
+            note_parts.append(f"Kategori: {category_name}")
+
         vals = {
             'name': data.get('title', 'Bilinmiyor'),
             'default_code': data.get('code') or '',
             'barcode': data.get('barcode') or False,
             'description_sale': data.get('description') or data.get('ecommerceDescription', ''),
-            'description_purchase': data.get('note', ''),
-            'list_price': float(data.get('price', 0)),
-            'standard_price': float(data.get('buyingPrice', 0)),
+            'list_price': list_price,
+            'standard_price': standard_price,
             'active': data.get('isActive', 1) == 1,
-            'type': 'consu',  # Stoklanan ürün
+            'type': 'consu',  # Tüketilebilir/Hizmet ürün (varsayılan)
             'sale_ok': True,
             'purchase_ok': True,
         }
-        
-        # Birim dönüşümü
+        if note_parts:
+            vals['description_purchase'] = '\n'.join(note_parts)
+
+        # ── Birim dönüşümü ──────────────────────────────────────────────────────
         unit = data.get('unit', 'Adet')
         unit_mapping = {
             'Adet': 'Units',
@@ -1748,13 +1793,11 @@ class BizimHesapBackend(models.Model):
         uom = self.env['uom.uom'].search([('name', 'ilike', odoo_unit)], limit=1)
         if uom:
             vals['uom_id'] = uom.id
-            # Odoo 19'da uom_po_id product.template'de, product.product'da değil
-            # Sadece purchase modülü yüklüyse mevcut
-            if 'uom_po_id' in self.env['product.product']._fields:
+            # uom_po_id product.template üzerinde tanımlı; _inherits delegation ile yazılır
+            if 'uom_po_id' in self.env['product.template']._fields:
                 vals['uom_po_id'] = uom.id
-        
-        # KDV oranı
-        tax_rate = float(data.get('tax', 20))
+
+        # ── Satış vergisi ──────────────────────────────────────────────────────
         if tax_rate:
             tax = self.env['account.tax'].search([
                 ('amount', '=', tax_rate),
@@ -1763,29 +1806,29 @@ class BizimHesapBackend(models.Model):
             ], limit=1)
             if tax:
                 vals['taxes_id'] = [(6, 0, [tax.id])]
-        
-        # Marka ve Kategori notlara ekle
-        brand = data.get('brand', '')
-        category = data.get('category', '')
-        if brand or category:
-            notes = []
-            if brand:
-                notes.append(f"Marka: {brand}")
-            if category:
-                notes.append(f"Kategori: {category}")
-            vals['description_purchase'] = '\n'.join(notes)
 
-        # Tedarikçi fiyatı (product.supplierinfo ile senkron; xml_supplier_id gerekli)
+        # ── Kategori bağlantısı (product.category) ────────────────────────────
+        if category_name:
+            categ = self.env['product.category'].search(
+                [('name', '=', category_name)], limit=1
+            )
+            if categ:
+                vals['categ_id'] = categ.id
+
+        # ── Tedarikçi fiyatı (product.supplierinfo) ───────────────────────────
         if self.sync_supplier_price and self.product_supplier_id:
-            buying_price = float(data.get('buyingPrice', 0) or 0)
-            if buying_price > 0:
-                supplier_price_try = buying_price * self.supplier_currency_rate
-                vals['xml_supplier_id'] = self.product_supplier_id.id
-                vals['xml_supplier_price'] = supplier_price_try
-                # xml_supplier_sku opsiyonel (BizimHesap'ta yoksa default_code kullanılır; inverse supplierinfo'ya yazar)
-                if data.get('code'):
-                    vals['xml_supplier_sku'] = data.get('code') or ''
-                _logger.debug(f"Tedarikçi fiyatı: {buying_price} USD × {self.supplier_currency_rate} = {supplier_price_try} TRY → {self.product_supplier_id.name}")
+            if buying_price_usd > 0:
+                supplier_price_try = round(buying_price_usd * rate, 2)
+                Product = self.env['product.product']
+                if 'xml_supplier_id' in Product._fields and 'xml_supplier_price' in Product._fields:
+                    vals['xml_supplier_id'] = self.product_supplier_id.id
+                    vals['xml_supplier_price'] = supplier_price_try
+                    if data.get('code') and 'xml_supplier_sku' in Product._fields:
+                        vals['xml_supplier_sku'] = data.get('code') or ''
+                _logger.debug(
+                    "Tedarikçi fiyatı: %.2f USD × %.2f = %.2f TRY → %s",
+                    buying_price_usd, rate, supplier_price_try, self.product_supplier_id.name,
+                )
 
         return vals
     
@@ -1891,6 +1934,23 @@ class BizimHesapBackend(models.Model):
         
         return 'created'
     
+    @staticmethod
+    def _parse_bh_date(date_str):
+        """
+        BizimHesap ISO 8601 tarih string → Odoo date string (YYYY-MM-DD).
+
+        BizimHesap şu formatları dönebilir:
+        - '2025-01-15T00:00:00.000+03:00'  → '2025-01-15'
+        - '2025-01-15'                     → '2025-01-15'
+        - None / ''                        → False
+        """
+        if not date_str:
+            return False
+        try:
+            return str(date_str).split('T')[0][:10]
+        except Exception:
+            return False
+
     def _map_invoice_to_odoo(self, data):
         """BizimHesap fatura → Odoo account.move dönüşümü"""
         # Partner bul
@@ -1909,14 +1969,17 @@ class BizimHesapBackend(models.Model):
             _logger.warning(f"Partner not found for invoice: {data.get('invoiceNumber')}")
             return None
         
-        # Fatura tipi
-        invoice_type = data.get('invoiceType', 1)
-        move_type = 'out_invoice' if invoice_type == 1 else 'in_invoice'
-        
+        # Fatura tipi: BizimHesap 3=Satış, 5=Alış (eski format 1=Satış için de desteklenir)
+        invoice_type = data.get('invoiceType', 3)
+        move_type = 'out_invoice' if invoice_type in (1, 3) else 'in_invoice'
+
         vals = {
             'move_type': move_type,
             'partner_id': partner.id,
-            'invoice_date': data.get('invoiceDate'),
+            'invoice_date': self._parse_bh_date(data.get('invoiceDate')),
+            'invoice_date_due': self._parse_bh_date(
+                data.get('dueDate') or data.get('maturityDate') or data.get('paymentDate')
+            ),
             'ref': data.get('invoiceNumber'),
             'narration': data.get('description'),
         }
