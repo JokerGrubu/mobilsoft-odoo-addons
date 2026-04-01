@@ -61,6 +61,45 @@ class XmlProductSource(models.Model):
         string='API Token',
         help='Token tabanlı servisler için opsiyonel API anahtarı',
     )
+    soap_namespace = fields.Char(
+        string='SOAP Namespace',
+        default='http://tempuri.org/',
+        help='SOAP Header ve Body içinde kullanılacak xmlns değeri',
+    )
+    soap_product_element = fields.Char(
+        string='SOAP Urun Elementi',
+        default='ProductList',
+        help='Urun listesi sonucunda okunacak XML element adi',
+    )
+    soap_extra_body = fields.Text(
+        string='SOAP Ek Body',
+        default='<_departman>0</_departman>',
+        help='Urun metodu cagrisinda gonderilecek ek body XML parcasi',
+    )
+    soap_method_products = fields.Char(
+        string='Urun Metodu',
+        default='GetProductLists',
+    )
+    soap_method_prices = fields.Char(
+        string='Fiyat Metodu',
+        default='GetStockPrices',
+    )
+    soap_method_stock = fields.Char(
+        string='Stok Metodu',
+        default='GetWareHouseStocks',
+    )
+    soap_method_images = fields.Char(
+        string='Gorsel Metodu',
+        default='GetProductImages',
+    )
+    soap_method_features = fields.Char(
+        string='Ozellik Metodu',
+        default='GetProductFeatures',
+    )
+    soap_method_categories = fields.Char(
+        string='Kategori Metodu',
+        default='GetProductCategories',
+    )
 
     # Index Grup / Netex ayrı feed URL'leri
     xml_stock_url = fields.Char(
@@ -1418,24 +1457,38 @@ class XmlProductSource(models.Model):
     def _fetch_tesan_soap_xml(self):
         """Tesan SOAP servislerinden ürün verilerini çekip normalize XML'e dönüştür."""
 
+        namespace = (self.soap_namespace or 'http://tempuri.org/').strip()
+        method_products = (self.soap_method_products or 'GetProductLists').strip()
+        method_prices = (self.soap_method_prices or 'GetStockPrices').strip()
+        method_stock = (self.soap_method_stock or 'GetWareHouseStocks').strip()
+        method_images = (self.soap_method_images or 'GetProductImages').strip()
+        method_features = (self.soap_method_features or 'GetProductFeatures').strip()
+        method_categories = (self.soap_method_categories or 'GetProductCategories').strip()
+        product_element = (self.soap_product_element or 'ProductList').strip()
+        extra_body = (self.soap_extra_body or '<_departman>0</_departman>').strip()
+
         def _soap_url():
             return (self.xml_url or 'http://www.tesaniletisim.com/webservice/ProductServices.asmx').strip()
 
         def _soap_envelope(method, body_xml=''):
             header = (
                 '<soap:Header>'
-                '<AuthUsers xmlns="http://tempuri.org/">'
+                '<AuthUsers xmlns="%s">'
                 '<userName>%s</userName>'
                 '<password>%s</password>'
                 '<token>%s</token>'
                 '</AuthUsers>'
                 '</soap:Header>'
             ) % (
+                namespace,
                 self.xml_username or '',
                 self.xml_password or '',
                 self.xml_token or '',
             )
-            body = '<soap:Body><%s xmlns="http://tempuri.org/">%s</%s></soap:Body>' % (
+            body = '<soap:Body><%s xmlns="%s">%s</%s></soap:Body>' % (
+                method,
+                namespace,
+                body_xml or '',
                 method, body_xml or '', method,
             )
             return (
@@ -1450,7 +1503,7 @@ class XmlProductSource(models.Model):
         def _soap_call(method, body_xml=''):
             headers = {
                 'Content-Type': 'text/xml; charset=utf-8',
-                'SOAPAction': 'http://tempuri.org/%s' % method,
+                'SOAPAction': '%s/%s' % (namespace.rstrip('/'), method),
                 'User-Agent': 'mobilsoft_xml_import/tesan_soap',
             }
             auth = None
@@ -1480,7 +1533,7 @@ class XmlProductSource(models.Model):
         def _parse_categories(root):
             _strip_ns(root)
             items = []
-            for cat in root.findall('.//GetProductCategoriesResult/ProductCategory'):
+            for cat in root.findall('.//%sResult/ProductCategory' % method_categories):
                 items.append({
                     'LowerGroupId': _get_text(cat, 'LowerGroupId'),
                     'MainGroup': _get_text(cat, 'MainGroup'),
@@ -1498,7 +1551,7 @@ class XmlProductSource(models.Model):
         def _parse_product_list(root):
             _strip_ns(root)
             items = []
-            for product in root.findall('.//GetProductListsResult/ProductList'):
+            for product in root.findall('.//%sResult/%s' % (method_products, product_element)):
                 items.append({
                     'StockId': _get_text(product, 'StockId'),
                     'StockCode': _get_text(product, 'StockCode'),
@@ -1521,7 +1574,7 @@ class XmlProductSource(models.Model):
         def _parse_features(root):
             _strip_ns(root)
             out = {}
-            for feat in root.findall('.//GetProductFeaturesResult/ProductFeatures'):
+            for feat in root.findall('.//%sResult/ProductFeatures' % method_features):
                 product_id = _get_text(feat, 'ProductId')
                 features = _get_text(feat, 'Features')
                 if product_id and features:
@@ -1531,7 +1584,7 @@ class XmlProductSource(models.Model):
         def _parse_images(root):
             _strip_ns(root)
             out = {}
-            for image in root.findall('.//GetProductImagesResult/ProductImages'):
+            for image in root.findall('.//%sResult/ProductImages' % method_images):
                 stock_id = _get_text(image, 'StockId')
                 url = _get_text(image, 'Image')
                 if stock_id and url:
@@ -1541,7 +1594,7 @@ class XmlProductSource(models.Model):
         def _parse_prices(root):
             _strip_ns(root)
             out = {}
-            for price in root.findall('.//GetStockPricesResult/StockPrice'):
+            for price in root.findall('.//%sResult/StockPrice' % method_prices):
                 stock_id = _get_text(price, 'StockId')
                 product_id = _get_text(price, 'ProductId')
                 if stock_id and product_id:
@@ -1556,7 +1609,7 @@ class XmlProductSource(models.Model):
         def _parse_stocks(root):
             _strip_ns(root)
             out = {}
-            for stock in root.findall('.//GetWareHouseStocksResult/WareHouseStock'):
+            for stock in root.findall('.//%sResult/WareHouseStock' % method_stock):
                 stock_id = _get_text(stock, 'StockId')
                 product_id = _get_text(stock, 'ProductId')
                 qty = _get_text(stock, 'Quantity')
@@ -1621,12 +1674,12 @@ class XmlProductSource(models.Model):
         if not (self.xml_username and self.xml_password and self.xml_token):
             raise UserError(_('Tesan SOAP için kullanıcı adı, şifre ve token zorunludur.'))
 
-        categories = _parse_categories(_soap_call('GetProductCategories'))
-        products = _parse_product_list(_soap_call('GetProductLists', '<_departman>0</_departman>'))
-        features = _parse_features(_soap_call('GetProductFeatures'))
-        images = _parse_images(_soap_call('GetProductImages'))
-        prices = _parse_prices(_soap_call('GetStockPrices'))
-        stocks = _parse_stocks(_soap_call('GetWareHouseStocks'))
+        categories = _parse_categories(_soap_call(method_categories))
+        products = _parse_product_list(_soap_call(method_products, extra_body))
+        features = _parse_features(_soap_call(method_features))
+        images = _parse_images(_soap_call(method_images))
+        prices = _parse_prices(_soap_call(method_prices))
+        stocks = _parse_stocks(_soap_call(method_stock))
 
         root = ET.Element('Products', attrib={'generated_at': datetime.utcnow().isoformat() + 'Z'})
 
