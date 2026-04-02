@@ -340,7 +340,7 @@ class BizimHesapBackend(models.Model):
         headers = self._get_headers()
         
         try:
-            _logger.info(f"BizimHesap API Request: {method} {url}")
+            _logger.info("BizimHesap API Request: %s %s", method, url)
             
             response = requests.request(
                 method=method.upper(),
@@ -367,13 +367,13 @@ class BizimHesapBackend(models.Model):
             return {}
             
         except requests.exceptions.RequestException as e:
-            _logger.error(f"BizimHesap API error: {e}")
+            _logger.error("BizimHesap API error: %s", e)
             self._create_log(
                 operation=f"{method} {endpoint}",
                 status='error',
                 error_message=str(e),
             )
-            raise UserError(_(f"API Hatası: {e}"))
+            raise UserError(_("API Hatası: %s") % (e,))
     
     def _create_log(self, operation, status, **kwargs):
         """Sync log oluştur"""
@@ -473,7 +473,7 @@ class BizimHesapBackend(models.Model):
                     s['contactType'] = 2  # Tedarikçi
                 result['data'].extend(suppliers)
         except Exception as e:
-            _logger.error(f"get_contacts error: {e}")
+            _logger.error("get_contacts error: %s", e)
         return result
     
     def get_contact(self, contact_id):
@@ -523,13 +523,13 @@ class BizimHesapBackend(models.Model):
             url = f"{self.api_url}/warehouses"
             headers = self._get_headers()
             
-            _logger.info(f"Testing BizimHesap connection: {url}")
-            _logger.info(f"Using headers: Key and Token with API Key")
+            _logger.info("Testing BizimHesap connection: %s", url)
+            _logger.info("Using headers: Key and Token with API Key")
             
             response = requests.get(url, headers=headers, timeout=30)
             
-            _logger.info(f"BizimHesap test response: {response.status_code}")
-            _logger.debug(f"Response: {response.text[:500] if response.text else 'No response'}")
+            _logger.info("BizimHesap test response: %s", response.status_code)
+            _logger.debug("Response: %s", response.text[:500] if response.text else 'No response')
             
             if response.ok:
                 result = response.json()
@@ -573,7 +573,7 @@ class BizimHesapBackend(models.Model):
                         response_data=response.text[:1000] if response.text else None,
                         status_code=response.status_code,
                     )
-                    raise UserError(_(f"API Hatası: {error_text}"))
+                    raise UserError(_("API Hatası: %s") % (error_text,))
             else:
                 self.write({'state': 'error'})
                 self._create_log(
@@ -583,7 +583,7 @@ class BizimHesapBackend(models.Model):
                     response_data=response.text[:1000] if response.text else None,
                     status_code=response.status_code,
                 )
-                raise UserError(_(f"Bağlantı hatası: HTTP {response.status_code}"))
+                raise UserError(_("Bağlantı hatası: HTTP %s") % (response.status_code,))
                 
         except requests.exceptions.RequestException as e:
             self.write({'state': 'error'})
@@ -592,7 +592,7 @@ class BizimHesapBackend(models.Model):
                 status='error',
                 error_message=str(e),
             )
-            raise UserError(_(f"Bağlantı hatası: {e}"))
+            raise UserError(_("Bağlantı hatası: %s") % (e,))
     
     def action_sync_all(self):
         """Tüm verileri senkronize et"""
@@ -603,23 +603,23 @@ class BizimHesapBackend(models.Model):
         # 1. Önce kategorileri senkronize et
         try:
             result = self.action_sync_categories()
-            _logger.info(f"Categories sync completed")
+            _logger.info("Categories sync completed")
         except Exception as e:
-            _logger.error(f"Category sync error: {e}")
+            _logger.error("Category sync error: %s", e)
         
         # 2. Carileri senkronize et (Müşteri + Tedarikçi)
         if self.sync_partner:
             try:
                 self.action_sync_partners()
             except Exception as e:
-                _logger.error(f"Partner sync error: {e}")
+                _logger.error("Partner sync error: %s", e)
         
         # 3. Ürünleri senkronize et
         if self.sync_product:
             try:
                 self.action_sync_products()
             except Exception as e:
-                _logger.error(f"Product sync error: {e}")
+                _logger.error("Product sync error: %s", e)
         
         self.last_sync_date = fields.Datetime.now()
         
@@ -637,7 +637,7 @@ class BizimHesapBackend(models.Model):
     def action_sync_categories(self):
         """Kategorileri senkronize et - B2B API"""
         self.ensure_one()
-        _logger.info(f"Starting category sync for {self.name}")
+        _logger.info("Starting category sync for %s", self.name)
         
         created = updated = 0
         
@@ -645,7 +645,7 @@ class BizimHesapBackend(models.Model):
             response = self.get_categories()
             if response.get('resultCode') == 1:
                 categories = response.get('data', {}).get('categories', [])
-                _logger.info(f"Found {len(categories)} categories from BizimHesap")
+                _logger.info("Found %s categories from BizimHesap", len(categories))
                 
                 for cat_data in categories:
                     cat_name = cat_data.get('title') or cat_data.get('name', 'Bilinmiyor')
@@ -664,7 +664,7 @@ class BizimHesapBackend(models.Model):
                         updated += 1
                         
         except Exception as e:
-            _logger.error(f"Category sync error: {e}")
+            _logger.error("Category sync error: %s", e)
         
         self._create_log(
             operation='Sync Categories',
@@ -679,7 +679,7 @@ class BizimHesapBackend(models.Model):
     def action_sync_warehouses(self):
         """Depoları senkronize et - B2B API"""
         self.ensure_one()
-        _logger.info(f"Starting warehouse sync for {self.name}")
+        _logger.info("Starting warehouse sync for %s", self.name)
         
         created = updated = 0
         
@@ -687,7 +687,7 @@ class BizimHesapBackend(models.Model):
             response = self.get_warehouses()
             if response.get('resultCode') == 1:
                 warehouses = response.get('data', {}).get('warehouses', [])
-                _logger.info(f"Found {len(warehouses)} warehouses from BizimHesap")
+                _logger.info("Found %s warehouses from BizimHesap", len(warehouses))
                 
                 for wh_data in warehouses:
                     wh_name = wh_data.get('title', 'Bilinmiyor')
@@ -711,7 +711,7 @@ class BizimHesapBackend(models.Model):
                         updated += 1
                         
         except Exception as e:
-            _logger.error(f"Warehouse sync error: {e}")
+            _logger.error("Warehouse sync error: %s", e)
         
         self._create_log(
             operation='Sync Warehouses',
@@ -739,7 +739,7 @@ class BizimHesapBackend(models.Model):
         /customers ve /suppliers endpoint'lerinden veri çeker
         """
         self.ensure_one()
-        _logger.info(f"Starting partner sync for {self.name}")
+        _logger.info("Starting partner sync for %s", self.name)
         
         created = updated = failed = 0
         
@@ -748,7 +748,7 @@ class BizimHesapBackend(models.Model):
             response = self.get_customers()
             if response.get('resultCode') == 1:
                 customers = response.get('data', {}).get('customers', [])
-                _logger.info(f"Found {len(customers)} customers from BizimHesap")
+                _logger.info("Found %s customers from BizimHesap", len(customers))
                 
                 for customer_data in customers:
                     customer_data['contactType'] = 1  # Müşteri
@@ -760,16 +760,16 @@ class BizimHesapBackend(models.Model):
                             updated += 1
                     except Exception as e:
                         failed += 1
-                        _logger.error(f"Customer import error: {e}")
+                        _logger.error("Customer import error: %s", e)
         except Exception as e:
-            _logger.error(f"Customer sync error: {e}")
+            _logger.error("Customer sync error: %s", e)
         
         # Tedarikçileri senkronize et
         try:
             response = self.get_suppliers()
             if response.get('resultCode') == 1:
                 suppliers = response.get('data', {}).get('suppliers', [])
-                _logger.info(f"Found {len(suppliers)} suppliers from BizimHesap")
+                _logger.info("Found %s suppliers from BizimHesap", len(suppliers))
                 
                 for supplier_data in suppliers:
                     supplier_data['contactType'] = 2  # Tedarikçi
@@ -781,9 +781,9 @@ class BizimHesapBackend(models.Model):
                             updated += 1
                     except Exception as e:
                         failed += 1
-                        _logger.error(f"Supplier import error: {e}")
+                        _logger.error("Supplier import error: %s", e)
         except Exception as e:
-            _logger.error(f"Supplier sync error: {e}")
+            _logger.error("Supplier sync error: %s", e)
         
         self.last_partner_sync = fields.Datetime.now()
         
@@ -838,20 +838,20 @@ class BizimHesapBackend(models.Model):
             if self.route_no_vkn_to_secondary:
                 vkn = partner_data.get('taxno') or partner_data.get('taxNumber') or partner_data.get('vat')
                 if not vkn or str(vkn).strip() == '':
-                    _logger.info(f"VKN'siz müşteri → İkincil şirket: {partner_data.get('title', 'N/A')}")
+                    _logger.info("VKN'siz müşteri → İkincil şirket: %s", partner_data.get('title', 'N/A'))
                     return self.secondary_company_id
 
             # Vergiden muaf kontrolü (partner üzerinde flag varsa)
             if self.route_tax_exempt_to_secondary:
                 is_tax_exempt = partner_data.get('is_tax_exempt') or partner_data.get('vergiden_muaf')
                 if is_tax_exempt:
-                    _logger.info(f"Vergiden muaf müşteri → İkincil şirket: {partner_data.get('title', 'N/A')}")
+                    _logger.info("Vergiden muaf müşteri → İkincil şirket: %s", partner_data.get('title', 'N/A'))
                     return self.secondary_company_id
 
         # İşlem bazlı kontroller
         if transaction_data:
             if self._is_noninvoice_transaction(transaction_data):
-                _logger.info(f"Faturasız işlem → İkincil şirket")
+                _logger.info("Faturasız işlem → İkincil şirket")
                 return self.secondary_company_id
 
         # Varsayılan: Ana şirket (Joker Grubu)
@@ -1017,7 +1017,7 @@ class BizimHesapBackend(models.Model):
             company_partners = self.env['res.company'].search([]).mapped('partner_id')
             if binding.odoo_id.id in company_partners.ids:
                 # ŞİRKET PARTNERİ - Binding'i sil ve atla
-                _logger.warning(f"Şirket partneri için binding siliniyor: {binding.odoo_id.name}")
+                _logger.warning("Şirket partneri için binding siliniyor: %s", binding.odoo_id.name)
                 binding.unlink()
                 return 'skipped'
 
@@ -1045,20 +1045,30 @@ class BizimHesapBackend(models.Model):
         bh_ref = (data.get('ref') or data.get('code') or '').strip()
 
         Partner = self.env['res.partner']
-        partner = Partner.with_company(self.company_id)._retrieve_partner(
-            name=bh_name or None,
-            phone=bh_phone or None,
-            email=bh_email or None,
-            vat=bh_vat or None,
-        )
+        partner = None
+        # _retrieve_partner Odoo account modülünde tanımlı (name/phone/email/vat ile fuzzy eşleşme).
+        # Yoksa veya hata verirse güvenli geç; aşağıda protokol tabanlı eşleşme devreye girer.
+        if hasattr(Partner, '_retrieve_partner'):
+            try:
+                partner = Partner.with_company(self.company_id)._retrieve_partner(
+                    name=bh_name or None,
+                    phone=bh_phone or None,
+                    email=bh_email or None,
+                    vat=bh_vat or None,
+                )
+            except Exception:
+                partner = None
+        # Ref ile kesin arama: _retrieve_partner 'domain' parametresi kabul etmez;
+        # bu nedenle ref (BizimHesap kodu) için ayrı search() kullanılır.
+        # Not: Bu sadece ref eşleşmesidir; fuzzy matching için aşağıdaki protokol bloğu devreye girer.
         if not partner and bh_ref:
-            partner = Partner._retrieve_partner(domain=[('ref', '=', bh_ref)])
+            partner = Partner.search([('ref', '=', bh_ref)], limit=1)
 
         if partner:
             # Kesin eşleşme (Odoo standart)
             company_partners = self.env['res.company'].search([]).mapped('partner_id')
             if partner.id in company_partners.ids:
-                _logger.warning(f"Şirket partneri için binding OLUŞTURULMUYOR: {partner.name}")
+                _logger.warning("Şirket partneri için binding OLUŞTURULMUYOR: %s", partner.name)
                 return 'skipped'
             if self._vat_match_or_empty(partner, partner_vals.get('vat')):
                 update_vals = self._get_missing_partner_vals(partner, partner_vals)
@@ -1066,7 +1076,7 @@ class BizimHesapBackend(models.Model):
                     partner.with_context(sync_source='bizimhesap').write(update_vals)
                 self._ensure_authorized_contact(partner, data)
             else:
-                _logger.warning(f"VKN uyuşmadı, partner güncellenmedi: {partner.name}")
+                _logger.warning("VKN uyuşmadı, partner güncellenmedi: %s", partner.name)
             self.env['bizimhesap.partner.binding'].create({
                 'backend_id': self.id,
                 'external_id': external_id,
@@ -1074,7 +1084,7 @@ class BizimHesapBackend(models.Model):
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
             })
-            _logger.info(f"Partner eşleşti (Odoo _retrieve_partner): {data.get('title')}")
+            _logger.info("Partner eşleşti (Odoo _retrieve_partner): %s", data.get('title'))
             return 'updated'
 
         # 2. Protokollerle eşleştirme (branch/similar - BizimHesap özel)
@@ -1104,7 +1114,7 @@ class BizimHesapBackend(models.Model):
             company_partners = self.env['res.company'].search([]).mapped('partner_id')
             if partner.id in company_partners.ids:
                 # ŞİRKET PARTNERİ - Binding oluşturma, atla
-                _logger.warning(f"Şirket partneri için binding OLUŞTURULMUYOR: {partner.name}")
+                _logger.warning("Şirket partneri için binding OLUŞTURULMUYOR: %s", partner.name)
                 return 'skipped'
 
             if self._vat_match_or_empty(partner, partner_vals.get('vat')):
@@ -1125,7 +1135,7 @@ class BizimHesapBackend(models.Model):
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
             })
-            _logger.info(f"Partner eşleşti ({match['reason']}): {data.get('title')}")
+            _logger.info("Partner eşleşti (%s): %s", match['reason'], data.get('title'))
             return 'updated'
         
         elif match['match_type'] == 'branch':
@@ -1145,7 +1155,7 @@ class BizimHesapBackend(models.Model):
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
             })
-            _logger.info(f"Şube oluşturuldu: {branch_name} (Parent: {parent_id})")
+            _logger.info("Şube oluşturuldu: %s (Parent: %s)", branch_name, parent_id)
             return 'created'
         
         elif match['match_type'] == 'similar':
@@ -1157,7 +1167,7 @@ class BizimHesapBackend(models.Model):
             company_partners = self.env['res.company'].search([]).mapped('partner_id')
             if partner.id in company_partners.ids:
                 # ŞİRKET PARTNERİ - Binding oluşturma, atla
-                _logger.warning(f"Şirket partneri için binding OLUŞTURULMUYOR: {partner.name}")
+                _logger.warning("Şirket partneri için binding OLUŞTURULMUYOR: %s", partner.name)
                 return 'skipped'
 
             if self._vat_match_or_empty(partner, partner_vals.get('vat')):
@@ -1177,7 +1187,7 @@ class BizimHesapBackend(models.Model):
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
             })
-            _logger.info(f"Benzer partner güncellendi ({match['reason']}): {data.get('title')}")
+            _logger.info("Benzer partner güncellendi (%s): %s", match['reason'], data.get('title'))
             return 'updated'
         
         else:
@@ -1192,7 +1202,7 @@ class BizimHesapBackend(models.Model):
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
             })
-            _logger.info(f"Yeni cari oluşturuldu: {data.get('title')}")
+            _logger.info("Yeni cari oluşturuldu: %s", data.get('title'))
             return 'created'
     
     def _map_partner_to_odoo(self, data):
@@ -1406,7 +1416,7 @@ class BizimHesapBackend(models.Model):
         for line_data in lines_data:
             self._create_sale_order_line(order, line_data, target_company)
 
-        _logger.info(f"Faturasız işlem için SO oluşturuldu: {order.name} (Şirket: {target_company.name})")
+        _logger.info("Faturasız işlem için SO oluşturuldu: %s (Şirket: %s)", order.name, target_company.name)
         return order
 
     def _create_sale_order_line(self, order, line_data, company):
@@ -1466,7 +1476,7 @@ class BizimHesapBackend(models.Model):
         Joker Tedarik'e sale.order olarak kaydeder.
         """
         self.ensure_one()
-        _logger.info(f"Starting noninvoice transaction sync for {self.name}")
+        _logger.info("Starting noninvoice transaction sync for %s", self.name)
 
         if not self.enable_multi_company_routing or not self.secondary_company_id:
             raise UserError(_('Faturasız işlem senkronizasyonu için çok şirketli yönlendirme aktif olmalı ve ikincil şirket seçilmelidir.'))
@@ -1502,7 +1512,7 @@ class BizimHesapBackend(models.Model):
         B2B API /products endpoint'i tek seferde tüm ürünleri döndürür.
         """
         self.ensure_one()
-        _logger.info(f"Starting product sync for {self.name}")
+        _logger.info("Starting product sync for %s", self.name)
         
         created = updated = failed = 0
         
@@ -1513,7 +1523,7 @@ class BizimHesapBackend(models.Model):
             if response.get('resultCode') == 1:
                 products = response.get('data', {}).get('products', [])
                 
-                _logger.info(f"Found {len(products)} products from BizimHesap")
+                _logger.info("Found %s products from BizimHesap", len(products))
                 
                 for product_data in products:
                     try:
@@ -1524,14 +1534,14 @@ class BizimHesapBackend(models.Model):
                             updated += 1
                     except Exception as e:
                         failed += 1
-                        _logger.error(f"Product import error: {e}")
+                        _logger.error("Product import error: %s", e)
             else:
                 error_text = response.get('errorText', 'Bilinmeyen hata')
-                _logger.error(f"BizimHesap API error: {error_text}")
-                raise UserError(_(f"API Hatası: {error_text}"))
+                _logger.error("BizimHesap API error: %s", error_text)
+                raise UserError(_("API Hatası: %s") % (error_text,))
                 
         except Exception as e:
-            _logger.error(f"Product sync error: {e}")
+            _logger.error("Product sync error: %s", e)
             raise
         
         self.last_product_sync = fields.Datetime.now()
@@ -1583,7 +1593,9 @@ class BizimHesapBackend(models.Model):
 
         # Mevcut ürünler için isim, barkod ve tip güncellenmez:
         # - name/barcode: XML birincil kaynak, barkod çakışmasını önler
-        # - type: mevcut storable/consu tipini değiştirmek stok sorunlarına yol açar
+        # - type: mevcut storable/consu tipini değiştirmek stok sorunlarına yol açar.
+        #   Yeni oluşturulacak ürünlerde type=consu varsayılan olarak _map_product_to_odoo'da set edilir
+        #   (create path: tüm vals kullanılır, update path: type dışlanır)
         update_vals = {k: v for k, v in product_vals.items() if k not in ('name', 'barcode', 'type')}
 
         if binding:
@@ -1611,7 +1623,7 @@ class BizimHesapBackend(models.Model):
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
             })
-            _logger.info(f"Ürün eşleşti (_retrieve_product): {data.get('title')}")
+            _logger.info("Ürün eşleşti (_retrieve_product): %s", data.get('title'))
             return 'updated'
 
         # Fallback: Protokollerle eşleştirme (varyant, isim benzerliği %50)
@@ -1642,7 +1654,7 @@ class BizimHesapBackend(models.Model):
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
             })
-            _logger.info(f"Ürün eşleşti (barkod): {data.get('title')}")
+            _logger.info("Ürün eşleşti (barkod): %s", data.get('title'))
             return 'updated'
         
         elif match['match_type'] == 'variant':
@@ -1660,12 +1672,12 @@ class BizimHesapBackend(models.Model):
                 # Mevcut ürünü güncelle - isim HARİÇ (XML birincil kaynak)
                 existing_product.with_context(sync_source='bizimhesap').write(update_vals)
                 product = existing_product
-                _logger.info(f"Mevcut varyant güncellendi: {data.get('title')} (Barkod: {data.get('barcode')})")
+                _logger.info("Mevcut varyant güncellendi: %s (Barkod: %s)", data.get('title'), data.get('barcode'))
             else:
                 # Yeni oluştur (combination_indices olmadan) - isim DAHİL
                 product_vals['product_tmpl_id'] = template_id
                 product = self.env['product.product'].with_context(sync_source='bizimhesap').create(product_vals)
-                _logger.info(f"Varyant oluşturuldu: {data.get('title')} (Barkod: {data.get('barcode')})")
+                _logger.info("Varyant oluşturuldu: %s (Barkod: %s)", data.get('title'), data.get('barcode'))
             
             # Binding kontrolü - duplicate önle
             existing_binding = self.env['bizimhesap.product.binding'].search([
@@ -1702,7 +1714,7 @@ class BizimHesapBackend(models.Model):
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
             })
-            _logger.info(f"Benzer ürün güncellendi ({match['reason']}): {data.get('title')}")
+            _logger.info("Benzer ürün güncellendi (%s): %s", match['reason'], data.get('title'))
             return 'updated'
         
         else:
@@ -1716,7 +1728,7 @@ class BizimHesapBackend(models.Model):
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
             })
-            _logger.info(f"Yeni ürün oluşturuldu: {data.get('title')}")
+            _logger.info("Yeni ürün oluşturuldu: %s", data.get('title'))
             return 'created'
     
     def _map_product_to_odoo(self, data):
@@ -1741,15 +1753,26 @@ class BizimHesapBackend(models.Model):
         - quantity: Stok miktarı
         """
         # ── KDV oranı (fiyat hesabı için önce belirlenir) ──────────────────────
-        tax_rate = max(0.0, float(data.get('tax', 0) or 0))  # negatif KDV geçersiz
+        raw_tax = float(data.get('tax', 0) or 0)
+        if raw_tax < 0:
+            _logger.warning(
+                "BizimHesap'tan negatif KDV oranı geldi (%.2f), 0 olarak kabul edildi. Ürün id: %s",
+                raw_tax, data.get('id'),
+            )
+        tax_rate = max(0.0, raw_tax)
 
         # BizimHesap 'price' KDV DAHİL → Odoo list_price KDV HARİÇ
         price_incl_tax = float(data.get('price', 0) or 0)
         list_price = round(price_incl_tax / (1 + tax_rate / 100), 2) if tax_rate > 0 else price_incl_tax
 
         # BizimHesap 'buyingPrice' USD cinsinden → şirket para birimine (TRY) çevir
-        # supplier_currency_rate=0 geçersiz; güvenli varsayılan 1.0
+        # supplier_currency_rate=0 geçersiz; güvenli varsayılan 1.0 (uyarı logla)
         buying_price_usd = float(data.get('buyingPrice', 0) or 0)
+        if not self.supplier_currency_rate:
+            _logger.warning(
+                "supplier_currency_rate tanımlı değil veya sıfır; standard_price hesabında "
+                "USD=TRY (1.0) varsayıldı. Backend: %s", self.name,
+            )
         rate = self.supplier_currency_rate if self.supplier_currency_rate else 1.0
         standard_price = round(buying_price_usd * rate, 2)
 
@@ -1838,7 +1861,7 @@ class BizimHesapBackend(models.Model):
     def action_sync_invoices(self):
         """Faturaları senkronize et"""
         self.ensure_one()
-        _logger.info(f"Starting invoice sync for {self.name}")
+        _logger.info("Starting invoice sync for %s", self.name)
         
         created = updated = failed = 0
         
@@ -1858,10 +1881,10 @@ class BizimHesapBackend(models.Model):
                         updated += 1
                 except Exception as e:
                     failed += 1
-                    _logger.error(f"Invoice import error: {e}")
+                    _logger.error("Invoice import error: %s", e)
                     
         except Exception as e:
-            _logger.error(f"Invoice sync error: {e}")
+            _logger.error("Invoice sync error: %s", e)
         
         self.last_invoice_sync = fields.Datetime.now()
         
@@ -1969,7 +1992,7 @@ class BizimHesapBackend(models.Model):
                 partner = binding.odoo_id
         
         if not partner:
-            _logger.warning(f"Partner not found for invoice: {data.get('invoiceNumber')}")
+            _logger.warning("Partner not found for invoice: %s", data.get('invoiceNumber'))
             return None
         
         # Fatura tipi: BizimHesap 3=Satış, 5=Alış (eski format 1=Satış için de desteklenir)
@@ -2022,8 +2045,11 @@ class BizimHesapBackend(models.Model):
         if product:
             vals['product_id'] = product.id
         
-        # KDV
-        vat_rate = data.get('vatRate', 20)
+        # KDV - vatRate BizimHesap'tan string ("20.00") veya int gelebilir
+        try:
+            vat_rate = float(data.get('vatRate') or 0)
+        except (TypeError, ValueError):
+            vat_rate = 0.0
         if vat_rate:
             tax_type = 'sale' if move_type == 'out_invoice' else 'purchase'
             tax = self.env['account.tax'].search([
@@ -2149,11 +2175,11 @@ class BizimHesapBackend(models.Model):
         InvoiceType: 3=Satış, 5=Alış
         """
         self.ensure_one()
-        _logger.info(f"Exporting invoice {invoice.name} to BizimHesap")
+        _logger.info("Exporting invoice %s to BizimHesap", invoice.name)
         
         # Fatura zaten gönderilmiş mi?
         if invoice.bizimhesap_guid:
-            _logger.warning(f"Invoice {invoice.name} already sent to BizimHesap")
+            _logger.warning("Invoice %s already sent to BizimHesap", invoice.name)
             return {'guid': invoice.bizimhesap_guid, 'url': invoice.bizimhesap_url}
         
         # Fatura verisini hazırla
@@ -2164,7 +2190,7 @@ class BizimHesapBackend(models.Model):
             response = self._api_request('POST', '/addinvoice', data=data)
             
             if response.get('error'):
-                raise UserError(f"BizimHesap Hata: {response.get('error')}")
+                raise UserError(_("BizimHesap Hata: %s") % (response.get('error'),))
             
             guid = response.get('guid')
             url = response.get('url')
@@ -2193,18 +2219,18 @@ class BizimHesapBackend(models.Model):
                 message=f"Fatura {invoice.name} BizimHesap'a gönderildi: {guid}",
             )
             
-            _logger.info(f"Invoice {invoice.name} exported successfully: {guid}")
+            _logger.info("Invoice %s exported successfully: %s", invoice.name, guid)
             return response
             
         except Exception as e:
-            _logger.error(f"Invoice export error: {e}")
+            _logger.error("Invoice export error: %s", e)
             self._create_log(
                 operation='Export Invoice',
                 status='error',
                 records_failed=1,
                 message=f"Fatura {invoice.name} gönderilemedi: {str(e)}",
             )
-            raise UserError(f"Fatura gönderilemedi: {str(e)}")
+            raise UserError(_("Fatura gönderilemedi: %s") % (str(e),))
     
     def _map_invoice_to_bizimhesap(self, invoice):
         """
@@ -2336,7 +2362,7 @@ class BizimHesapBackend(models.Model):
             try:
                 backend.action_sync_all()
             except Exception as e:
-                _logger.error(f"Cron sync failed for {backend.name}: {e}")
+                _logger.error("Cron sync failed for %s: %s", backend.name, e)
     
     # ═══════════════════════════════════════════════════════════════
     # VIEW ACTIONS
@@ -2349,7 +2375,7 @@ class BizimHesapBackend(models.Model):
             'type': 'ir.actions.act_window',
             'name': _('Senkronizasyon Logları'),
             'res_model': 'bizimhesap.sync.log',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': [('backend_id', '=', self.id)],
             'context': {'default_backend_id': self.id},
         }
@@ -2361,7 +2387,7 @@ class BizimHesapBackend(models.Model):
             'type': 'ir.actions.act_window',
             'name': _('Cari Eşleşmeleri'),
             'res_model': 'bizimhesap.partner.binding',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': [('backend_id', '=', self.id)],
         }
     
@@ -2372,7 +2398,7 @@ class BizimHesapBackend(models.Model):
             'type': 'ir.actions.act_window',
             'name': _('Ürün Eşleşmeleri'),
             'res_model': 'bizimhesap.product.binding',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': [('backend_id', '=', self.id)],
         }
     
@@ -2383,6 +2409,6 @@ class BizimHesapBackend(models.Model):
             'type': 'ir.actions.act_window',
             'name': _('Fatura Eşleşmeleri'),
             'res_model': 'bizimhesap.invoice.binding',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': [('backend_id', '=', self.id)],
         }

@@ -96,7 +96,7 @@ class AccountMove(models.Model):
             }
         
         try:
-            result = backend.export_invoice(self)
+            backend.export_invoice(self)
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',

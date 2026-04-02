@@ -184,8 +184,17 @@ class ResPartner(models.Model):
         help='Odoo sistemindeki cari bakiye (Alacak - Borç)',
     )
 
+    @api.depends()
     def _compute_bizimhesap_account_info(self):
-        """Odoo'daki fatura ve ödeme bilgilerini hesapla"""
+        """
+        Odoo'daki fatura ve ödeme bilgilerini hesapla.
+
+        @api.depends() bağımlılık listesi kasıtlı olarak boş bırakılmıştır:
+        Bu alan partner bazlı account.move/account.payment kayıtlarını
+        dinamik olarak sorgular; Odoo'nun ORM bağımlılık grafiğine eklenmesi
+        çok sayıda model üzerinde gereksiz recompute tetikler. Bu nedenle
+        her erişimde (non-stored) hesaplanır — UI'da isteğe bağlı güncelleme içindir.
+        """
         AccountMove = self.env['account.move']
 
         for partner in self:
