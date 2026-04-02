@@ -34,6 +34,27 @@
                         <span class="o_stat_text">BizimHesap'ta Aç</span>
                     </div>
                 </button>
+                <button name="action_cancel_in_bizimhesap"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-times-circle"
+                        invisible="not bizimhesap_guid or bizimhesap_cancelled"
+                        groups="mobilsoft_bizimhesap.group_bizimhesap_manager">
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_text">BH İptal Et</span>
+                    </div>
+                </button>
+                <button name="action_cancel_in_bizimhesap"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-ban"
+                        invisible="not bizimhesap_cancelled"
+                        groups="mobilsoft_bizimhesap.group_bizimhesap_user">
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_value o_stat_text text-danger">İptal</span>
+                        <span class="o_stat_text">BH Durumu</span>
+                    </div>
+                </button>
             </xpath>
             
             <xpath expr="//notebook" position="inside">
@@ -47,6 +68,7 @@
                         </group>
                         <group>
                             <field name="bizimhesap_url" readonly="1" widget="url"/>
+                            <field name="bizimhesap_cancelled" readonly="1"/>
                         </group>
                     </group>
                     <group string="🔗 Eşleşme Kayıtları">

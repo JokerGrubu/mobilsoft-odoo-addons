@@ -311,15 +311,21 @@ class BizimHesapBackend(models.Model):
     def _get_headers(self):
         """
         BizimHesap B2B API headers oluştur
-        
-        BizimHesap B2B API, hem 'Key' hem 'Token' header'ı olarak 
-        aynı API Key değerini kullanıyor.
+
+        API Dökümanına göre:
+        - GET istekler (products, warehouses, customers, inventory, abstract):
+          sadece 'token' header'ı gereklidir.
+        - POST istekler (addinvoice, cancelinvoice):
+          header'a gerek yok; auth 'firmId' alanı üzerinden body'de sağlanır.
+
+        Geriye dönük uyumluluk için 'Key' ve 'Token' (büyük harf) da gönderilir.
         """
         self.ensure_one()
-        
+
         return {
-            'Key': self.api_key,
-            'Token': self.api_key,  # BizimHesap B2B API: Key ve Token aynı değer
+            'token': self.api_key,           # API dok. — GET istekler için zorunlu
+            'Key': self.api_key,             # Geriye dönük uyumluluk
+            'Token': self.api_key,           # Geriye dönük uyumluluk
             'Content-Type': 'application/json',
             'Accept': 'application/json',
         }
@@ -402,16 +408,26 @@ class BizimHesapBackend(models.Model):
     def get_categories(self):
         """Tüm kategorileri getir - B2B API"""
         return self._api_request('GET', '/categories')
-    
+
     # Customers (Müşteriler)
     def get_customers(self):
         """Tüm müşterileri getir - B2B API"""
         return self._api_request('GET', '/customers')
-    
+
     # Suppliers (Tedarikçiler)
     def get_suppliers(self):
         """Tüm tedarikçileri getir - B2B API"""
         return self._api_request('GET', '/suppliers')
+
+    # Abstract (Cari Ekstresi)
+    def get_abstract(self, customer_id):
+        """
+        Bir carinin hesap ekstresini getir - B2B API (/abstract/{musteri-id})
+
+        :param customer_id: BizimHesap'taki cari kodu (AddInvoice'daki CustomerId ile aynı)
+        :return: dict — cari ekstresi verisi
+        """
+        return self._api_request('GET', '/abstract/%s' % customer_id)
     
     # Inventory (Stok)
     def get_inventory(self, warehouse_id):
@@ -442,13 +458,28 @@ class BizimHesapBackend(models.Model):
 
     def create_invoice(self, data):
         """
-        Yeni fatura oluştur - B2B API
-        
+        Yeni fatura oluştur - B2B API (/addinvoice)
+
         InvoiceType:
         - 3: Satış Faturası
         - 5: Alış Faturası
+
+        Cevap: error (str), guid (str), url (str)
         """
         return self._api_request('POST', '/addinvoice', data=data)
+
+    def cancel_invoice(self, guid):
+        """
+        Fatura iptal et - B2B API (/cancelinvoice)
+
+        :param guid: AddInvoice'dan alınan fatura GUID'i
+        :return: dict — error (str), status ('0'=başarılı, '1'=hata)
+        """
+        data = {
+            'firmId': self.api_key,
+            'guid': guid,
+        }
+        return self._api_request('POST', '/cancelinvoice', data=data)
     
     # ═══════════════════════════════════════════════════════════════
     # LEGACY API ENDPOINT METHODS (Uyumluluk için)
@@ -1056,7 +1087,9 @@ class BizimHesapBackend(models.Model):
                     email=bh_email or None,
                     vat=bh_vat or None,
                 )
-            except Exception:
+            except (AttributeError, ValueError, TypeError) as e:
+                # _retrieve_partner imzası Odoo sürümüne göre değişebilir; güvenli geç
+                _logger.debug("_retrieve_partner çağrısında beklenen hata: %s", e)
                 partner = None
         # Ref ile kesin arama: _retrieve_partner 'domain' parametresi kabul etmez;
         # bu nedenle ref (BizimHesap kodu) için ayrı search() kullanılır.
@@ -1766,15 +1799,17 @@ class BizimHesapBackend(models.Model):
         list_price = round(price_incl_tax / (1 + tax_rate / 100), 2) if tax_rate > 0 else price_incl_tax
 
         # BizimHesap 'buyingPrice' USD cinsinden → şirket para birimine (TRY) çevir
-        # supplier_currency_rate=0 geçersiz; güvenli varsayılan 1.0 (uyarı logla)
+        # supplier_currency_rate=0 ise tedarikçi fiyatı senkronizasyonu atlanır
         buying_price_usd = float(data.get('buyingPrice', 0) or 0)
-        if not self.supplier_currency_rate:
+        if buying_price_usd and not self.supplier_currency_rate:
             _logger.warning(
-                "supplier_currency_rate tanımlı değil veya sıfır; standard_price hesabında "
-                "USD=TRY (1.0) varsayıldı. Backend: %s", self.name,
+                "supplier_currency_rate tanımlı değil veya sıfır; "
+                "standard_price USD→TRY dönüşümü atlandı. Backend: %s, Ürün: %s",
+                self.name, data.get('name', ''),
             )
-        rate = self.supplier_currency_rate if self.supplier_currency_rate else 1.0
-        standard_price = round(buying_price_usd * rate, 2)
+        rate = self.supplier_currency_rate or 0.0
+        # Kur yoksa 0 bırak; mevcut standard_price korunur (aşağıda update_vals'a dahil edilmez)
+        standard_price = round(buying_price_usd * rate, 2) if rate else None
 
         # ── Satın alma notu: orijinal note + Marka + Kategori ──────────────────
         note_parts = []
@@ -1794,12 +1829,14 @@ class BizimHesapBackend(models.Model):
             'barcode': data.get('barcode') or False,
             'description_sale': data.get('description') or data.get('ecommerceDescription', ''),
             'list_price': list_price,
-            'standard_price': standard_price,
             'active': data.get('isActive', 1) == 1,
             'type': 'consu',  # Tüketilebilir/Hizmet ürün (varsayılan)
             'sale_ok': True,
             'purchase_ok': True,
         }
+        # Kur tanımlıysa standard_price'ı güncelle; yoksa mevcut değer korunur
+        if standard_price is not None:
+            vals['standard_price'] = standard_price
         if note_parts:
             vals['description_purchase'] = '\n'.join(note_parts)
 
@@ -1842,7 +1879,7 @@ class BizimHesapBackend(models.Model):
 
         # ── Tedarikçi fiyatı (product.supplierinfo) ───────────────────────────
         if self.sync_supplier_price and self.product_supplier_id:
-            if buying_price_usd > 0:
+            if buying_price_usd > 0 and standard_price is not None:
                 # standard_price zaten TRY'ye çevrilmiş; aynı değeri tedarikçi fiyatı olarak kullan
                 supplier_price_try = standard_price
                 Product = self.env['product.product']
@@ -1974,7 +2011,7 @@ class BizimHesapBackend(models.Model):
             return False
         try:
             return str(date_str).split('T')[0]
-        except Exception:
+        except (AttributeError, IndexError):
             return False
 
     def _map_invoice_to_odoo(self, data):
@@ -2049,6 +2086,10 @@ class BizimHesapBackend(models.Model):
         try:
             vat_rate = float(data.get('vatRate') or 0)
         except (TypeError, ValueError):
+            _logger.warning(
+                "vatRate dönüştürülemedi (ham değer: %r); KDV 0 kabul edildi.",
+                data.get('vatRate'),
+            )
             vat_rate = 0.0
         if vat_rate:
             tax_type = 'sale' if move_type == 'out_invoice' else 'purchase'
@@ -2412,3 +2453,136 @@ class BizimHesapBackend(models.Model):
             'view_mode': 'list,form',
             'domain': [('backend_id', '=', self.id)],
         }
+
+    # ═══════════════════════════════════════════════════════════════
+    # CANCEL INVOICE (API Dok. /cancelinvoice)
+    # ═══════════════════════════════════════════════════════════════
+
+    def action_cancel_invoice_by_guid(self, guid, invoice=None):
+        """
+        BizimHesap'ta faturayı GUID ile iptal et.
+
+        :param guid: BizimHesap fatura GUID'i
+        :param invoice: account.move kaydı (opsiyonel — log için)
+        :return: API cevabı dict
+        """
+        self.ensure_one()
+
+        if not guid:
+            raise UserError(_('İptal edilecek fatura için BizimHesap GUID bulunamadı!'))
+
+        try:
+            response = self.cancel_invoice(guid)
+        except Exception as e:
+            _logger.error("BizimHesap fatura iptal hatası (guid=%s): %s", guid, e)
+            self._create_log(
+                operation='Cancel Invoice',
+                status='error',
+                records_failed=1,
+                message=_("Fatura iptal hatası: %s") % (str(e),),
+                external_id=guid,
+            )
+            raise UserError(_("Fatura BizimHesap'ta iptal edilemedi: %s") % (str(e),))
+
+        error = response.get('error', '')
+        status = str(response.get('status', ''))
+
+        if error or status == '1':
+            self._create_log(
+                operation='Cancel Invoice',
+                status='error',
+                records_failed=1,
+                message=_("BizimHesap iptal hatası: %s") % (error or _('Bilinmeyen hata'),),
+                external_id=guid,
+            )
+            raise UserError(_("BizimHesap fatura iptali başarısız: %s") % (error or _('Bilinmeyen hata'),))
+
+        # Başarılı — faturayı güncelle
+        if invoice:
+            invoice.write({'bizimhesap_cancelled': True})
+            invoice_name = invoice.name
+        else:
+            invoice_name = guid
+
+        self._create_log(
+            operation='Cancel Invoice',
+            status='success',
+            records_updated=1,
+            message=_("Fatura BizimHesap'ta iptal edildi: %s") % (invoice_name,),
+            external_id=guid,
+        )
+        _logger.info("BizimHesap fatura iptal edildi: %s (guid=%s)", invoice_name, guid)
+        return response
+
+    # ═══════════════════════════════════════════════════════════════
+    # ABSTRACT — CARİ EKSTRESI (API Dok. /abstract/{musteri-id})
+    # ═══════════════════════════════════════════════════════════════
+
+    def action_sync_partner_abstract(self, partner):
+        """
+        Tek bir partnerin cari ekstresini BizimHesap'tan çek ve bakiyeyi güncelle.
+
+        :param partner: res.partner kaydı
+        :return: API cevabı dict veya {}
+        """
+        self.ensure_one()
+
+        # Partner'ın BizimHesap external_id'sini bul
+        binding = self.env['bizimhesap.partner.binding'].search([
+            ('backend_id', '=', self.id),
+            ('odoo_id', '=', partner.id),
+        ], limit=1)
+
+        if not binding or not binding.external_id:
+            _logger.warning(
+                "abstract sync atlandı — partnerin BizimHesap bağlaması yok: %s", partner.name,
+            )
+            return {}
+
+        try:
+            response = self.get_abstract(binding.external_id)
+        except Exception as e:
+            _logger.warning("get_abstract hatası (partner=%s): %s", partner.name, e)
+            return {}
+
+        if not response or response.get('resultCode') != 1:
+            return {}
+
+        abstract_data = response.get('data', {})
+
+        # Bakiye güncelle — abstract endpoint'in döndürdüğü olası bakiye alanları
+        balance_raw = (
+            abstract_data.get('balance')
+            or abstract_data.get('totalBalance')
+            or abstract_data.get('netBalance')
+        )
+        cheque_raw = (
+            abstract_data.get('chequeandbond')
+            or abstract_data.get('chequeAndBond')
+        )
+
+        update_vals = {'bizimhesap_last_balance_update': fields.Datetime.now()}
+
+        if balance_raw is not None:
+            try:
+                if isinstance(balance_raw, str):
+                    # BizimHesap Türkçe formatı: "1.234,56" → Python float 1234.56
+                    balance_raw = balance_raw.replace('.', '').replace(',', '.')
+                update_vals['bizimhesap_balance'] = float(balance_raw)
+            except (ValueError, TypeError):
+                pass
+
+        if cheque_raw is not None:
+            try:
+                if isinstance(cheque_raw, str):
+                    # BizimHesap Türkçe formatı: "1.234,56" → Python float 1234.56
+                    cheque_raw = cheque_raw.replace('.', '').replace(',', '.')
+                update_vals['bizimhesap_cheque_bond'] = float(cheque_raw)
+            except (ValueError, TypeError):
+                pass
+
+        if update_vals:
+            partner.with_context(sync_source='bizimhesap').write(update_vals)
+
+        _logger.info("Abstract synced for partner %s (id=%s)", partner.name, binding.external_id)
+        return response

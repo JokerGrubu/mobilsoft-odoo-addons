@@ -23,6 +23,17 @@
                         <span class="o_stat_text">BizimHesap</span>
                     </div>
                 </button>
+                <button name="action_sync_abstract_from_bizimhesap"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-refresh"
+                        invisible="not bizimhesap_synced"
+                        groups="mobilsoft_bizimhesap.group_bizimhesap_user"
+                        help="BizimHesap'tan cari ekstresini çek ve bakiyeyi güncelle">
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_text">Bakiye Güncelle</span>
+                    </div>
+                </button>
             </xpath>
 
             <xpath expr="//notebook" position="inside">
