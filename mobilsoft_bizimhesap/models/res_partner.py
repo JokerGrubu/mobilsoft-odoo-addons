@@ -184,8 +184,17 @@ class ResPartner(models.Model):
         help='Odoo sistemindeki cari bakiye (Alacak - Borç)',
     )
 
+    @api.depends()
     def _compute_bizimhesap_account_info(self):
-        """Odoo'daki fatura ve ödeme bilgilerini hesapla"""
+        """
+        Odoo'daki fatura ve ödeme bilgilerini hesapla.
+
+        @api.depends() bağımlılık listesi kasıtlı olarak boş bırakılmıştır:
+        Bu alan partner bazlı account.move/account.payment kayıtlarını
+        dinamik olarak sorgular; Odoo'nun ORM bağımlılık grafiğine eklenmesi
+        çok sayıda model üzerinde gereksiz recompute tetikler. Bu nedenle
+        her erişimde (non-stored) hesaplanır — UI'da isteğe bağlı güncelleme içindir.
+        """
         AccountMove = self.env['account.move']
 
         for partner in self:
@@ -365,3 +374,60 @@ class ResPartner(models.Model):
             ],
             'context': {'default_partner_id': self.id},
         }
+
+    def action_sync_abstract_from_bizimhesap(self):
+        """BizimHesap'tan cari ekstresi çek ve bakiyeyi güncelle (/abstract endpoint)"""
+        self.ensure_one()
+
+        backend = self.env['bizimhesap.backend'].search([
+            ('state', '=', 'connected'),
+            ('active', '=', True),
+        ], limit=1)
+
+        if not backend:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Hata'),
+                    'message': _('Aktif BizimHesap bağlantısı bulunamadı!'),
+                    'type': 'danger',
+                    'sticky': False,
+                }
+            }
+
+        try:
+            result = backend.action_sync_partner_abstract(self)
+            if result:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Başarılı'),
+                        'message': _('Cari ekstresi güncellendi!'),
+                        'type': 'success',
+                        'sticky': False,
+                    }
+                }
+            else:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Uyarı'),
+                        'message': _('BizimHesap\'ta bu cariye ait ekstresi bulunamadı (bağlama kaydı yok veya API cevabı boş).'),
+                        'type': 'warning',
+                        'sticky': False,
+                    }
+                }
+        except Exception as e:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Hata'),
+                    'message': str(e),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }

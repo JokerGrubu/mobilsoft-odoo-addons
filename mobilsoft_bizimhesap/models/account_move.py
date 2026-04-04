@@ -18,42 +18,50 @@ class AccountMove(models.Model):
         'odoo_id',
         string='BizimHesap Eşleşmeleri',
     )
-    
+
     bizimhesap_synced = fields.Boolean(
         compute='_compute_bizimhesap_synced',
         string='BizimHesap Senkronize',
         store=True,
     )
-    
+
     bizimhesap_guid = fields.Char(
         string='BizimHesap GUID',
         readonly=True,
         copy=False,
         help='BizimHesap tarafından atanan benzersiz ID',
     )
-    
+
     bizimhesap_url = fields.Char(
         string='BizimHesap URL',
         readonly=True,
         copy=False,
         help='BizimHesap\'taki fatura linki',
     )
-    
+
     bizimhesap_sent_date = fields.Datetime(
         string='BizimHesap Gönderim Tarihi',
         readonly=True,
         copy=False,
     )
-    
+
+    bizimhesap_cancelled = fields.Boolean(
+        string='BizimHesap\'ta İptal Edildi',
+        readonly=True,
+        copy=False,
+        default=False,
+        help='BizimHesap /cancelinvoice ile iptal edilen faturalar için işaretlenir',
+    )
+
     @api.depends('bizimhesap_binding_ids')
     def _compute_bizimhesap_synced(self):
         for record in self:
             record.bizimhesap_synced = bool(record.bizimhesap_binding_ids)
-    
+
     def action_sync_to_bizimhesap(self):
         """Manuel olarak BizimHesap'a gönder"""
         self.ensure_one()
-        
+
         if self.move_type not in ('out_invoice', 'in_invoice', 'out_refund', 'in_refund'):
             return {
                 'type': 'ir.actions.client',
@@ -65,7 +73,7 @@ class AccountMove(models.Model):
                     'sticky': False,
                 }
             }
-        
+
         if self.state != 'posted':
             return {
                 'type': 'ir.actions.client',
@@ -77,12 +85,12 @@ class AccountMove(models.Model):
                     'sticky': False,
                 }
             }
-        
+
         backend = self.env['bizimhesap.backend'].search([
             ('state', '=', 'connected'),
             ('active', '=', True),
         ], limit=1)
-        
+
         if not backend:
             return {
                 'type': 'ir.actions.client',
@@ -94,9 +102,9 @@ class AccountMove(models.Model):
                     'sticky': False,
                 }
             }
-        
+
         try:
-            result = backend.export_invoice(self)
+            backend.export_invoice(self)
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -108,7 +116,7 @@ class AccountMove(models.Model):
                 }
             }
         except Exception as e:
-            _logger.error(f"BizimHesap fatura gönderim hatası: {e}")
+            _logger.error("BizimHesap fatura gönderim hatası: %s", e)
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -119,7 +127,77 @@ class AccountMove(models.Model):
                     'sticky': True,
                 }
             }
-    
+
+    def action_cancel_in_bizimhesap(self):
+        """BizimHesap'ta faturayı iptal et (/cancelinvoice)"""
+        self.ensure_one()
+
+        if not self.bizimhesap_guid:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Uyarı'),
+                    'message': _('Bu fatura henüz BizimHesap\'a gönderilmemiş (GUID yok)!'),
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
+
+        if self.bizimhesap_cancelled:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Uyarı'),
+                    'message': _('Bu fatura zaten BizimHesap\'ta iptal edilmiş!'),
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
+
+        backend = self.env['bizimhesap.backend'].search([
+            ('state', '=', 'connected'),
+            ('active', '=', True),
+        ], limit=1)
+
+        if not backend:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Hata'),
+                    'message': _('Aktif BizimHesap bağlantısı bulunamadı!'),
+                    'type': 'danger',
+                    'sticky': False,
+                }
+            }
+
+        try:
+            backend.action_cancel_invoice_by_guid(self.bizimhesap_guid, invoice=self)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Başarılı'),
+                    'message': _('Fatura BizimHesap\'ta iptal edildi!'),
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+        except Exception as e:
+            _logger.error("BizimHesap fatura iptal hatası: %s", e)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Hata'),
+                    'message': str(e),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+
     def action_open_bizimhesap(self):
         """BizimHesap'ta faturayı aç"""
         self.ensure_one()
