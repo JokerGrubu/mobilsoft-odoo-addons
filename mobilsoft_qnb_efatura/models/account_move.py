@@ -16,6 +16,8 @@ _logger = logging.getLogger(__name__)
 class AccountMove(models.Model):
     _inherit = 'account.move'
 
+    _QNB_STATUS_CHECK_CUTOFF_DAYS = 90
+
     # QNB e-Belge Bilgileri
     qnb_document_ids = fields.One2many(
         'qnb.document',
@@ -314,46 +316,33 @@ class AccountMove(models.Model):
         """Odoo'nun standart fatura PDF'ini oluştur ve ekle (Nilvera tarzı)"""
         self.ensure_one()
 
-        # Zaten PDF var mı kontrol et
-        existing_pdf = self.env['ir.attachment'].search([
-            ('res_model', '=', 'account.move'),
-            ('res_id', '=', self.id),
-            ('mimetype', '=', 'application/pdf'),
-        ], limit=1)
-
-        if existing_pdf:
-            # PDF zaten var, tekrar oluşturma
+        if self.invoice_pdf_report_id:
             return
 
         try:
-            # Odoo'nun standart fatura raporunu al
-            report = self.env.ref('account.account_invoices', raise_if_not_found=False)
-            if not report:
-                _logger.warning(f"Fatura raporu bulunamadı: {self.name}")
-                return
-
-            # PDF oluştur
-            pdf_content, _ = report._render_qweb_pdf([self.id])
+            pdf_report = self.env['account.move.send']._get_default_pdf_report_id(self)
+            content, report_type = (
+                self.env['ir.actions.report']
+                .with_company(self.company_id)
+                ._pre_render_qweb_pdf(pdf_report.report_name, res_ids=self.ids)
+            )
+            content_by_id = self.env['ir.actions.report']._get_splitted_report(
+                pdf_report.report_name, content, report_type
+            )
+            pdf_content = content_by_id.get(self.id)
             if pdf_content:
-                attachment = self.env['ir.attachment'].create({
-                    'name': f'{self.name or "INV"}.pdf',
-                    'res_id': self.id,
-                    'res_model': 'account.move',
+                attachment = self.env['ir.attachment'].sudo().create({
+                    'name': self._get_invoice_report_filename(report=pdf_report),
                     'raw': pdf_content,
-                    'type': 'binary',
                     'mimetype': 'application/pdf',
+                    'res_model': self._name,
+                    'res_id': self.id,
+                    'res_field': 'invoice_pdf_report_file',
                 })
-                # Ana attachment olarak ayarla
-                self.message_main_attachment_id = attachment.id
-                # Chatter'a da ekle
-                self.with_context(no_new_invoice=True).message_post(
-                    body=_("PDF oluşturuldu"),
-                    attachment_ids=[attachment.id]
-                )
+                self.message_main_attachment_id = attachment
+                self.invalidate_recordset(fnames=['invoice_pdf_report_id', 'invoice_pdf_report_file'])
         except Exception as e:
-            _logger.error(f"PDF oluşturma hatası ({self.name}): {str(e)}")
-            import traceback
-            _logger.error(traceback.format_exc())
+            _logger.warning(f"Fatura {self.name} için PDF oluşturma hatası: {str(e)}")
 
     def action_qnb_download_pdf(self):
         """QNB'nin resmi PDF'ini indir (opsiyonel - Odoo PDF zaten var)"""
@@ -1337,12 +1326,13 @@ class AccountMove(models.Model):
         ])
         if not companies:
             return
+        cutoff_date = fields.Date.subtract(fields.Date.today(), days=self._QNB_STATUS_CHECK_CUTOFF_DAYS)
         invoices_to_update = self.search([
-            # Duplike/ürün/partner önlemleri ile birlikte, delivered durumundakileri tekrar sorgulamak gereksiz
-            # ve bazı eski belgelerde “bulunamadı” uyarılarını artırabiliyor.
+            # Eski belgeler QNB aktif sorgu sisteminde olmayabileceğinden “bulunamadı” uyarısı üretir.
             ('qnb_state', 'in', ['sent', 'sending']),
             ('qnb_ettn', '!=', False),
             ('company_id', 'in', companies.ids),
+            ('invoice_date', '>=', cutoff_date),
         ], limit=200)
         for invoice in invoices_to_update:
             invoice._qnb_update_status_from_api()

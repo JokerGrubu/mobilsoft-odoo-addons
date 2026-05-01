@@ -1,0 +1,40 @@
+
+$o-theme-color-palettes: map-merge($o-theme-color-palettes,
+    (
+        'joker-ai': (
+            'alpha': #011E3D, // Deep space blue (arka plan)
+            'beta': #00E5FF,  // Neon cyan (vurgu/accent)
+            'gamma': #0B3D70, // Dark blue accent
+            'delta': #E5E7EB, // Light gray text
+            'epsilon': #000000, // Siyah
+
+            'success': #00FF88,
+            'warning': #FCD34D,
+            'danger': #EF4444,
+            'info': #3B82F6,
+        )
+    )
+);
+
+$o-theme-font-configs: map-merge($o-theme-font-configs, (
+    'Inter': (
+        'family': ('Inter', sans-serif),
+        'url': 'Inter:300,400,600,700,800',
+    ),
+    'Outfit': (
+        'family': ('Outfit', sans-serif),
+        'url': 'Outfit:300,400,600,800',
+    )
+));
+
+$o-website-values-palettes: (
+    (
+        'color-palettes-name': 'joker-ai',
+        'font': 'Inter',
+        'headings-font': 'Outfit',
+        'btn-ripple': true,
+        'header-template': 'stretch',
+        'footer-template': 'centered',
+        'btn-border-radius': 8px,
+    )
+);

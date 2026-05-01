@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+        
+        <!-- Tesan Web Scraping Kaynağı -->
+        <record id="xml_source_tesan_web" model="xml.product.source">
+            <field name="name">Tesan Web Scraping</field>
+            <field name="sequence">5</field>
+            <field name="active">True</field>
+            
+            <!-- Kaynak Tipi -->
+            <field name="source_type">web</field>
+            <field name="xml_template">tesan_web</field>
+            <field name="scraper_class">TesanScraper</field>
+            
+            <!-- Web Sitesi Bilgileri -->
+            <field name="xml_url">https://isortagim.tesan.com.tr</field>
+            <field name="xml_username">info@jokergrubu.com</field>
+            <field name="xml_password">XZsawq21-</field>
+            
+            <!-- Anahtar Kelimeler -->
+            <field name="scraping_keywords">kamera
+cctv
+hikvision
+güvenlik
+alarm
+dedektör
+nvr
+dvr</field>
+            
+            <!-- Konfigürasyon -->
+            <field name="scraping_config">{"limit": 50, "delay": 0.5, "timeout": 30}</field>
+            
+            <!-- Kategori -->
+            <field name="default_category_id" ref="product.product_category_all"/>
+            
+            <!-- İçe Aktarım Ayarları -->
+            <field name="create_new_products">True</field>
+            <field name="update_existing">True</field>
+            <field name="update_price">True</field>
+            <field name="update_stock">True</field>
+            <field name="update_description">True</field>
+            
+            <!-- Durum -->
+            <field name="state">draft</field>
+            <field name="auto_sync">True</field>
+            <field name="sync_interval">6</field>
+            
+            <!-- Açıklama -->
+            <field name="description">Tesan B2B Portal'dan web scraping ile ürün çekme. Kamera, güvenlik ve alarm sistemleri.</field>
+        </record>
+
+        <!-- LinkTech Web Scraping Kaynağı -->
+        <record id="xml_source_linktech_web" model="xml.product.source">
+            <field name="name">LinkTech Web Scraping</field>
+            <field name="sequence">10</field>
+            <field name="active">True</field>
+            
+            <!-- Kaynak Tipi -->
+            <field name="source_type">web</field>
+            <field name="xml_template">linktech_web</field>
+            <field name="scraper_class">LinkTechScraper</field>
+            
+            <!-- Web Sitesi Bilgileri -->
+            <field name="xml_url">https://www.linktech.com.tr</field>
+            
+            <!-- Anahtar Kelimeler -->
+            <field name="scraping_keywords">telefon
+tablet
+şarj
+kablo
+bluetooth
+kulaklık
+speaker
+ekran
+kılıf
+koruyucu</field>
+            
+            <!-- Konfigürasyon -->
+            <field name="scraping_config">{"limit": 100, "delay": 0.3, "timeout": 15}</field>
+            
+            <!-- Kategori -->
+            <field name="default_category_id" ref="product.product_category_all"/>
+            
+            <!-- İçe Aktarım Ayarları -->
+            <field name="create_new_products">True</field>
+            <field name="update_existing">True</field>
+            <field name="update_price">True</field>
+            <field name="update_stock">True</field>
+            <field name="update_description">True</field>
+            
+            <!-- Durum -->
+            <field name="state">draft</field>
+            <field name="auto_sync">True</field>
+            <field name="sync_interval">12</field>
+            
+            <!-- Açıklama -->
+            <field name="description">LinkTech web sitesinden scraping ile ürün çekme. Telefon aksesuarları, şarj cihazları, bluetooth ürünler.</field>
+        </record>
+
+        <!-- Tesan Web Scraping Cron Job -->
+        <record id="ir_cron_tesan_web_import" model="ir.cron">
+            <field name="name">Tesan Web Scraping İçe Aktar</field>
+            <field name="model_name">xml.product.source</field>
+            <field name="state">code</field>
+            <field name="code">
+# Tesan web scraping kaynağını bul ve çalıştır
+tesan_source = env['xml.product.source'].search([
+    ('name', '=', 'Tesan Web Scraping'),
+    ('active', '=', True)
+], limit=1)
+if tesan_source:
+    tesan_source.action_import_products()
+            </field>
+            <field name="interval_number">6</field>
+            <field name="interval_type">hours</field>
+            <field name="nextcall">2026-04-23 06:00:00</field>
+            <field name="active">True</field>
+        </record>
+
+        <!-- LinkTech Web Scraping Cron Job -->
+        <record id="ir_cron_linktech_web_import" model="ir.cron">
+            <field name="name">LinkTech Web Scraping İçe Aktar</field>
+            <field name="model_name">xml.product.source</field>
+            <field name="state">code</field>
+            <field name="code">
+# LinkTech web scraping kaynağını bul ve çalıştır
+linktech_source = env['xml.product.source'].search([
+    ('name', '=', 'LinkTech Web Scraping'),
+    ('active', '=', True)
+], limit=1)
+if linktech_source:
+    linktech_source.action_import_products()
+            </field>
+            <field name="interval_number">12</field>
+            <field name="interval_type">hours</field>
+            <field name="nextcall">2026-04-23 08:00:00</field>
+            <field name="active">True</field>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="s_banner_joker" inherit_id="website.s_banner" name="Joker AI Banner">
+        <xpath expr="//section" position="attributes">
+            <attribute name="class" add="o_cc o_cc1 bg-black-90 py-5" remove="o_cc2" separator=" "/>
+        </xpath>
+        <xpath expr="//h1" position="replace">
+            <h1 class="display-3 fw-bold mb-4"><span class="joker-ai-text">Şirketinizi</span> Yapay Zeka Yönetsin</h1>
+        </xpath>
+        <xpath expr="//p[hasclass('lead')]" position="replace">
+            <p class="lead mb-5 text-white-50">Odoo, SAP, Oracle ve tüm kurumsal sistemlerinize entegre olan tam otonom yapay zeka modelimizle iş süreçlerinizi geleceğe taşıyoruz.</p>
+        </xpath>
+        <xpath expr="//a[contains(@class, 'btn-primary')]" position="replace">
+            <a href="/contactus" class="btn btn-primary btn-lg rounded-pill px-5 py-3 fw-bold mb-2">5 Dakikada Analiz Et</a>
+        </xpath>
+    </template>
+</odoo>

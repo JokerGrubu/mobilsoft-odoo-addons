@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+        
+        <!-- Tesan B2B Portal - XML Ürün Kaynağı -->
+        <record id="xml_source_tesan" model="xml.product.source">
+            <field name="name">Tesan Portal</field>
+            <field name="sequence">5</field>
+            <field name="active">True</field>
+            
+            <!-- SOAP Ayarları -->
+            <field name="xml_url">https://isortagim.tesan.com.tr/WebService/TesanServiceFull.asmx</field>
+            <field name="xml_username">info@jokergrubu.com</field>
+            <field name="xml_password">XZsawq21-</field>
+            
+            <!-- SOAP Metotları -->
+            <field name="soap_namespace">http://tempuri.org/</field>
+            <field name="soap_method_products">GetProductLists</field>
+            <field name="soap_method_prices">GetStockPrices</field>
+            <field name="soap_method_stock">GetWareHouseStocks</field>
+            <field name="soap_method_images">GetProductImages</field>
+            <field name="soap_method_features">GetProductFeatures</field>
+            <field name="soap_method_categories">GetProductCategories</field>
+            <field name="soap_product_element">ProductList</field>
+            <field name="soap_extra_body"><![CDATA[<_departman>0</_departman>]]></field>
+            
+            <!-- Kategori Haritalaması -->
+            <field name="default_category_id" ref="product.product_category_all"/>
+            
+            <!-- Ürün Eşleştirme -->
+            <field name="match_type">external_id</field>
+            
+            <!-- İçeri Aktarım Ayarları -->
+            <field name="import_products">True</field>
+            <field name="import_prices">True</field>
+            <field name="import_stock">True</field>
+            <field name="import_images">True</field>
+            
+            <!-- Açıklama -->
+            <field name="description">
+Tesan B2B Portal'dan ürünleri SOAP Web Service üzerinden çeken otomatik içeri aktarım kaynağı.
+
+Özellikler:
+- Ürün adı, fiyat, stok bilgisi
+- Görsel ve varyant yönetimi
+- Otomatik kategori haritalaması
+- Markaları xml_extra2 alanında tutar
+            </field>
+        </record>
+
+        <!-- Tesan Ürün Kategorileri Haritalaması -->
+        <!-- Bu mappinglar Tesan SOAP'dan gelen kategorileri Odoo kategorilerine dönüştürür -->
+        
+        <record id="xml_categ_mapping_tesan_mobil" model="xml.category.mapping">
+            <field name="source_id" ref="xml_source_tesan"/>
+            <field name="xml_category">Mobil Aksesuarlar</field>
+            <field name="match_type">exact</field>
+            <field name="odoo_category_id" ref="product.product_category_all"/>
+        </record>
+
+        <record id="xml_categ_mapping_tesan_agi" model="xml.category.mapping">
+            <field name="source_id" ref="xml_source_tesan"/>
+            <field name="xml_category">Ağ Altyapısı</field>
+            <field name="match_type">exact</field>
+            <field name="odoo_category_id" ref="product.product_category_all"/>
+        </record>
+
+        <record id="xml_categ_mapping_tesan_cctv" model="xml.category.mapping">
+            <field name="source_id" ref="xml_source_tesan"/>
+            <field name="xml_category">CCTV & Güvenlik</field>
+            <field name="match_type">exact</field>
+            <field name="odoo_category_id" ref="product.product_category_all"/>
+        </record>
+
+        <!-- Tesan İçeri Aktarım Zamanlaması (her 6 saatte bir) -->
+        <record id="ir_cron_tesan_import" model="ir.cron">
+            <field name="name">Tesan Ürünleri İçeri Aktar</field>
+            <field name="model_name">xml.product.source</field>
+            <field name="state">code</field>
+            <field name="code">
+# Tesan kaynağını bul ve ürünleri içeri aktar
+tesan_source = env['xml.product.source'].search([('name', '=', 'Tesan Portal')], limit=1)
+if tesan_source:
+    tesan_source.action_import_products()
+            </field>
+            <field name="interval_number">6</field>
+            <field name="interval_type">hours</field>
+            <field name="nextcall">2026-04-21 18:00:00</field>
+            <field name="active">True</field>
+        </record>
+
+    </data>
+</odoo>

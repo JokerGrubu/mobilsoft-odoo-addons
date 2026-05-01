@@ -111,7 +111,15 @@ class XmlProductSource(models.Model):
         help='Ayrı fiyat feed URL (Index Grup/Netex için)',
     )
 
-    # XML Yapısı
+    # Kaynak Tipi
+    source_type = fields.Selection([
+        ('xml', 'XML Feed'),
+        ('soap', 'SOAP Web Service'),
+        ('web', 'Web Scraping'),
+        ('api', 'REST API'),
+    ], string='Kaynak Tipi', default='xml', required=True)
+
+    # XML/Web Scraping Ayarları
     xml_template = fields.Selection([
         ('tsoft', 'T-Soft'),
         ('ticimax', 'Ticimax'),
@@ -123,6 +131,8 @@ class XmlProductSource(models.Model):
         ('woocommerce', 'WooCommerce'),
         ('woocommerce_api', 'WooCommerce API'),
         ('tesan_soap', 'Tesan SOAP'),
+        ('tesan_web', 'Tesan Web Scraping'),
+        ('linktech_web', 'LinkTech Web Scraping'),
         ('prestashop', 'PrestaShop'),
         ('shopify', 'Shopify'),
         ('magento', 'Magento'),
@@ -135,7 +145,21 @@ class XmlProductSource(models.Model):
         ('indexgrup', 'Index Grup'),
         ('netex', 'Netex'),
         ('custom', 'Özel (Custom)'),
-    ], string='XML Şablonu', default='custom', required=True)
+    ], string='Şablon', default='custom', required=True)
+
+    # Web Scraping Ayarları
+    scraper_class = fields.Char(
+        string='Scraper Sınıfı',
+        help='Web scraper sınıf adı (örn: TesanScraper, LinkTechScraper)',
+    )
+    scraping_config = fields.Text(
+        string='Scraping Konfigürasyonu',
+        help='JSON formatında scraper konfigürasyonu',
+    )
+    scraping_keywords = fields.Text(
+        string='Arama Anahtar Kelimeleri',
+        help='Ürün arama için anahtar kelimeler (satır başına bir)',
+    )
 
     root_element = fields.Char(
         string='Kök Element (XPath)',
@@ -836,8 +860,8 @@ class XmlProductSource(models.Model):
         cleaned = [p for p in [public_root] + parts[1:] if p]
         return cleaned[:3]
 
-    def _find_or_create_public_category_path(self, parts):
-        """E-ticaret kategori yolunu var ise al, yoksa oluştur."""
+    def _find_public_category_path(self, parts):
+        """E-ticaret public kategoriyi sadece mevcutsa döndürür. Asla oluşturmaz."""
         self.ensure_one()
         if not parts:
             return self.env['product.public.category'].browse()
@@ -859,14 +883,11 @@ class XmlProductSource(models.Model):
 
             category = PublicCategory.search(domain, limit=1)
             if not category:
-                category = PublicCategory.create({
-                    'name': name,
-                    'parent_id': parent.id if parent else False,
-                })
                 _logger.info(
-                    'Yeni e-ticaret kategorisi oluşturuldu: %s',
-                    ' > '.join(current_path),
+                    'E-ticaret kategorisi bulunamadı, otomatik oluşturma kapalı: %s',
+                    ' > '.join(current_path)
                 )
+                return self.env['product.public.category'].browse()
             parent = category
 
         return parent
@@ -898,7 +919,7 @@ class XmlProductSource(models.Model):
             public_path = self._public_category_path_from_xml(mapping.xml_category)
             if not public_path:
                 continue
-            public_category = self._find_or_create_public_category_path(public_path)
+            public_category = self._find_public_category_path(public_path)
             if public_category and (force_sync or not mapping.ecommerce_category_ids):
                 mapping.ecommerce_category_ids = [(6, 0, public_category.ids)]
                 assigned_count += 1
@@ -1003,9 +1024,9 @@ class XmlProductSource(models.Model):
 
         for candidate in ordered_candidates:
             if not product_category:
-                product_category = ProductCategory.search([('name', '=ilike', candidate)], limit=1)
+                product_category = ProductCategory.search([('name', 'ilike', candidate)], limit=1)
             if not ecommerce_categories:
-                ecommerce_categories = PublicCategory.search([('name', '=ilike', candidate)], limit=1)
+                ecommerce_categories = PublicCategory.search([('name', 'ilike', candidate)], limit=1)
             if product_category and ecommerce_categories:
                 break
 
@@ -1064,14 +1085,14 @@ class XmlProductSource(models.Model):
             product_category, ecommerce_categories = self._find_matching_category_records(xml_category)
             ecommerce_path = self._public_category_path_from_xml(xml_category)
             if ecommerce_path:
-                ecommerce_category = self._find_or_create_public_category_path(ecommerce_path)
+                ecommerce_category = self._find_public_category_path(ecommerce_path)
                 if ecommerce_category:
                     ecommerce_categories = ecommerce_category
             Mapping.create({
                 'source_id': self.id,
                 'sequence': start_sequence + (index * 10),
                 'xml_category': xml_category,
-                'match_type': 'exact',
+                'match_type': 'contains',
                 'odoo_category_id': product_category.id if product_category else False,
                 'ecommerce_category_ids': [(6, 0, ecommerce_categories.ids)] if ecommerce_categories else False,
                 'active': True,
@@ -1090,7 +1111,7 @@ class XmlProductSource(models.Model):
                 if not ecommerce_categories:
                     ecommerce_path = self._public_category_path_from_xml(mapping.xml_category)
                     if ecommerce_path:
-                        ecommerce_category = self._find_or_create_public_category_path(ecommerce_path)
+                        ecommerce_category = self._find_public_category_path(ecommerce_path)
                         if ecommerce_category:
                             ecommerce_categories = ecommerce_category
                 if not mapping.odoo_category_id and product_category:
@@ -1489,7 +1510,7 @@ class XmlProductSource(models.Model):
                 method,
                 namespace,
                 body_xml or '',
-                method, body_xml or '', method,
+                method,
             )
             return (
                 '<?xml version="1.0" encoding="utf-8"?>'
@@ -3335,6 +3356,16 @@ class XmlProductSource(models.Model):
 
         name = str(data.get('name', '')).strip() if data.get('name') else ''
         sku = str(data.get('sku', '')).strip() if data.get('sku') else ''
+        barcode = str(data.get('barcode', '')).strip() if data.get('barcode') else ''
+
+        # 🚀 BARKOD ÇAKIŞMA KONTROLÜ (Kritik Düzeltme)
+        if barcode:
+            existing_product = self.env['product.product'].with_context(active_test=False).search([
+                ('barcode', '=', barcode)
+            ], limit=1)
+            if existing_product:
+                _logger.info(f"Barkod çakışması engellendi: {barcode} zaten {existing_product.display_name} ürününe ait. Yeni kart açılmadı.")
+                return existing_product.product_tmpl_id
 
         # ═══════════════════════════════════════════════════════════════
         # PARANTEZDEN VARYANT MODU
@@ -3574,67 +3605,13 @@ class XmlProductSource(models.Model):
         _logger.debug(f"Ek görsel URL'leri kaydedildi: {product.name} - {len(image_urls)} adet")
 
     def _create_variant(self, product_tmpl, data, cost_price):
-        """Mevcut ürüne varyant ekle (farklı barkod)"""
+        """Mevcut ürüne varyant ekle (farklı barkod) — Barkod attribute kaldırıldı, ayrı ürün olarak devam et"""
         self.ensure_one()
-
-        # Barkod attribute'u bul veya oluştur
-        barcode_attr = self.env['product.attribute'].search([
-            ('name', '=', 'Barkod'),
-        ], limit=1)
-
-        if not barcode_attr:
-            barcode_attr = self.env['product.attribute'].create({
-                'name': 'Barkod',
-                'display_type': 'radio',
-                'create_variant': 'always',
-            })
-
-        barcode_value = data.get('barcode')
-
-        # Attribute value bul veya oluştur
-        attr_value = self.env['product.attribute.value'].search([
-            ('attribute_id', '=', barcode_attr.id),
-            ('name', '=', barcode_value),
-        ], limit=1)
-
-        if not attr_value:
-            attr_value = self.env['product.attribute.value'].create({
-                'attribute_id': barcode_attr.id,
-                'name': barcode_value,
-            })
-
-        # Ürüne attribute line ekle
-        attr_line = self.env['product.template.attribute.line'].search([
-            ('product_tmpl_id', '=', product_tmpl.id),
-            ('attribute_id', '=', barcode_attr.id),
-        ], limit=1)
-
-        if attr_line:
-            # Mevcut line'a value ekle
-            attr_line.write({'value_ids': [(4, attr_value.id)]})
-        else:
-            # Yeni attribute line oluştur
-            self.env['product.template.attribute.line'].create({
-                'product_tmpl_id': product_tmpl.id,
-                'attribute_id': barcode_attr.id,
-                'value_ids': [(6, 0, [attr_value.id])],
-            })
-
-        # Yeni varyantı bul ve güncelle
-        new_variant = self.env['product.product'].search([
-            ('product_tmpl_id', '=', product_tmpl.id),
-            ('barcode', '=', False),
-        ], limit=1)
-
-        if new_variant:
-            new_variant.write({
-                'barcode': barcode_value,
-                'default_code': f"{data.get('sku')}-{barcode_value[-4:]}",
-            })
-
-        _logger.info(f"Varyant eklendi: {product_tmpl.name} - Barkod: {barcode_value}")
-
-        return product_tmpl
+        _logger.info(
+            f"_create_variant: '{product_tmpl.name}' için barkod='{data.get('barcode')}' "
+            f"ayrı ürün olarak oluşturulacak (Barkod attribute kullanılmıyor)"
+        )
+        return None
 
     def _update_product(self, product, data, cost_price, xml_price):
         """Mevcut ürünü güncelle"""
@@ -3960,3 +3937,217 @@ class XmlProductSource(models.Model):
                 'sticky': False,
             }
         }
+
+    def action_import_products(self):
+        """Ürünleri içe aktar - XML veya Web Scraping"""
+        self.ensure_one()
+        
+        if self.source_type == 'web':
+            return self._import_products_from_web()
+        else:
+            return self._import_products_from_xml()
+
+    def _import_products_from_web(self):
+        """Web scraping ile ürünleri içe aktar"""
+        _logger.info(f"Web scraping başlatılıyor: {self.name}")
+        
+        try:
+            # Scraper sınıfını dinamik olarak yükle
+            scraper_class = self.scraper_class or 'BaseScraper'
+            
+            # Konfigürasyonu parse et
+            config = {}
+            if self.scraping_config:
+                try:
+                    config = json.loads(self.scraping_config)
+                except json.JSONDecodeError:
+                    _logger.warning("Scraping konfigürasyonu geçersiz JSON formatında")
+            
+            # Anahtar kelimeleri parse et
+            keywords = []
+            if self.scraping_keywords:
+                keywords = [k.strip() for k in self.scraping_keywords.split('\n') if k.strip()]
+            
+            # Scraper'ı çalıştır
+            if self.xml_template == 'tesan_web':
+                return self._run_tesan_scraper(keywords, config)
+            elif self.xml_template == 'linktech_web':
+                return self._run_linktech_scraper(keywords, config)
+            else:
+                raise UserError(f"Web scraping şablonu desteklenmiyor: {self.xml_template}")
+                
+        except Exception as e:
+            _logger.error(f"Web scraping hatası: {e}")
+            self.write({
+                'state': 'error',
+                'last_error': str(e),
+            })
+            raise UserError(f"Web scraping hatası: {e}")
+
+    def _run_tesan_scraper(self, keywords, config):
+        """Tesan scraper'ını çalıştır"""
+        try:
+            # Önce mutlak yolu dene
+            try:
+                from odoo.addons.mobilsoft_xml_import.scrapers.tesan.tesan_scraper import TesanScraper
+            except ImportError:
+                # Olmazsa göreceli yolu dene
+                from ..scrapers.tesan.tesan_scraper import TesanScraper
+
+            scraper = TesanScraper(
+                base_url=self.xml_url or 'https://isortagim.tesan.com.tr',
+                username=self.xml_username or 'info@jokergrubu.com',
+                password=self.xml_password or 'XZsawq21-',
+                config=config
+            )
+
+            if not scraper.login():
+                raise UserError("Tesan API'ye giriş yapılamadı. Kullanıcı adı/şifre kontrol edin.")
+
+            products = scraper.scrape_products()
+
+            # Ürünleri Odoo'ya aktar — fiyat için get_product_data() çağır
+            import time
+            count = 0
+            for product_data in products:
+                product_id = product_data.get('id')
+                if product_id:
+                    detail = scraper.get_product_data(product_id)
+                    if detail:
+                        product_data.update(detail)
+                    time.sleep(0.15)  # API rate limiting
+                self._create_or_update_product_from_scraping(product_data)
+                count += 1
+            
+            self.write({
+                'state': 'active',
+                'last_sync': fields.Datetime.now(),
+                'last_error': False,
+            })
+            
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Web Scraping Başarılı'),
+                    'message': _('%s ürün içe aktarıldı.') % count,
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+            
+        except Exception as e:
+            _logger.error(f"Tesan scraper yükleme veya çalışma hatası: {e}")
+            raise UserError(f"Tesan scraper modülü çalıştırılamadı: {e}")
+
+    def _run_linktech_scraper(self, keywords, config):
+        """LinkTech scraper'ını çalıştır"""
+        try:
+            from .scrapers.linktech_scraper import LinkTechScraper
+            
+            scraper = LinkTechScraper(
+                base_url=self.xml_url or 'https://www.linktech.com.tr',
+                keywords=keywords,
+                config=config
+            )
+            
+            products = scraper.scrape_products()
+            
+            # Ürünleri Odoo'ya aktar
+            count = 0
+            for product_data in products:
+                self._create_or_update_product_from_scraping(product_data)
+                count += 1
+            
+            self.write({
+                'state': 'active',
+                'last_sync': fields.Datetime.now(),
+                'last_error': False,
+            })
+            
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Web Scraping Başarılı'),
+                    'message': _('%s ürün içe aktarıldı.') % count,
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+            
+        except ImportError:
+            raise UserError("LinkTech scraper modülü bulunamadı. Lütfen scraper'ı kurun.")
+
+    def _create_or_update_product_from_scraping(self, product_data):
+        """Scraping verisinden ürün oluştur veya güncelle"""
+        sku = product_data.get('sku')
+        barcode = product_data.get('barcode')
+        if not sku:
+            return
+
+        # 🚀 BARKOD ÇAKIŞMA KONTROLÜ
+        if barcode:
+            existing_barcode = self.env['product.product'].with_context(active_test=False).search([
+                ('barcode', '=', barcode)
+            ], limit=1)
+            if existing_barcode:
+                _logger.info(f"Scraping barkod çakışması engellendi: {barcode}")
+                return
+        
+        # Mevcut ürünü ara
+        product = self.env['product.template'].search([
+            ('default_code', '=', sku),
+        ], limit=1)
+        
+        incoming_cost  = float(product_data.get('cost_price') or 0)
+        incoming_price = float(product_data.get('price') or 0)
+
+        # USD maliyeti TRY'ye çevir (güncel kur kullan)
+        incoming_cost_try = 0.0
+        if incoming_cost:
+            usd_currency = self.env['res.currency'].search([('name','=','USD')], limit=1)
+            usd_rate = usd_currency.rate if usd_currency and usd_currency.rate else 1.0
+            incoming_cost_try = incoming_cost / usd_rate  # USD → TRY
+
+        if product:
+            # Güncelle
+            update_vals = {
+                'name': product_data.get('name', product.name),
+                'description_sale': product_data.get('description', product.description_sale),
+                'xml_supplier_price': incoming_cost or product.xml_supplier_price,
+                'xml_supplier_sku': sku,
+                'xml_source_id': self.id,
+            }
+            if incoming_cost_try:
+                update_vals['standard_price'] = incoming_cost_try
+            if incoming_price:
+                update_vals['list_price'] = incoming_price
+            product.write(update_vals)
+        else:
+            # Yeni ürün oluştur
+            product = self.env['product.template'].create({
+                'default_code': sku,
+                'name': product_data.get('name', 'Ürün'),
+                'list_price': incoming_price,
+                'standard_price': incoming_cost_try,
+                'description_sale': product_data.get('description', ''),
+                'xml_supplier_price': incoming_cost,
+                'xml_supplier_sku': sku,
+                'xml_source_id': self.id,
+                'type': 'consu',
+            })
+        
+        # Stok durumuna göre görünürlük ayarla
+        raw_stock = float(product_data.get('raw_stock', 0) or 0)
+        stock_status = product_data.get('stock_status', 'out_of_stock')
+        
+        is_available = (raw_stock > 0 or stock_status == 'in_stock')
+        product.write({
+            'sale_ok': is_available,
+            'is_published': is_available
+        })
+
+        # Kategori ata
+        if product_data.get('category'):
+            self._assign_category_to_product(product, product_data['category'])

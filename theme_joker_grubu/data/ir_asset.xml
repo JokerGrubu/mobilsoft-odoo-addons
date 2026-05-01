@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <asset id="theme_joker_grubu.primary_variables_scss" name="Primary variables SCSS">
+        <field name="key">theme_joker_grubu.primary_variables_scss</field>
+        <bundle>web._assets_primary_variables</bundle>
+        <path>theme_joker_grubu/static/src/scss/primary_variables.scss</path>
+    </asset>
+
+    <asset id="theme_joker_grubu.custom_scss" name="Custom SCSS">
+        <field name="key">theme_joker_grubu.custom_scss</field>
+        <bundle>web.assets_frontend</bundle>
+        <path>theme_joker_grubu/static/src/scss/custom.scss</path>
+    </asset>
+</odoo>
