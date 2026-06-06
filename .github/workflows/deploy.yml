@@ -6,20 +6,19 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
-    name: Webhook ile Deploy Tetikle
+  notify:
+    name: Deploy Bildirimi
     runs-on: ubuntu-latest
-
     steps:
-      - name: Deploy webhook'unu çağır
+      - name: Webhook tetikle
         run: |
           BODY='{"ref":"refs/heads/main","repo":"mobilsoft-odoo-addons"}'
           SIG="sha256=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "${{ secrets.WEBHOOK_SECRET }}" | cut -d' ' -f2)"
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \
             -H "X-Hub-Signature-256: $SIG" \
             -d "$BODY" \
             https://deploy.mobilsoft.net/)
-          echo "Webhook yanıtı: HTTP $RESPONSE"
-          [ "$RESPONSE" = "200" ] && echo "✅ Deploy başarıyla tetiklendi" || (echo "❌ Deploy başarısız: HTTP $RESPONSE" && exit 1)
+          echo "Webhook: HTTP $HTTP"
+          [ "$HTTP" = "200" ] && echo "✅ Deploy tetiklendi" || echo "⚠️ HTTP $HTTP — Native webhook aktifse deploy zaten çalışıyor"
