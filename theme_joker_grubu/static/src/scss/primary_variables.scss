@@ -1,20 +1,19 @@
+// Joker Grubu AI Theme - Primary Variables
+// Odoo 19 compatible palette extension
 
-$o-theme-color-palettes: map-merge($o-theme-color-palettes,
-    (
-        'joker-ai': (
-            'alpha': #011E3D, // Deep space blue (arka plan)
-            'beta': #00E5FF,  // Neon cyan (vurgu/accent)
-            'gamma': #0B3D70, // Dark blue accent
-            'delta': #E5E7EB, // Light gray text
-            'epsilon': #000000, // Siyah
-
-            'success': #00FF88,
-            'warning': #FCD34D,
-            'danger': #EF4444,
-            'info': #3B82F6,
-        )
+$o-theme-color-palettes: map-merge($o-theme-color-palettes, (
+    'joker-ai': (
+        'alpha': #011E3D,
+        'beta': #00E5FF,
+        'gamma': #0B3D70,
+        'delta': #E5E7EB,
+        'epsilon': #000000,
+        'success': #00FF88,
+        'warning': #FCD34D,
+        'danger': #EF4444,
+        'info': #3B82F6,
     )
-);
+));
 
 $o-theme-font-configs: map-merge($o-theme-font-configs, (
     'Inter': (
@@ -27,14 +26,13 @@ $o-theme-font-configs: map-merge($o-theme-font-configs, (
     )
 ));
 
-$o-website-values-palettes: (
-    (
-        'color-palettes-name': 'joker-ai',
-        'font': 'Inter',
-        'headings-font': 'Outfit',
-        'btn-ripple': true,
-        'header-template': 'stretch',
-        'footer-template': 'centered',
-        'btn-border-radius': 8px,
-    )
-);
+// Append to palettes instead of overwriting
+$o-website-values-palettes: append($o-website-values-palettes, (
+    'color-palettes-name': 'joker-ai',
+    'font': 'Inter',
+    'headings-font': 'Outfit',
+    'btn-ripple': true,
+    'header-template': 'stretch',
+    'footer-template': 'centered',
+    'btn-border-radius': 8px,
+));
