@@ -4012,25 +4012,31 @@ class XmlProductSource(models.Model):
         """Sipariş listesini çek, her biri için detay satırlarını getir."""
         import re as _re, datetime as _dt
         r = session.get(f'{base}/Siparis/SiparisIzleme', timeout=20)
-        # Sipariş no ve detay ID'si
-        order_links = _re.findall(r"/Siparis/SiparisDetay/(\d+)", r.text)
-        order_nos = _re.findall(r'(SS\d{8})', r.text)
-        # Tablo satırları: SiparisNo, Tarih, Kullanıcı, Durum, _, OnayTarih, Tutar, KDV, ParaBirimi, _
-        table_rows = _re.findall(
-            r'<td>(?:Quipus|Fatura|Stok|Sipari[şs]|[A-Z])[^<]*</td>(.*?)</tr>',
-            r.text, _re.DOTALL
-        )
-        orders = []
-        for i, (detail_id, siparis_no) in enumerate(zip(order_links, order_nos)):
-            row_data = []
-            if i < len(table_rows):
-                tds = _re.findall(r'<td[^>]*>(.*?)</td>', table_rows[i], _re.DOTALL)
-                row_data = [_re.sub(r'<[^>]+>', '', td).strip() for td in tds]
 
-            date_str = row_data[1] if len(row_data) > 1 else ''
-            status = row_data[3] if len(row_data) > 3 else ''
-            amount_str = row_data[6] if len(row_data) > 6 else '0'
-            currency = row_data[8] if len(row_data) > 8 else 'USD'
+        # Her sipariş satırını tam <tr>...</tr> olarak al; SS numarası içerenleri seç
+        all_rows = _re.findall(r'<tr[^>]*>(.*?)</tr>', r.text, _re.DOTALL)
+        order_rows = {}
+        for row_html in all_rows:
+            ss_match = _re.search(r'(SS\d{8})', row_html)
+            det_match = _re.search(r'/Siparis/SiparisDetay/(\d+)', row_html)
+            if ss_match and det_match:
+                siparis_no = ss_match.group(1)
+                detail_id = det_match.group(1)
+                tds = _re.findall(r'<td[^>]*>(.*?)</td>', row_html, _re.DOTALL)
+                row_data = [_re.sub(r'<[^>]+>', '', td).strip() for td in tds]
+                order_rows[siparis_no] = {'detail_id': detail_id, 'row_data': row_data}
+
+        orders = []
+        for siparis_no, info in order_rows.items():
+            detail_id = info['detail_id']
+            row_data = info['row_data']
+            # Sütunlar: 0=İşlemTürü, 1=SiparisNo, 2=Tarih, 3=Kullanıcı,
+            #           4=Durum, 5=KargoTakip, 6=OnayTarih, 7=Tutar, 8=KDV,
+            #           9=ParaBirimi, 10=Açıklama
+            date_str = row_data[2] if len(row_data) > 2 else ''
+            status = _re.sub(r'\s+', ' ', row_data[4]).strip() if len(row_data) > 4 else ''
+            amount_str = row_data[7] if len(row_data) > 7 else '0'
+            currency = row_data[9] if len(row_data) > 9 else 'USD'
 
             # Detay satırlarını çek
             det = session.get(f'{base}/Siparis/SiparisDetay/{detail_id}', timeout=15)
