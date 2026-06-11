@@ -4303,66 +4303,93 @@ class XmlProductSource(models.Model):
     # ─────────────────────────────────────────────────────────────────
 
     def action_match_vendor_bills(self):
-        """Powerway satın alma siparişlerini Asya Pasifik vendor bill'leriyle eşleştir."""
+        """Powerway satın alma siparişlerini Asya Pasifik vendor bill'leriyle eşleştir.
+
+        Bill'ler TRY, PO'lar USD cinsinden. Eşleştirme:
+        - Aynı tedarikçi
+        - Tarih farkı ≤ 60 gün
+        - Tutar farkı ≤ 30% (TRY→USD dönüşümü sonrası)
+        """
         self.ensure_one()
         PO = self.env['purchase.order']
         AM = self.env['account.move']
 
-        # Eşleştirilmemiş Powerway PO'ları bul
+        vendor = self.web_price_vendor_id or self.supplier_id
+        if not vendor:
+            raise UserError('Tedarikçi tanımlı değil.')
+
+        # Powerway PO'ları — henüz faturaya bağlanmamış olanlar
         pw_orders = PO.search([
             ('partner_ref', 'like', 'PW-%'),
-            ('partner_id', '=', (self.web_price_vendor_id or self.supplier_id).id),
+            ('partner_id', '=', vendor.id),
         ])
-        # Supplier'a göre eşleştirilmemiş vendor bill'leri bul
+        unlinked_po = {po.id: po for po in pw_orders if not po.invoice_ids}
+
+        # Aynı tedarikçinin tüm vendor bill'leri — henüz bağlanmamış
         bills = AM.search([
             ('move_type', '=', 'in_invoice'),
-            ('partner_id', '=', (self.web_price_vendor_id or self.supplier_id).id),
+            ('partner_id', '=', vendor.id),
             ('state', 'in', ('draft', 'posted')),
+            ('purchase_id', '=', False),
         ])
 
-        matched = 0
-        import datetime as _dt
+        # Güncel USD/TRY kuru
+        usd = self.env['res.currency'].search([('name', '=', 'USD')], limit=1)
+        usd_rate = (1.0 / usd.rate) if usd and usd.rate else 46.0  # TRY_per_USD
+
+        matched = already_linked = 0
         for bill in bills:
-            # Zaten bir PO'ya bağlı mı?
-            if bill.invoice_line_ids.filtered(lambda l: l.purchase_line_id):
-                continue
-            # Tarih ve tutar toleransıyla eşleşme
-            bill_date = bill.invoice_date or bill.date
-            bill_amount = bill.amount_untaxed
+            bill_date = bill.invoice_date or (bill.date.date() if hasattr(bill.date, 'date') else bill.date)
+            bill_currency = bill.currency_id.name if bill.currency_id else 'TRY'
+
+            # Bill tutarını USD'ye çevir
+            if bill_currency == 'USD':
+                bill_usd = bill.amount_untaxed
+            elif bill_currency == 'TRY' and usd_rate:
+                bill_usd = bill.amount_untaxed / usd_rate
+            else:
+                bill_usd = bill.amount_untaxed
+
             best_po = None
-            best_diff = float('inf')
-            for po in pw_orders:
+            best_score = float('inf')
+            for po in unlinked_po.values():
                 po_date = po.date_order.date() if po.date_order else None
-                # Tarih farkı 30 günden az ve tutar farkı %10 içinde
-                if bill_date and po_date:
-                    day_diff = abs((bill_date - po_date).days)
-                else:
-                    day_diff = 999
+                day_diff = abs((bill_date - po_date).days) if (bill_date and po_date) else 999
                 if po.amount_untaxed:
-                    amount_diff_pct = abs(bill_amount - po.amount_untaxed) / max(po.amount_untaxed, 0.01) * 100
+                    amount_diff_pct = abs(bill_usd - po.amount_untaxed) / max(po.amount_untaxed, 0.01) * 100
                 else:
                     amount_diff_pct = 100
-                if day_diff <= 30 and amount_diff_pct <= 10:
-                    score = day_diff + amount_diff_pct
-                    if score < best_diff:
-                        best_diff = score
+
+                if day_diff <= 60 and amount_diff_pct <= 30:
+                    score = day_diff * 0.5 + amount_diff_pct
+                    if score < best_score:
+                        best_score = score
                         best_po = po
 
             if best_po:
-                # PO'yu faturaya bağla
                 try:
                     bill.write({'purchase_id': best_po.id})
                     matched += 1
-                    _logger.info('Powerway PO %s ↔ Fatura %s eşleştirildi', best_po.partner_ref, bill.name)
+                    del unlinked_po[best_po.id]  # bir kez eşleştir
+                    _logger.info(
+                        'Powerway PO %s (%.2f USD) ↔ Fatura %s (%.2f TRY / %.2f USD)',
+                        best_po.partner_ref, best_po.amount_untaxed,
+                        bill.name or bill.ref or str(bill.id), bill.amount_untaxed, bill_usd
+                    )
                 except Exception as e:
                     _logger.warning('Fatura eşleştirme hatası %s: %s', bill.name, e)
+            else:
+                already_linked += 1
 
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': 'Fatura Eşleştirme Tamamlandı',
-                'message': f'{matched} fatura Powerway satın alma siparişiyle eşleştirildi.',
+                'message': (
+                    f'{matched} fatura Powerway siparişine bağlandı. '
+                    f'{already_linked} fatura için uygun PO bulunamadı.'
+                ),
                 'type': 'info' if matched == 0 else 'success',
                 'sticky': False,
             }
