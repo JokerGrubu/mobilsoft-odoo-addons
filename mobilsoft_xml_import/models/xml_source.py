@@ -142,6 +142,16 @@ class XmlProductSource(models.Model):
         default=False,
         help='Açıksa, fiyat senkron cron\'u bu kaynağı otomatik tarar (günlük).',
     )
+    cost_currency_id = fields.Many2one(
+        'res.currency', string='Maliyet Para Birimi',
+        help='XML\'den gelen fiyatların para birimi (USD, EUR, TRY). '
+             'TRY değilse satış fiyatı otomatik dönüştürülür.',
+    )
+    auto_price_recalc = fields.Boolean(
+        string='Satış Fiyatını Otomatik Yeniden Hesapla (Cron)',
+        default=False,
+        help='Döviz kuru değiştiğinde satış fiyatlarını otomatik güncelle.',
+    )
 
     # Powerway Online Sipariş Portalı
     powerway_url = fields.Char(
@@ -2676,14 +2686,40 @@ class XmlProductSource(models.Model):
     # PRICE CALCULATION
     # ══════════════════════════════════════════════════════════════════════════
 
+    def _usd_to_try(self, amount_usd):
+        """USD → TRY dönüşümü (Odoo güncel kuru ile)."""
+        usd = self.env['res.currency'].search([('name', '=', 'USD')], limit=1)
+        try_cur = self.env['res.currency'].search([('name', '=', 'TRY')], limit=1)
+        if not usd or not try_cur or not usd.rate:
+            return amount_usd
+        # usd.rate = USD_per_TRY → TRY_per_USD = 1/usd.rate
+        return float(amount_usd) / usd.rate
+
+    def _cost_to_company_currency(self, cost_price):
+        """Maliyet fiyatını şirket para birimine (TRY) çevir."""
+        if not cost_price:
+            return 0.0
+        cost = float(cost_price)
+        if not self.cost_currency_id:
+            return cost
+        company_cur = self.env.company.currency_id
+        if self.cost_currency_id.id == company_cur.id:
+            return cost
+        # Dönüşüm: cost_currency → TRY
+        rate = self.cost_currency_id.rate  # currency_per_TRY
+        if not rate:
+            return cost
+        return cost / rate  # cost / (USD_per_TRY) = cost_TRY
+
     def _calculate_sale_price(self, cost_price):
-        """Tedarikçi fiyatından satış fiyatı hesapla"""
+        """Tedarikçi fiyatından satış fiyatı hesapla (döviz dönüşümü dahil)."""
         self.ensure_one()
 
         if not cost_price:
             return 0.0
 
-        cost = float(cost_price)
+        # Maliyet fiyatını şirket para birimine (TRY) çevir
+        cost = self._cost_to_company_currency(cost_price)
         sale_price = cost
 
         # Markup uygula
@@ -4193,6 +4229,145 @@ class XmlProductSource(models.Model):
             except Exception as e:
                 _logger.error('Baytek cron hatası (%s): %s', source.name, e)
 
+    # Satış Fiyatı Yeniden Hesaplama
+    # ─────────────────────────────────────────────────────────────────
+
+    def action_recalculate_sale_prices(self):
+        """Bu kaynaktaki tüm ürünlerin satış fiyatını güncel kur × kar marjıyla yeniden hesapla."""
+        self.ensure_one()
+        if not self.cost_currency_id:
+            raise UserError('Maliyet para birimi tanımlı değil. Lütfen önce "Maliyet Para Birimi" seçin.')
+
+        products = self.env['product.template'].search([
+            ('xml_source_id', '=', self.id),
+            ('active', '=', True),
+        ])
+        updated = skipped = 0
+        for product in products:
+            cost = product.xml_supplier_price or product.standard_price
+            if not cost:
+                skipped += 1
+                continue
+            new_price = self._calculate_sale_price(cost)
+            if new_price and abs(new_price - product.list_price) > 0.01:
+                product.write({'list_price': new_price})
+                updated += 1
+            else:
+                skipped += 1
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Satış Fiyatları Güncellendi',
+                'message': f'{updated} ürün güncellendi, {skipped} atlandı.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    def action_fix_supplier_currency(self):
+        """Bu kaynaktaki tüm supplierinfo kayıtlarının para birimini cost_currency_id'ye güncelle."""
+        self.ensure_one()
+        if not self.cost_currency_id:
+            raise UserError('Maliyet para birimi tanımlı değil.')
+        SI = self.env['product.supplierinfo']
+        records = SI.search([('product_tmpl_id.xml_source_id', '=', self.id)])
+        records.write({'currency_id': self.cost_currency_id.id})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Tedarikçi Para Birimi Güncellendi',
+                'message': f'{len(records)} supplierinfo kaydı {self.cost_currency_id.name} olarak güncellendi.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    @api.model
+    def cron_recalculate_prices(self):
+        """Cron: Döviz kuru güncellendikten sonra satış fiyatlarını yeniden hesapla."""
+        sources = self.search([
+            ('state', '=', 'active'),
+            ('auto_price_recalc', '=', True),
+            ('cost_currency_id', '!=', False),
+        ])
+        for source in sources:
+            try:
+                source.action_recalculate_sale_prices()
+            except Exception as e:
+                _logger.error('Fiyat yeniden hesaplama cron hatası (%s): %s', source.name, e)
+
+    # Powerway PO ↔ Asya Pasifik Fatura Eşleştirmesi
+    # ─────────────────────────────────────────────────────────────────
+
+    def action_match_vendor_bills(self):
+        """Powerway satın alma siparişlerini Asya Pasifik vendor bill'leriyle eşleştir."""
+        self.ensure_one()
+        PO = self.env['purchase.order']
+        AM = self.env['account.move']
+
+        # Eşleştirilmemiş Powerway PO'ları bul
+        pw_orders = PO.search([
+            ('partner_ref', 'like', 'PW-%'),
+            ('partner_id', '=', (self.web_price_vendor_id or self.supplier_id).id),
+        ])
+        # Supplier'a göre eşleştirilmemiş vendor bill'leri bul
+        bills = AM.search([
+            ('move_type', '=', 'in_invoice'),
+            ('partner_id', '=', (self.web_price_vendor_id or self.supplier_id).id),
+            ('state', 'in', ('draft', 'posted')),
+        ])
+
+        matched = 0
+        import datetime as _dt
+        for bill in bills:
+            # Zaten bir PO'ya bağlı mı?
+            if bill.invoice_line_ids.filtered(lambda l: l.purchase_line_id):
+                continue
+            # Tarih ve tutar toleransıyla eşleşme
+            bill_date = bill.invoice_date or bill.date
+            bill_amount = bill.amount_untaxed
+            best_po = None
+            best_diff = float('inf')
+            for po in pw_orders:
+                po_date = po.date_order.date() if po.date_order else None
+                # Tarih farkı 30 günden az ve tutar farkı %10 içinde
+                if bill_date and po_date:
+                    day_diff = abs((bill_date - po_date).days)
+                else:
+                    day_diff = 999
+                if po.amount_untaxed:
+                    amount_diff_pct = abs(bill_amount - po.amount_untaxed) / max(po.amount_untaxed, 0.01) * 100
+                else:
+                    amount_diff_pct = 100
+                if day_diff <= 30 and amount_diff_pct <= 10:
+                    score = day_diff + amount_diff_pct
+                    if score < best_diff:
+                        best_diff = score
+                        best_po = po
+
+            if best_po:
+                # PO'yu faturaya bağla
+                try:
+                    bill.write({'purchase_id': best_po.id})
+                    matched += 1
+                    _logger.info('Powerway PO %s ↔ Fatura %s eşleştirildi', best_po.partner_ref, bill.name)
+                except Exception as e:
+                    _logger.warning('Fatura eşleştirme hatası %s: %s', bill.name, e)
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Fatura Eşleştirme Tamamlandı',
+                'message': f'{matched} fatura Powerway satın alma siparişiyle eşleştirildi.',
+                'type': 'info' if matched == 0 else 'success',
+                'sticky': False,
+            }
+        }
+
     def action_test_connection(self):
         """Bağlantıyı test et"""
         self.ensure_one()
@@ -5029,14 +5204,21 @@ class XmlProductSource(models.Model):
                 ('partner_id', '=', self.supplier_id.id),
             ], limit=1)
 
+            si_vals = {
+                'product_tmpl_id': product.id,
+                'partner_id': self.supplier_id.id,
+                'price': product.xml_supplier_price or product.standard_price,
+                'product_code': product.xml_supplier_sku or product.default_code,
+            }
+            if self.cost_currency_id:
+                si_vals['currency_id'] = self.cost_currency_id.id
             if not existing:
-                self.env['product.supplierinfo'].create({
-                    'product_tmpl_id': product.id,
-                    'partner_id': self.supplier_id.id,
-                    'price': product.xml_supplier_price or product.standard_price,
-                    'product_code': product.xml_supplier_sku or product.default_code,
-                })
+                self.env['product.supplierinfo'].create(si_vals)
                 count += 1
+            else:
+                # Para birimini güncelle
+                if self.cost_currency_id and existing.currency_id != self.cost_currency_id:
+                    existing.write({'currency_id': self.cost_currency_id.id})
 
         return {
             'type': 'ir.actions.client',

@@ -48,5 +48,14 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <record id="ir_cron_price_recalc" model="ir.cron">
+            <field name="name">XML Import: Döviz Kuru ile Satış Fiyatı Yeniden Hesaplama</field>
+            <field name="model_id" ref="mobilsoft_xml_import.model_xml_product_source"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_recalculate_prices()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

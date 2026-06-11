@@ -61,6 +61,21 @@
                             class="btn-secondary"
                             icon="fa-bank"
                             invisible="not powerway_url"/>
+                    <button name="action_match_vendor_bills" type="object"
+                            string="Powerway→Fatura Eşleştir"
+                            class="btn-secondary"
+                            icon="fa-link"
+                            invisible="not powerway_url"/>
+                    <button name="action_recalculate_sale_prices" type="object"
+                            string="Satış Fiyatlarını Yeniden Hesapla"
+                            class="btn-warning"
+                            icon="fa-calculator"
+                            invisible="not cost_currency_id"/>
+                    <button name="action_fix_supplier_currency" type="object"
+                            string="Tedarikçi Para Birimi Düzelt"
+                            class="btn-secondary"
+                            icon="fa-money"
+                            invisible="not cost_currency_id"/>
                     <button name="action_load_template_mappings" type="object"
                             string="Şablon Yükle"
                             class="btn-secondary"
@@ -273,6 +288,16 @@
                         <!-- Fiyatlandırma -->
                         <page string="Fiyatlandırma" name="pricing" icon="fa-money">
                             <group col="4">
+                                <group colspan="2" string="Maliyet Para Birimi">
+                                    <field name="cost_currency_id" options="{'no_create': true}"/>
+                                    <field name="auto_price_recalc" widget="boolean_toggle"/>
+                                    <div class="text-muted" colspan="2">
+                                        XML'den gelen fiyatlar USD/EUR ise Odoo güncel kuru ile
+                                        TRY'ye çevrilir, ardından kar marjı uygulanır.
+                                        <b>"Satış Fiyatlarını Yeniden Hesapla"</b> butonu ile
+                                        tüm ürünleri bir anda güncelle.
+                                    </div>
+                                </group>
                                 <group colspan="2" string="Kar Marjı Ayarları">
                                     <field name="price_markup_type" widget="radio"
                                            options="{'horizontal': true}"/>
