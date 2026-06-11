@@ -58,5 +58,15 @@
             <field name="search_url_pattern">https://www.upcdatabase.com/item/{query}</field>
         </record>
 
+        <!-- Asya Pasifik (asiamark.com) — bayi tedarikçi vitrini (Ticimax) -->
+        <record id="enrichment_source_asiamark" model="product.enrichment.source">
+            <field name="name">AsiaMark (Asya Pasifik)</field>
+            <field name="source_type">custom</field>
+            <field name="sequence">5</field>
+            <field name="active">True</field>
+            <field name="base_url">https://asiamark.com</field>
+            <field name="search_url_pattern">https://asiamark.com/arama?kelime={query}</field>
+        </record>
+
     </data>
 </odoo>

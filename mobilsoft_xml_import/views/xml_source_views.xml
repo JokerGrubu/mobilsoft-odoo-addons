@@ -25,6 +25,42 @@
                             class="btn-primary"
                             icon="fa-download"
                             invisible="state not in ('active', 'draft')"/>
+                    <button name="action_sync_stock_from_web" type="object"
+                            string="Web'den Stok Senkronla"
+                            class="btn-secondary"
+                            icon="fa-cubes"
+                            invisible="not web_stock_url"/>
+                    <button name="action_import_missing_from_web" type="object"
+                            string="Eksik Ürünleri Web'den Oluştur"
+                            class="btn-secondary"
+                            icon="fa-plus-square"
+                            invisible="not web_stock_url"
+                            confirm="Web stoğunda olup Odoo'da olmayan ürünler tam veri (bilgi + ana görsel + ek görseller + stok) ile oluşturulacak. Devam edilsin mi?"/>
+                    <button name="action_sync_prices_from_web" type="object"
+                            string="Bayi USD Fiyatlarını Çek"
+                            class="btn-secondary"
+                            icon="fa-dollar"
+                            invisible="not web_price_url"/>
+                    <button name="action_sync_powerway_orders" type="object"
+                            string="Powerway Siparişlerini Senkronla"
+                            class="btn-secondary"
+                            icon="fa-shopping-cart"
+                            invisible="not powerway_url"/>
+                    <button name="action_sync_baytek_orders" type="object"
+                            string="Baytek Siparişlerini Senkronla"
+                            class="btn-secondary"
+                            icon="fa-shopping-cart"
+                            invisible="not baytek_b2b_user"/>
+                    <button name="action_view_baytek_balance" type="object"
+                            string="Baytek Hesap Özeti"
+                            class="btn-secondary"
+                            icon="fa-bank"
+                            invisible="not baytek_b2b_user"/>
+                    <button name="action_view_powerway_balance" type="object"
+                            string="Powerway Cari Ekstre"
+                            class="btn-secondary"
+                            icon="fa-bank"
+                            invisible="not powerway_url"/>
                     <button name="action_load_template_mappings" type="object"
                             string="Şablon Yükle"
                             class="btn-secondary"
@@ -112,6 +148,60 @@
                             <field name="last_error" readonly="1" invisible="not last_error"
                                    widget="text"/>
                         </group>
+                    </group>
+
+                    <group string="Web Stok Senkronu (IdeaSoft / Ticimax Mağaza)" name="web_stock_group">
+                        <field name="web_stock_url" widget="url"
+                               placeholder="Mağaza adresi (örn. https://asiamark.com)"/>
+                        <field name="auto_web_stock_sync" widget="boolean_toggle"/>
+                        <field name="web_price_url" widget="url"
+                               placeholder="Bayi fiyat paneli (örn. https://katalog.asyapasifikteknoloji.com)"/>
+                        <field name="web_price_tel" placeholder="Bayi login tel/kullanıcı"
+                               invisible="not web_price_url"/>
+                        <field name="web_price_password" password="True"
+                               invisible="not web_price_url"/>
+                        <field name="web_price_vendor_id" options="{'no_create': True}"
+                               invisible="not web_price_url"/>
+                        <field name="auto_web_price_sync" widget="boolean_toggle"
+                               invisible="not web_price_url"/>
+                        <div class="text-muted" colspan="2">
+                            XML feed'inde stok/fiyat olmayan tedarikçiler için: mağaza vitrininin
+                            sitemap'i taranır, her ürün sayfasındaki <b>barkod + stokAdedi</b> okunur,
+                            barkod → SKU → varyant → isim sırasıyla Odoo ürünleriyle eşlenir.
+                            Stok 0 olanlar satışa kapatılır (silinmez). Çalıştırmak için yukarıdaki
+                            <b>"Web'den Stok Senkronla"</b> butonunu kullanın.
+                        </div>
+                    </group>
+
+                    <group string="Powerway Online Sipariş Portalı" name="powerway_group">
+                        <field name="powerway_url"/>
+                        <field name="powerway_user"/>
+                        <field name="powerway_password" password="True"/>
+                        <field name="auto_powerway_sync" widget="boolean_toggle"/>
+                        <field name="powerway_last_sync" readonly="1"/>
+                        <div class="text-muted" colspan="2">
+                            Powerway B2B portalından sipariş geçmişi çekilir, Odoo'da
+                            <b>Satın Alma Siparişi</b> olarak oluşturulur. Her sipariş
+                            <b>PW-&lt;ID&gt;</b> referansıyla tekrar oluşturulmaz.
+                            <b>"Powerway Cari Ekstre"</b> butonu ile borç/alacak bakiyesini
+                            doğrudan portalda görüntüleyebilirsiniz.
+                        </div>
+                    </group>
+
+                    <group string="Baytek B2B Sipariş Portalı" name="baytek_group">
+                        <field name="baytek_b2b_url"/>
+                        <field name="baytek_b2b_dealer"/>
+                        <field name="baytek_b2b_user"/>
+                        <field name="baytek_b2b_password" password="True"/>
+                        <field name="auto_baytek_sync" widget="boolean_toggle"/>
+                        <field name="baytek_last_sync" readonly="1"/>
+                        <div class="text-muted" colspan="2">
+                            Baytek B2B portalından sipariş listesi çekilir, Odoo'da
+                            <b>Satın Alma Siparişi</b> olarak oluşturulur. Her sipariş
+                            <b>BT-SS&lt;No&gt;</b> referansıyla tekrar oluşturulmaz.
+                            <b>"Baytek Hesap Özeti"</b> butonu ile cari bakiyeyi
+                            doğrudan portalda görüntüleyebilirsiniz.
+                        </div>
                     </group>
 
                     <notebook>

@@ -13,7 +13,7 @@ import base64
 import time
 from difflib import SequenceMatcher
 from io import BytesIO
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse, urljoin
 
 _logger = logging.getLogger(__name__)
 
@@ -111,6 +111,67 @@ class XmlProductSource(models.Model):
         help='Ayrı fiyat feed URL (Index Grup/Netex için)',
     )
 
+    # IdeaSoft tabanlı mağaza vitrininden web stok senkronu (örn. asiamark.com)
+    # XML feed'inde stok olmayan tedarikçiler için, vitrindeki ürün sayfalarından
+    # barkod + stokAdedi okunarak stok durumu güncellenir.
+    web_stock_url = fields.Char(
+        string='Web Stok Mağaza URL',
+        help='IdeaSoft/Ticimax tabanlı mağaza ana adresi (örn. https://asiamark.com). '
+             'sitemap üzerinden ürün sayfaları taranıp barkod->stok eşlenir.',
+    )
+    auto_web_stock_sync = fields.Boolean(
+        string='Web Stoğu Otomatik Senkronla (Cron)',
+        default=False,
+        help='Açıksa, web stok senkron cron\'u bu kaynağı otomatik tarar (günlük).',
+    )
+
+    # Bayi paneli (Ticimax katalog) USD alış fiyatı çekme
+    web_price_url = fields.Char(
+        string='Bayi Fiyat Panel URL',
+        help='Ticimax bayi katalog ana adresi (örn. https://katalog.asyapasifikteknoloji.com). '
+             'Login ile USD indirimli alış fiyatları çekilir.',
+    )
+    web_price_tel = fields.Char(string='Bayi Login (Tel/Kullanıcı)')
+    web_price_password = fields.Char(string='Bayi Login Şifre')
+    web_price_vendor_id = fields.Many2one(
+        'res.partner', string='Fiyat Tedarikçisi',
+        help='Alış fiyatının yazılacağı tedarikçi (product.supplierinfo). Boşsa kaynağın tedarikçisi kullanılır.',
+    )
+    auto_web_price_sync = fields.Boolean(
+        string='Bayi Fiyatını Otomatik Senkronla (Cron)',
+        default=False,
+        help='Açıksa, fiyat senkron cron\'u bu kaynağı otomatik tarar (günlük).',
+    )
+
+    # Powerway Online Sipariş Portalı
+    powerway_url = fields.Char(
+        string='Powerway Online URL',
+        default='https://online.powerway.com.tr',
+        help='Powerway B2B sipariş portalı (örn. https://online.powerway.com.tr)',
+    )
+    powerway_user = fields.Char(string='Powerway Kullanıcı (E-posta)')
+    powerway_password = fields.Char(string='Powerway Şifre')
+    auto_powerway_sync = fields.Boolean(
+        string='Siparişleri Otomatik Senkronla (Cron)',
+        default=False,
+    )
+    powerway_last_sync = fields.Datetime(string='Son Powerway Senkron', readonly=True)
+
+    # Baytek B2B Sipariş Portalı
+    baytek_b2b_url = fields.Char(
+        string='Baytek B2B URL',
+        default='https://www.bayiteknoloji.com',
+        help='Baytek B2B sipariş portalı (örn. https://www.bayiteknoloji.com)',
+    )
+    baytek_b2b_dealer = fields.Char(string='Baytek Bayi Kodu')
+    baytek_b2b_user = fields.Char(string='Baytek Kullanıcı Adı')
+    baytek_b2b_password = fields.Char(string='Baytek Şifre')
+    auto_baytek_sync = fields.Boolean(
+        string='Baytek Siparişleri Otomatik Senkronla (Cron)',
+        default=False,
+    )
+    baytek_last_sync = fields.Datetime(string='Son Baytek Senkron', readonly=True)
+
     # Kaynak Tipi
     source_type = fields.Selection([
         ('xml', 'XML Feed'),
@@ -144,6 +205,7 @@ class XmlProductSource(models.Model):
         ('akakce', 'Akakçe'),
         ('indexgrup', 'Index Grup'),
         ('netex', 'Netex'),
+        ('baytek', 'Baytek Bilişim'),
         ('custom', 'Özel (Custom)'),
     ], string='Şablon', default='custom', required=True)
 
@@ -448,6 +510,7 @@ class XmlProductSource(models.Model):
             'akakce': '//Products/Product',
             'indexgrup': './/URUN',
             'netex': './/URUN',
+            'baytek': '//Products/Product',
         }
         if self.xml_template and self.xml_template != 'custom':
             self.root_element = template_roots.get(self.xml_template, '//Product')
@@ -716,6 +779,21 @@ class XmlProductSource(models.Model):
                 'extra1': '@_GRUP',
                 'tax': 'VERGI',
                 'image': 'RESIM',
+            },
+            'baytek': {
+                'sku': 'ProductCode',
+                'barcode': 'Barcode',
+                'name': 'ProductName',
+                'description': 'Description',
+                'stock': 'Quantity',
+                'cost_price': 'Price',
+                'category': 'Category',
+                'brand': 'Brand',
+                'image': 'Image1',
+                'image2': 'Image2',
+                'image3': 'Image3',
+                'image4': 'Image4',
+                'tax': 'TaxRate',
             },
         }
 
@@ -1221,7 +1299,7 @@ class XmlProductSource(models.Model):
                     xml_text = content.decode('utf-8', errors='ignore')
                     _logger.warning("XML decode hatası - bazı karakterler kaybolabilir")
 
-            stripped = (xml_text or '').lstrip()
+            stripped = (xml_text or '').lstrip().lstrip('﻿')
             content_type = (response.headers.get('Content-Type') or '').lower()
             if not stripped.startswith('<') or content_type.startswith('text/html'):
                 preview = stripped[:200].replace('\n', ' ').strip()
@@ -3094,6 +3172,1021 @@ class XmlProductSource(models.Model):
     # IMPORT LOGIC
     # ══════════════════════════════════════════════════════════════════════════
 
+    # ------------------------------------------------------------------
+    # IdeaSoft Web Stok Senkronu (XML feed'inde stok olmayan tedarikçiler için)
+    # ------------------------------------------------------------------
+    def _ideasoft_web_headers(self):
+        return {
+            'User-Agent': (
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/133.0.0.0 Safari/537.36'
+            ),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',
+        }
+
+    def _fetch_ideasoft_product_urls(self, base, session):
+        """IdeaSoft mağaza sitemap'inden tüm ürün sayfası URL'lerini topla."""
+        headers = self._ideasoft_web_headers()
+        loc_re = re.compile(r'<loc>\s*([^<\s]+)\s*</loc>', re.IGNORECASE)
+        product_sitemaps = []
+        # sitemap index
+        try:
+            r = session.get(urljoin(base + '/', 'sitemap.xml'), headers=headers, timeout=(15, 60))
+            if r.ok:
+                for loc in loc_re.findall(r.text or ''):
+                    if '/products/' in loc and loc.endswith('.xml'):
+                        product_sitemaps.append(loc)
+        except Exception as e:
+            _logger.warning('IdeaSoft sitemap index okunamadı: %s', e)
+        # index yoksa varsayılan ürün sitemap'ini dene
+        if not product_sitemaps:
+            product_sitemaps = [urljoin(base + '/', 'sitemap/products/0.xml')]
+        product_urls = []
+        for sm in product_sitemaps:
+            try:
+                r = session.get(sm, headers=headers, timeout=(15, 120))
+                if r.ok:
+                    product_urls.extend(loc_re.findall(r.text or ''))
+            except Exception as e:
+                _logger.warning('IdeaSoft ürün sitemap okunamadı (%s): %s', sm, e)
+        # tekrarsız, sırayı koru
+        return list(dict.fromkeys(product_urls))
+
+    def _fetch_ideasoft_web_stock_items(self):
+        """IdeaSoft tabanlı vitrinden ürün stok kalemlerini çıkar.
+
+        Her ürün sayfasına gömülü JSON'dan barkod + stokKodu + urunAdi + stokAdedi
+        okunur. Dönen liste: [{'barcode','sku','name','qty'}, ...]
+        Barkod+SKU+isim birlikte döndürülür ki eşleştirme varyantları da yakalasın.
+        """
+        self.ensure_one()
+        base = (self.web_stock_url or '').strip()
+        if not base:
+            raise UserError(_('Web Stok Mağaza URL girilmemiş.'))
+        if not base.startswith('http'):
+            base = 'https://' + base
+        base = base.rstrip('/')
+
+        session = requests.Session()
+        headers = self._ideasoft_web_headers()
+        product_urls = self._fetch_ideasoft_product_urls(base, session)
+        if not product_urls:
+            raise UserError(_('Mağaza sitemap\'inden ürün URL\'i bulunamadı: %s') % base)
+
+        barkod_re = re.compile(r'"barkod"\s*:\s*"(\d+)"')
+        stok_re = re.compile(r'"stokAdedi"\s*:\s*([0-9.]+)')
+        sku_re = re.compile(r'"stokKodu"\s*:\s*"([^"]*)"')
+        name_re = re.compile(r'"urunAdi"\s*:\s*"([^"]*)"')
+
+        items = []
+        for url in product_urls:
+            try:
+                r = session.get(url, headers=headers, timeout=(15, 60))
+                if not r.ok:
+                    continue
+                txt = r.text or ''
+                mb = barkod_re.search(txt)
+                msku = sku_re.search(txt)
+                # Barkod ya da stok kodu olmadan eşleştirilemez
+                if not mb and not msku:
+                    continue
+                qty = 0
+                ms = stok_re.search(txt)
+                if ms:
+                    try:
+                        qty = int(float(ms.group(1)))
+                    except (ValueError, TypeError):
+                        qty = 0
+                mname = name_re.search(txt)
+                items.append({
+                    'barcode': mb.group(1) if mb else '',
+                    'sku': (msku.group(1).strip() if msku else ''),
+                    'name': (mname.group(1).strip() if mname else ''),
+                    'qty': qty,
+                    'url': url,
+                })
+            except Exception as e:
+                _logger.warning('IdeaSoft ürün sayfası okunamadı (%s): %s', url, e)
+                continue
+        _logger.info('IdeaSoft web stok: %s ürün okundu (%s)', len(items), base)
+        return items
+
+    def _match_product_for_stock(self, item):
+        """Web stok kalemi için Odoo ürün şablonunu bul (barkod -> SKU -> varyant -> isim)."""
+        self.ensure_one()
+        ProductP = self.env['product.product'].with_context(active_test=False)
+        ProductT = self.env['product.template'].with_context(active_test=False)
+
+        # 1) Barkod (varyant seviyesi, normalize)
+        bc_cands = self._barcode_match_candidates(item.get('barcode'))
+        if bc_cands:
+            p = ProductP.search([('barcode', 'in', bc_cands)], limit=1)
+            if p:
+                return p.product_tmpl_id, 'barcode'
+
+        sku = (item.get('sku') or '').strip()
+        # 2) SKU tam eşleşme (varyant ve şablon)
+        if sku:
+            p = ProductP.search([('default_code', '=', sku)], limit=1)
+            if p:
+                return p.product_tmpl_id, 'sku'
+            t = ProductT.search([('default_code', '=', sku)], limit=1)
+            if t:
+                return t, 'sku'
+            # 3) Varyant SKU'su: "TX108 (SİYAH)" -> ana kod "TX108"
+            base = sku.split('(', 1)[0].strip()
+            if base and base != sku:
+                p = ProductP.search([('default_code', '=', base)], limit=1)
+                if p:
+                    return p.product_tmpl_id, 'sku_base'
+                t = ProductT.search([
+                    '|', ('default_code', '=', base), ('name', '=ilike', base)
+                ], limit=1)
+                if t:
+                    return t, 'name_base'
+
+        # 4) Modülün genel eşleştiricisi (barkod/SKU/isim kuralları)
+        tmpl, reason = self._find_existing_product({
+            'barcode': item.get('barcode'),
+            'sku': sku,
+            'name': item.get('name'),
+        })
+        if tmpl:
+            return tmpl, reason
+
+        # 5) İsimle son çare (parantez varyantını at, tam/yüksek benzerlik)
+        name = (item.get('name') or '').strip()
+        if name:
+            base_name = name.split('(', 1)[0].strip()
+            t = ProductT.search([('name', '=ilike', base_name or name)], limit=1)
+            if t:
+                return t, 'name'
+        return ProductT.browse(), 'none'
+
+    def _barcode_match_candidates(self, barcode):
+        """Barkod normalizasyonu: GTIN-14/baştaki sıfır farklarını kapsa."""
+        barcode = (barcode or '').strip()
+        cands = {barcode}
+        if barcode:
+            cands.add(barcode.lstrip('0'))
+            if len(barcode) > 13:
+                cands.add(barcode[-13:])
+        return [c for c in cands if c]
+
+    def action_sync_stock_from_web(self):
+        """Vitrinden web stok senkronu: barkodla eşle, xml_supplier_stock + sale_ok güncelle.
+
+        Stok > 0  -> sale_ok=True (gerekirse tekrar aktifleştir)
+        Stok = 0  -> sale_ok=False; deactivate_zero_stock açıksa active=False
+        """
+        self.ensure_one()
+        log = self.env['xml.import.log'].create({
+            'source_id': self.id,
+            'start_time': fields.Datetime.now(),
+            'state': 'running',
+        })
+        try:
+            items = self._fetch_ideasoft_web_stock_items()
+            log.total_products = len(items)
+
+            updated = in_stock_n = out_stock_n = skipped = 0
+            seen_tmpl = {}
+            unmatched = []
+
+            for item in items:
+                tmpl, reason = self._match_product_for_stock(item)
+                if not tmpl:
+                    skipped += 1
+                    unmatched.append('%s / %s' % (item.get('barcode') or '-', item.get('sku') or item.get('name') or '-'))
+                    continue
+
+                qty = item.get('qty', 0) or 0
+                # Çok varyantlı şablonda aynı şablona düşen kalemlerin en yükseğini al
+                # (herhangi bir varyant stokta ise şablon stokta sayılır)
+                prev = seen_tmpl.get(tmpl.id)
+                if prev is not None and prev >= qty:
+                    continue
+                seen_tmpl[tmpl.id] = qty
+
+                vals = {'xml_supplier_stock': qty}
+                if qty > 0:
+                    in_stock_n += 1
+                    if not tmpl.sale_ok:
+                        vals['sale_ok'] = True
+                    if not tmpl.active:
+                        vals['active'] = True
+                else:
+                    out_stock_n += 1
+                    if self.deactivate_zero_stock:
+                        if tmpl.active:
+                            vals['active'] = False
+                    elif tmpl.sale_ok:
+                        vals['sale_ok'] = False
+
+                # Web'den gelen ürün adını güncelle (farklıysa)
+                web_name = (item.get('name') or '').strip()
+                if web_name and web_name.upper() != (tmpl.name or '').strip().upper():
+                    if not tmpl.description_sale:
+                        vals['description_sale'] = tmpl.name
+                    vals['name'] = web_name
+
+                tmpl.write(vals)
+                updated += 1
+
+            self.env.cr.commit()
+            detail = _('Stokta var: %s | Tükendi: %s | Eşleşmeyen: %s') % (
+                in_stock_n, out_stock_n, skipped)
+            if unmatched:
+                detail += '\n\nEşleşmeyenler:\n' + '\n'.join(unmatched[:100])
+            log.write({
+                'end_time': fields.Datetime.now(),
+                'state': 'done',
+                'products_updated': updated,
+                'products_skipped': skipped,
+                'products_created': 0,
+                'products_failed': 0,
+                'error_details': detail,
+            })
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Web Stok Senkronu Tamamlandı'),
+                    'message': _('Güncellenen: %s (stokta %s / tükendi %s), Eşleşmeyen: %s') % (
+                        updated, in_stock_n, out_stock_n, skipped),
+                    'type': 'success',
+                    'sticky': True,
+                },
+            }
+        except Exception as e:
+            self.env.cr.rollback()
+            log.write({
+                'end_time': fields.Datetime.now(),
+                'state': 'error',
+                'error_details': str(e),
+            })
+            raise UserError(_('Web stok senkron hatası: %s') % str(e))
+
+    def _scrape_web_product_detail(self, url, session):
+        """Mağaza ürün sayfasından açıklama + ana görsel + ek görseller çıkar.
+
+        Ticimax (static.ticimax.cloud) ve genel og:image / meta description desteği.
+        Dönüş: {'description', 'image', 'extra_images': [...], 'category', 'brand'}
+        """
+        out = {'description': '', 'image': '', 'extra_images': [], 'category': '', 'brand': ''}
+        try:
+            r = session.get(url, headers=self._ideasoft_web_headers(), timeout=(15, 60))
+            if not r.ok:
+                return out
+            txt = r.text or ''
+        except Exception as e:
+            _logger.warning('Ürün detay sayfası okunamadı (%s): %s', url, e)
+            return out
+
+        # Açıklama: meta description
+        m = re.search(r'<meta name="description" content="([^"]*)"', txt)
+        if m:
+            out['description'] = html.unescape(m.group(1)).strip()
+
+        # Kategori / marka (Ticimax JSON)
+        mc = re.search(r'"kategori"\s*:\s*"([^"]+)"', txt)
+        if mc:
+            out['category'] = html.unescape(mc.group(1)).strip()
+        mbr = re.search(r'"marka"\s*:\s*"([^"]+)"', txt)
+        if mbr:
+            out['brand'] = html.unescape(mbr.group(1)).strip()
+
+        # Görseller: Ticimax static.ticimax.cloud/.../urunresimleri/buyuk/<dosya>
+        # cdn-cgi/image/<param>/ önekini at, kanonik URL kur, dosya adına göre tekille
+        tici = re.findall(
+            r'static\.ticimax\.cloud/(?:cdn-cgi/image/[^/]+/)?(\d+/[Uu]ploads/[Uu]run[Rr]esimleri/buyuk/[^"?\s]+\.(?:jpg|jpeg|png|webp))',
+            txt,
+        )
+        seen = set()
+        images = []
+        for path in tici:
+            fname = path.rsplit('/', 1)[-1].lower()
+            if fname in seen:
+                continue
+            seen.add(fname)
+            images.append('https://static.ticimax.cloud/' + path)
+        # Ticimax bulunmazsa og:image'a düş
+        if not images:
+            mog = re.search(r'<meta property="og:image" content="([^"]+)"', txt)
+            if mog:
+                images.append(mog.group(1).strip())
+        if images:
+            out['image'] = images[0]
+            out['extra_images'] = images[1:11]
+        return out
+
+    def action_import_missing_from_web(self):
+        """Web stoğunda olup Odoo'da eşleşmeyen ürünleri tam veri ile oluştur.
+
+        Bilgi (isim/SKU/barkod/açıklama/kategori/marka) + ana görsel + ek görseller
+        (product.image) + stok (xml_supplier_stock/sale_ok) doğru alanlara yazılır.
+        Varyant parantezli isimler `_create_product` ile ana ürün + renk varyantına dönüşür.
+        """
+        self.ensure_one()
+        log = self.env['xml.import.log'].create({
+            'source_id': self.id,
+            'start_time': fields.Datetime.now(),
+            'state': 'running',
+        })
+        try:
+            items = self._fetch_ideasoft_web_stock_items()
+            log.total_products = len(items)
+            session = requests.Session()
+            created = matched = failed = 0
+            created_names = []
+
+            # Eksik ürün oluştururken görselleri indir
+            prev_download = self.download_images
+            for item in items:
+                tmpl, _reason = self._match_product_for_stock(item)
+                if tmpl:
+                    matched += 1
+                    continue
+                if not (item.get('barcode') or item.get('sku')):
+                    continue
+                try:
+                    detail = self._scrape_web_product_detail(item.get('url'), session)
+                    qty = item.get('qty', 0) or 0
+                    data = {
+                        'name': item.get('name') or item.get('sku') or 'asiamark ürün',
+                        'sku': item.get('sku') or '',
+                        'barcode': item.get('barcode') or '',
+                        'description': detail.get('description') or '',
+                        'category': detail.get('category') or '',
+                        'brand': detail.get('brand') or '',
+                        'image': detail.get('image') or '',
+                        'extra_images': detail.get('extra_images') or [],
+                        'stock': str(qty),
+                    }
+                    product = self._create_product(data, 0.0, 0.0)
+                    if product:
+                        vals = {
+                            'xml_source_id': self.id,
+                            'sale_ok': qty > 0,
+                            'enrichment_source': 'asiamark (web)',
+                            'last_enrichment_date': fields.Datetime.now(),
+                        }
+                        product.write(vals)
+                        # Ana görsel yoksa ekle (varyant dalı bazen atlıyor)
+                        if data.get('image') and not product.image_1920:
+                            img = self._download_image(data['image'])
+                            if img:
+                                product.image_1920 = img
+                        # Ek görseller -> product.image (doğru alan). _add_extra_images helper'ı
+                        # env.get() hatasıyla atlayabildiği için burada doğrudan oluştur.
+                        if data.get('extra_images'):
+                            ProductImage = self.env['product.image']
+                            has_extra = ProductImage.search_count(
+                                [('product_tmpl_id', '=', product.id)])
+                            if not has_extra:
+                                for i, iurl in enumerate(data['extra_images'][:9]):
+                                    try:
+                                        idata = self._download_image(iurl)
+                                        if idata:
+                                            ProductImage.create({
+                                                'product_tmpl_id': product.id,
+                                                'name': '%s - Görsel %s' % (product.name, i + 2),
+                                                'image_1920': idata,
+                                            })
+                                    except Exception as ie:
+                                        _logger.warning('Ek görsel eklenemedi (%s): %s', iurl, ie)
+                        created += 1
+                        created_names.append('%s (%s)' % (data['name'][:40], data['sku']))
+                    self.env.cr.commit()
+                except Exception as e:
+                    self.env.cr.rollback()
+                    _logger.error('Eksik ürün oluşturma hatası (%s): %s', item.get('sku'), e)
+                    failed += 1
+
+            detail_txt = _('Oluşturulan: %s | Zaten var: %s | Hata: %s') % (created, matched, failed)
+            if created_names:
+                detail_txt += '\n\nOluşturulanlar:\n' + '\n'.join(created_names[:100])
+            log.write({
+                'end_time': fields.Datetime.now(),
+                'state': 'done',
+                'products_created': created,
+                'products_updated': 0,
+                'products_skipped': matched,
+                'products_failed': failed,
+                'error_details': detail_txt,
+            })
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Eksik Ürünler Oluşturuldu'),
+                    'message': _('Oluşturulan: %s, Zaten var: %s, Hata: %s') % (created, matched, failed),
+                    'type': 'success' if failed == 0 else 'warning',
+                    'sticky': True,
+                },
+            }
+        except Exception as e:
+            self.env.cr.rollback()
+            log.write({
+                'end_time': fields.Datetime.now(),
+                'state': 'error',
+                'error_details': str(e),
+            })
+            raise UserError(_('Eksik ürün oluşturma hatası: %s') % str(e))
+
+    @api.model
+    def cron_sync_web_stock_all(self):
+        """Cron: web_stock_url tanımlı ve otomatik açık kaynakların web stoğunu senkronla."""
+        sources = self.search([
+            ('state', '=', 'active'),
+            ('auto_web_stock_sync', '=', True),
+            ('web_stock_url', '!=', False),
+        ])
+        for source in sources:
+            try:
+                source.action_sync_stock_from_web()
+            except Exception as e:
+                _logger.error('Web stok cron hatası (%s): %s', source.name, e)
+
+    # ------------------------------------------------------------------
+    # Bayi paneli (Ticimax) USD alış fiyatı senkronu
+    # ------------------------------------------------------------------
+    def _fetch_katalog_price_map(self):
+        """Ticimax bayi paneline login olup ürün stok kodu -> USD fiyat haritası çıkar."""
+        self.ensure_one()
+        base = (self.web_price_url or '').strip()
+        if not base:
+            raise UserError(_('Bayi Fiyat Panel URL girilmemiş.'))
+        if not base.startswith('http'):
+            base = 'https://' + base
+        base = base.rstrip('/')
+        if not (self.web_price_tel and self.web_price_password):
+            raise UserError(_('Bayi login bilgileri (tel/şifre) eksik.'))
+
+        session = requests.Session()
+        headers = self._ideasoft_web_headers()
+        try:
+            session.get(base + '/login/', headers=headers, timeout=(15, 60))
+            session.post(
+                base + '/giris.asp', headers=headers,
+                data={'tel': self.web_price_tel, 'password': self.web_price_password},
+                timeout=(15, 60), allow_redirects=True,
+            )
+            resp = session.get(base + '/indirimli-fiyat/', headers=headers, timeout=(15, 180))
+        except Exception as e:
+            raise UserError(_('Bayi paneline bağlanılamadı: %s') % e)
+
+        html_txt = resp.text or ''
+        # Yapı: text-orange-500 span (fiyat) → h-[65px] div (ürün adı) → font-light div (SKU)
+        cards = re.findall(
+            r'text-orange-500[^>]*>\s*([\d.,]+)\$\s*</span>.*?h-\[65px\][^>]*>([^<]+?)</div>.*?font-light[^>]*>\s*([^<]+?)\s*</div>',
+            html_txt, re.S,
+        )
+        price_map = {}
+        for price, _name, sku in cards:
+            try:
+                usd = float(price.replace('.', '').replace(',', '.'))
+            except (ValueError, TypeError):
+                continue
+            sku = sku.strip()
+            if sku:
+                price_map[sku] = usd
+        if not price_map:
+            raise UserError(_('Bayi panelinden fiyat okunamadı (login başarısız olabilir).'))
+        _logger.info('Bayi fiyat: %s ürün okundu (%s)', len(price_map), base)
+        return price_map
+
+    def _match_tmpl_by_code(self, sku):
+        """Stok koduna göre ürün şablonu bul (tam kod -> base/parantezsiz -> isim)."""
+        ProductP = self.env['product.product'].with_context(active_test=False)
+        ProductT = self.env['product.template'].with_context(active_test=False)
+        p = ProductP.search([('default_code', '=', sku)], limit=1)
+        if p:
+            return p.product_tmpl_id
+        t = ProductT.search([('default_code', '=', sku)], limit=1)
+        if t:
+            return t
+        base = sku.split('(', 1)[0].strip()
+        if base and base != sku:
+            p = ProductP.search([('default_code', '=', base)], limit=1)
+            if p:
+                return p.product_tmpl_id
+            t = ProductT.search([('default_code', '=', base)], limit=1)
+            if t:
+                return t
+            t = ProductT.search([('name', '=ilike', base)], limit=1)
+            if t:
+                return t
+        return ProductT.browse()
+
+    def action_sync_prices_from_web(self):
+        """Bayi panelinden USD alış fiyatlarını çek, product.supplierinfo (USD) olarak yaz."""
+        self.ensure_one()
+        log = self.env['xml.import.log'].create({
+            'source_id': self.id,
+            'start_time': fields.Datetime.now(),
+            'state': 'running',
+        })
+        try:
+            price_map = self._fetch_katalog_price_map()
+            log.total_products = len(price_map)
+            usd = self.env['res.currency'].search([('name', '=', 'USD')], limit=1)
+            if not usd:
+                raise UserError(_('USD para birimi bulunamadı.'))
+            vendor = self.web_price_vendor_id or self.supplier_id
+            if not vendor:
+                raise UserError(_('Fiyat tedarikçisi (vendor) tanımlı değil.'))
+            SI = self.env['product.supplierinfo']
+            done = {}
+            created = updated = skipped = 0
+            unmatched = []
+            for sku, val in price_map.items():
+                tmpl = self._match_tmpl_by_code(sku)
+                if not tmpl:
+                    skipped += 1
+                    unmatched.append(sku)
+                    continue
+                if tmpl.id in done:
+                    continue
+                done[tmpl.id] = val
+                if not tmpl.xml_supplier_id:
+                    tmpl.xml_supplier_id = vendor.id
+                si = SI.search([
+                    ('partner_id', '=', vendor.id),
+                    ('product_tmpl_id', '=', tmpl.id),
+                    ('currency_id', '=', usd.id),
+                ], limit=1)
+                if si:
+                    si.write({'price': val, 'currency_id': usd.id, 'product_code': sku})
+                    updated += 1
+                else:
+                    SI.create({
+                        'product_tmpl_id': tmpl.id,
+                        'partner_id': vendor.id,
+                        'price': val,
+                        'currency_id': usd.id,
+                        'product_code': sku,
+                    })
+                    created += 1
+            self.env.cr.commit()
+            detail = _('Yeni: %s | Güncellenen: %s | Eşleşmeyen: %s') % (created, updated, skipped)
+            if unmatched:
+                detail += '\n\nEşleşmeyen kodlar:\n' + '\n'.join(unmatched[:100])
+            log.write({
+                'end_time': fields.Datetime.now(),
+                'state': 'done',
+                'products_created': created,
+                'products_updated': updated,
+                'products_skipped': skipped,
+                'products_failed': 0,
+                'error_details': detail,
+            })
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Bayi Fiyatları Güncellendi'),
+                    'message': _('USD alış fiyatı yazılan: %s (yeni %s / güncel %s), eşleşmeyen: %s') % (
+                        created + updated, created, updated, skipped),
+                    'type': 'success',
+                    'sticky': True,
+                },
+            }
+        except Exception as e:
+            self.env.cr.rollback()
+            log.write({
+                'end_time': fields.Datetime.now(),
+                'state': 'error',
+                'error_details': str(e),
+            })
+            raise UserError(_('Bayi fiyat senkron hatası: %s') % str(e))
+
+    @api.model
+    def cron_sync_web_price_all(self):
+        """Cron: bayi fiyatı otomatik açık kaynakların USD alış fiyatını senkronla."""
+        sources = self.search([
+            ('state', '=', 'active'),
+            ('auto_web_price_sync', '=', True),
+            ('web_price_url', '!=', False),
+        ])
+        for source in sources:
+            try:
+                source.action_sync_prices_from_web()
+            except Exception as e:
+                _logger.error('Bayi fiyat cron hatası (%s): %s', source.name, e)
+
+    # ─────────────────────────────────────────────────────────────────
+    # Powerway Online Sipariş Portalı Entegrasyonu
+    # ─────────────────────────────────────────────────────────────────
+
+    def _powerway_session(self):
+        """Powerway Online portalına giriş yap, oturumlu session döndür."""
+        import requests as _req
+        session = _req.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120',
+            'Accept-Language': 'tr-TR,tr;q=0.9',
+        })
+        base = (self.powerway_url or 'https://online.powerway.com.tr').rstrip('/')
+        r = session.post(f'{base}/giris/', data={
+            'email': self.powerway_user or '',
+            'sifre': self.powerway_password or '',
+            'beni_hatirla': '1',
+            'istek': '',
+        }, timeout=20)
+        if '/uygulama/' not in r.url:
+            raise UserError('Powerway giriş başarısız — kullanıcı adı/şifre kontrol edin.')
+        return session, base
+
+    def _fetch_powerway_orders(self, session, base):
+        """Sipariş listesini çek, her biri için detay satırlarını getir."""
+        import re as _re, base64 as _b64
+        r = session.get(f'{base}/uygulama/siparislerim/', timeout=20)
+        order_links = _re.findall(
+            r'href="(/ajax/siparisdetay\.asp\?id=([A-Za-z0-9+/=]+))"', r.text
+        )
+        # Tarih + tutar + URL
+        rows = _re.findall(
+            r'<td[^>]*>(\d{1,2}\.\d{1,2}\.\d{4})</td>\s*<td[^>]*>([^<]+)</td>\s*'
+            r'<td[^>]*>([\d.,]+ USD)</td>',
+            r.text, _re.DOTALL
+        )
+        date_map = {url: (date, amt) for url, date, amt in
+                    zip([u for u, _ in order_links], [r[0] for r in rows], [r[2] for r in rows])}
+        orders = []
+        for url, b64_id in order_links:
+            try:
+                order_id = _b64.b64decode(b64_id).decode()
+            except Exception:
+                order_id = b64_id
+            date_str, amount_str = date_map.get(url, ('', ''))
+            # Detay satırlarını çek
+            det = session.get(f'{base}{url}', timeout=15)
+            lines = _re.findall(
+                r'&#9679;\s*([^<]+)</td><td[^>]*>([\d]+)</td><td[^>]*>[^<]*</td>'
+                r'<td[^>]*>[^<]*</td><td[^>]*align=[\'"]right[\'"]>([\d.,]+ USD)</td>',
+                det.text
+            )
+            orders.append({
+                'portal_id': order_id,
+                'date': date_str,
+                'amount_str': amount_str,
+                'lines': [{'name': l[0].strip(), 'qty': l[1].strip(), 'unit_price': l[2].strip()} for l in lines],
+            })
+            import time as _time
+            _time.sleep(0.3)
+        return orders
+
+    def _parse_usd(self, s):
+        """'19,9000 USD' veya '1.234,56 USD' → float"""
+        s = (s or '').replace('\xa0', '').replace(' USD', '').strip()
+        if ',' in s and '.' in s:
+            s = s.replace('.', '').replace(',', '.')
+        elif ',' in s:
+            s = s.replace(',', '.')
+        try:
+            return float(s)
+        except Exception:
+            return 0.0
+
+    def _find_product_by_name(self, name):
+        """Ürün adından product.template bul (tam + kısmi eşleşme)."""
+        name_upper = (name or '').strip().upper()
+        # Tam default_code eşleşmesi
+        prod = self.env['product.template'].search(
+            [('default_code', '=ilike', name_upper), ('active', '=', True)], limit=1
+        )
+        if prod:
+            return prod
+        # İlk kelime (SKU gibi) ile ara
+        first_word = name_upper.split()[0] if name_upper.split() else ''
+        if first_word:
+            prod = self.env['product.template'].search(
+                [('default_code', '=ilike', first_word), ('active', '=', True)], limit=1
+            )
+            if prod:
+                return prod
+        # İsim içinde ara
+        prod = self.env['product.template'].search(
+            [('name', 'ilike', name_upper[:20]), ('active', '=', True)], limit=1
+        )
+        return prod or False
+
+    def action_sync_powerway_orders(self):
+        """Powerway Online'dan sipariş geçmişini çekip Odoo'da purchase.order oluştur/güncelle."""
+        self.ensure_one()
+        if not self.powerway_user or not self.powerway_password:
+            raise UserError('Powerway kullanıcı adı ve şifre gerekli.')
+
+        session, base = self._powerway_session()
+        orders = self._fetch_powerway_orders(session, base)
+
+        PO = self.env['purchase.order']
+        POL = self.env['purchase.order.line']
+        usd = self.env['res.currency'].search([('name', '=', 'USD')], limit=1)
+        vendor = self.env['res.partner'].browse(
+            (self.web_price_vendor_id or self.supplier_id).id
+        )
+
+        created = updated = 0
+        for order in orders:
+            if not order['lines']:
+                continue
+            # Portal sipariş ID'sini referans olarak kullan
+            ref = f'PW-{order["portal_id"]}'
+            # Tarih parse
+            import datetime as _dt
+            date_obj = _dt.date.today()
+            try:
+                parts = order['date'].split('.')
+                date_obj = _dt.date(int(parts[2]), int(parts[1]), int(parts[0]))
+            except Exception:
+                pass
+
+            # Var mı kontrol et
+            existing_po = PO.search([('partner_ref', '=', ref)], limit=1)
+            if existing_po:
+                continue  # Zaten var, atla
+
+            # Yeni PO oluştur
+            po_vals = {
+                'partner_id': vendor.id,
+                'partner_ref': ref,
+                'date_order': _dt.datetime.combine(date_obj, _dt.time(12, 0)),
+                'currency_id': usd.id if usd else self.env.company.currency_id.id,
+                'note': f'Powerway Online portal\'dan otomatik oluşturuldu (ID: {order["portal_id"]})',
+                'state': 'draft',
+            }
+            po = PO.create(po_vals)
+
+            for line in order['lines']:
+                unit_price = self._parse_usd(line['unit_price'])
+                try:
+                    qty = float(line['qty'].replace(',', '.'))
+                except Exception:
+                    qty = 1.0
+
+                product = self._find_product_by_name(line['name'])
+                line_vals = {
+                    'order_id': po.id,
+                    'name': line['name'],
+                    'product_qty': qty,
+                    'price_unit': unit_price,
+                    'date_planned': _dt.datetime.combine(date_obj, _dt.time(12, 0)),
+                }
+                if product:
+                    line_vals['product_id'] = product.product_variant_ids[:1].id
+                else:
+                    # Ürün bulunamazsa dummy servis ürünü
+                    fallback = self.env['product.product'].search(
+                        [('name', 'ilike', line['name'][:15])], limit=1
+                    )
+                    if fallback:
+                        line_vals['product_id'] = fallback.id
+                POL.create(line_vals)
+
+            created += 1
+
+        self.write({'powerway_last_sync': fields.Datetime.now()})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Powerway Senkron Tamamlandı',
+                'message': f'{created} yeni sipariş oluşturuldu, {updated} güncellendi. (Toplam: {len(orders)})',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    def action_view_powerway_balance(self):
+        """Powerway cari bakiye sayfasını tarayıcıda aç."""
+        self.ensure_one()
+        base = (self.powerway_url or 'https://online.powerway.com.tr').rstrip('/')
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f'{base}/uygulama/ayrintilicariekstre/',
+            'target': 'new',
+        }
+
+    @api.model
+    def cron_sync_powerway_orders(self):
+        """Cron: Powerway siparişlerini otomatik senkronize et."""
+        sources = self.search([
+            ('state', '=', 'active'),
+            ('auto_powerway_sync', '=', True),
+            ('powerway_url', '!=', False),
+            ('powerway_user', '!=', False),
+        ])
+        for source in sources:
+            try:
+                source.action_sync_powerway_orders()
+            except Exception as e:
+                _logger.error('Powerway cron hatası (%s): %s', source.name, e)
+
+    # Baytek B2B Sipariş Portalı Entegrasyonu
+    # ─────────────────────────────────────────────────────────────────
+
+    def _baytek_session(self):
+        """Baytek B2B portalına giriş yap, oturumlu session döndür."""
+        import requests as _req
+        session = _req.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120',
+            'Accept-Language': 'tr-TR,tr;q=0.9',
+        })
+        base = (self.baytek_b2b_url or 'https://www.bayiteknoloji.com').rstrip('/')
+        r = session.post(f'{base}/Uyelik/Giris', data={
+            'cBayiKodu': self.baytek_b2b_dealer or '',
+            'cKullaniciAdi': self.baytek_b2b_user or '',
+            'cParola': self.baytek_b2b_password or '',
+            'lBeniHatırla': 'false',
+        }, timeout=20, allow_redirects=True)
+        if 'Hesabım' not in r.text and 'HesabÄ±m' not in r.text and r.url.endswith('/Giris'):
+            raise UserError('Baytek giriş başarısız — bayi kodu/kullanıcı/şifre kontrol edin.')
+        return session, base
+
+    def _fetch_baytek_orders(self, session, base):
+        """Sipariş listesini çek, her biri için detay satırlarını getir."""
+        import re as _re, datetime as _dt
+        r = session.get(f'{base}/Siparis/SiparisIzleme', timeout=20)
+        # Sipariş no ve detay ID'si
+        order_links = _re.findall(r"/Siparis/SiparisDetay/(\d+)", r.text)
+        order_nos = _re.findall(r'(SS\d{8})', r.text)
+        # Tablo satırları: SiparisNo, Tarih, Kullanıcı, Durum, _, OnayTarih, Tutar, KDV, ParaBirimi, _
+        table_rows = _re.findall(
+            r'<td>(?:Quipus|Fatura|Stok|Sipari[şs]|[A-Z])[^<]*</td>(.*?)</tr>',
+            r.text, _re.DOTALL
+        )
+        orders = []
+        for i, (detail_id, siparis_no) in enumerate(zip(order_links, order_nos)):
+            row_data = []
+            if i < len(table_rows):
+                tds = _re.findall(r'<td[^>]*>(.*?)</td>', table_rows[i], _re.DOTALL)
+                row_data = [_re.sub(r'<[^>]+>', '', td).strip() for td in tds]
+
+            date_str = row_data[1] if len(row_data) > 1 else ''
+            status = row_data[3] if len(row_data) > 3 else ''
+            amount_str = row_data[6] if len(row_data) > 6 else '0'
+            currency = row_data[8] if len(row_data) > 8 else 'USD'
+
+            # Detay satırlarını çek
+            det = session.get(f'{base}/Siparis/SiparisDetay/{detail_id}', timeout=15)
+            det_tables = _re.findall(r'<table[^>]*>(.*?)</table>', det.text, _re.DOTALL)
+            lines = []
+            for tbl in det_tables:
+                rows2 = _re.findall(r'<tr[^>]*>(.*?)</tr>', tbl, _re.DOTALL)
+                if len(rows2) > 1:
+                    header_tds = _re.findall(r'<th[^>]*>(.*?)</th>', rows2[0], _re.DOTALL)
+                    header = [_re.sub(r'<[^>]+>', '', h).strip() for h in header_tds]
+                    if 'Mal Adı' in header or 'Miktar' in header:
+                        for rw in rows2[1:]:
+                            tds = _re.findall(r'<td[^>]*>(.*?)</td>', rw, _re.DOTALL)
+                            vals = [_re.sub(r'<[^>]+>', '', td).strip() for td in tds]
+                            if len(vals) >= 3 and vals[0]:
+                                # "Ürün Adı\n                40873" → ayrıştır
+                                parts = vals[0].rsplit('\n', 1)
+                                name = parts[0].strip()
+                                product_code = parts[-1].strip() if len(parts) > 1 else ''
+                                lines.append({
+                                    'name': name,
+                                    'product_code': product_code,
+                                    'qty': vals[1] if len(vals) > 1 else '1',
+                                    'unit_price': vals[2] if len(vals) > 2 else '0',
+                                    'net_price': vals[4] if len(vals) > 4 else vals[2],
+                                })
+                        break
+            orders.append({
+                'detail_id': detail_id,
+                'siparis_no': siparis_no,
+                'date': date_str,
+                'status': status,
+                'amount_str': amount_str,
+                'currency': currency,
+                'lines': lines,
+            })
+            import time as _time
+            _time.sleep(0.3)
+        return orders
+
+    def action_sync_baytek_orders(self):
+        """Baytek B2B'den sipariş listesini çekip Odoo'da purchase.order oluştur."""
+        self.ensure_one()
+        if not self.baytek_b2b_user or not self.baytek_b2b_password:
+            raise UserError('Baytek kullanıcı adı ve şifre gerekli.')
+
+        session, base = self._baytek_session()
+        orders = self._fetch_baytek_orders(session, base)
+
+        PO = self.env['purchase.order']
+        POL = self.env['purchase.order.line']
+        usd = self.env['res.currency'].search([('name', '=', 'USD')], limit=1)
+        vendor = self.env['res.partner'].browse(
+            (self.supplier_id).id if self.supplier_id else False
+        )
+        if not vendor:
+            raise UserError('Baytek kaynağında tedarikçi (Satıcı) tanımlı değil.')
+
+        created = skipped = 0
+        import datetime as _dt
+        for order in orders:
+            if not order['lines']:
+                skipped += 1
+                continue
+            ref = f'BT-{order["siparis_no"]}'
+            existing = PO.search([('partner_ref', '=', ref)], limit=1)
+            if existing:
+                skipped += 1
+                continue
+
+            date_obj = _dt.date.today()
+            try:
+                parts = order['date'].split('-')
+                date_obj = _dt.date(int(parts[2]), int(parts[1]), int(parts[0]))
+            except Exception:
+                pass
+
+            cur = usd if order.get('currency', 'USD') == 'USD' else self.env.company.currency_id
+            po = PO.create({
+                'partner_id': vendor.id,
+                'partner_ref': ref,
+                'date_order': _dt.datetime.combine(date_obj, _dt.time(12, 0)),
+                'currency_id': cur.id,
+                'note': f'Baytek B2B portalından otomatik oluşturuldu (No: {order["siparis_no"]}, Durum: {order["status"]})',
+                'state': 'draft',
+            })
+
+            for line in order['lines']:
+                try:
+                    qty = float(line['qty'].replace(',', '.'))
+                except Exception:
+                    qty = 1.0
+                try:
+                    price = float(line['net_price'].replace('.', '').replace(',', '.'))
+                except Exception:
+                    price = 0.0
+
+                product = False
+                if line.get('product_code'):
+                    product = self.env['product.template'].search(
+                        [('default_code', '=', line['product_code']), ('active', '=', True)], limit=1
+                    )
+                if not product and line.get('name'):
+                    product = self.env['product.template'].search(
+                        [('name', 'ilike', line['name'][:25]), ('active', '=', True)], limit=1
+                    )
+
+                line_vals = {
+                    'order_id': po.id,
+                    'name': line['name'],
+                    'product_qty': qty,
+                    'price_unit': price,
+                    'date_planned': _dt.datetime.combine(date_obj, _dt.time(12, 0)),
+                }
+                if product:
+                    line_vals['product_id'] = product.product_variant_ids[:1].id
+                POL.create(line_vals)
+
+            created += 1
+
+        self.write({'baytek_last_sync': fields.Datetime.now()})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Baytek Senkron Tamamlandı',
+                'message': f'{created} yeni sipariş oluşturuldu, {skipped} atlandı. (Toplam: {len(orders)})',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    def action_view_baytek_balance(self):
+        """Baytek hesap özeti sayfasını tarayıcıda aç."""
+        self.ensure_one()
+        base = (self.baytek_b2b_url or 'https://www.bayiteknoloji.com').rstrip('/')
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f'{base}/Odeme/HesapOzeti',
+            'target': 'new',
+        }
+
+    @api.model
+    def cron_sync_baytek_orders(self):
+        """Cron: Baytek siparişlerini otomatik senkronize et."""
+        sources = self.search([
+            ('state', '=', 'active'),
+            ('auto_baytek_sync', '=', True),
+            ('baytek_b2b_user', '!=', False),
+        ])
+        for source in sources:
+            try:
+                source.action_sync_baytek_orders()
+            except Exception as e:
+                _logger.error('Baytek cron hatası (%s): %s', source.name, e)
+
     def action_test_connection(self):
         """Bağlantıyı test et"""
         self.ensure_one()
@@ -3151,7 +4244,7 @@ class XmlProductSource(models.Model):
         except Exception as e:
             raise UserError(_('Önizleme hatası: %s') % str(e))
 
-    def action_import_products(self):
+    def _import_products_from_xml(self):
         """Ürünleri içe aktar"""
         self.ensure_one()
 
@@ -3213,9 +4306,21 @@ class XmlProductSource(models.Model):
                             _logger.info('XML import skip: %s - %s', data.get('name'), skip_reason)
                             continue
 
-                        # Fiyat kontrolü
-                        price = float(data.get('price', 0) or 0)
-                        cost = float(data.get('cost_price', 0) or data.get('price', 0) or 0)
+                        # Fiyat kontrolü (virgüllü ondalık ve binlik ayraçları normalize et)
+                        def _to_float(v):
+                            try:
+                                s = str(v).strip()
+                                if not s or s == '0':
+                                    return 0.0
+                                if ',' in s and '.' not in s:
+                                    s = s.replace(',', '.')
+                                elif ',' in s and '.' in s:
+                                    s = s.replace('.', '').replace(',', '.')
+                                return float(s)
+                            except (ValueError, TypeError):
+                                return 0.0
+                        price = _to_float(data.get('price') or 0)
+                        cost = _to_float(data.get('cost_price') or data.get('price') or 0)
 
                         if self.min_price and price < self.min_price:
                             skipped += 1

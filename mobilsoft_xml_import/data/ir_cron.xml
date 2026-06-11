@@ -10,5 +10,43 @@
             <field name="interval_type">hours</field>
             <field name="active" eval="True"/>
         </record>
+
+        <record id="ir_cron_web_stock_sync" model="ir.cron">
+            <field name="name">XML Import: Web Stok Senkronizasyonu (IdeaSoft/Ticimax)</field>
+            <field name="model_id" ref="mobilsoft_xml_import.model_xml_product_source"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_sync_web_stock_all()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <record id="ir_cron_web_price_sync" model="ir.cron">
+            <field name="name">XML Import: Bayi USD Fiyat Senkronizasyonu (Ticimax)</field>
+            <field name="model_id" ref="mobilsoft_xml_import.model_xml_product_source"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_sync_web_price_all()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_powerway_order_sync" model="ir.cron">
+            <field name="name">XML Import: Powerway Sipariş Senkronizasyonu</field>
+            <field name="model_id" ref="mobilsoft_xml_import.model_xml_product_source"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_sync_powerway_orders()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_baytek_order_sync" model="ir.cron">
+            <field name="name">XML Import: Baytek Sipariş Senkronizasyonu</field>
+            <field name="model_id" ref="mobilsoft_xml_import.model_xml_product_source"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_sync_baytek_orders()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>
