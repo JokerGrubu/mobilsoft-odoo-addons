@@ -4325,12 +4325,12 @@ class XmlProductSource(models.Model):
         ])
         unlinked_po = {po.id: po for po in pw_orders if not po.invoice_ids}
 
-        # Aynı tedarikçinin tüm vendor bill'leri — henüz bağlanmamış
+        # Aynı tedarikçinin tüm vendor bill'leri — invoice_origin boş olanlar (henüz eşleştirilmemiş)
         bills = AM.search([
             ('move_type', '=', 'in_invoice'),
             ('partner_id', '=', vendor.id),
             ('state', 'in', ('draft', 'posted')),
-            ('purchase_id', '=', False),
+            ('invoice_origin', '=', False),
         ])
 
         # Güncel USD/TRY kuru
@@ -4368,13 +4368,14 @@ class XmlProductSource(models.Model):
 
             if best_po:
                 try:
-                    bill.write({'purchase_id': best_po.id})
+                    # invoice_origin'e PO ismini yaz (en güvenilir stored link)
+                    bill.write({'invoice_origin': best_po.name})
                     matched += 1
                     del unlinked_po[best_po.id]  # bir kez eşleştir
                     _logger.info(
                         'Powerway PO %s (%.2f USD) ↔ Fatura %s (%.2f TRY / %.2f USD)',
                         best_po.partner_ref, best_po.amount_untaxed,
-                        bill.name or bill.ref or str(bill.id), bill.amount_untaxed, bill_usd
+                        bill.name or str(bill.id), bill.amount_untaxed, bill_usd
                     )
                 except Exception as e:
                     _logger.warning('Fatura eşleştirme hatası %s: %s', bill.name, e)
