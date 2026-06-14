@@ -255,5 +255,5 @@ class ProductTemplate(models.Model):
                     if response.ok:
                         image_data = base64.b64encode(response.content).decode('utf-8')
                         product.image_1920 = image_data
-                except Exception as e:
+                except Exception:
                     pass

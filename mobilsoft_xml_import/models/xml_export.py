@@ -5,7 +5,6 @@ import secrets
 from lxml import etree
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 

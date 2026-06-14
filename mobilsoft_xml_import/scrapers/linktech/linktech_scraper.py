@@ -9,7 +9,6 @@ import re
 import json
 import time
 import logging
-from datetime import datetime
 
 _logger = logging.getLogger(__name__)
 

@@ -53,11 +53,10 @@ class XmlCategoryMapping(models.Model):
 
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        ('unique_source_category',
-         'UNIQUE(source_id, xml_category)',
-         'Aynı XML kategorisi bu kaynak için zaten tanımlanmış!')
-    ]
+    _constraint_unique_source_category = models.Constraint(
+        'UNIQUE(source_id, xml_category)',
+        'Aynı XML kategorisi bu kaynak için zaten tanımlanmış!',
+    )
 
     @api.model
     def find_mapping(self, source_id, xml_category_name):

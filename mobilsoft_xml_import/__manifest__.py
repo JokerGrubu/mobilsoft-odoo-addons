@@ -41,6 +41,7 @@ XML Ürün Yönetimi - Import & Export Modülü
         'data/xml_templates.xml',
         'data/enrichment_sources.xml',
         'data/ir_cron.xml',
+        'data/tesan_source.xml',
         'views/xml_field_mapping_views.xml',
         'views/xml_source_views.xml',
         'views/xml_export_views.xml',

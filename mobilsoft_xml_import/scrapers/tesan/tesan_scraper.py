@@ -1,141 +1,223 @@
 # -*- coding: utf-8 -*-
-import requests
+"""
+Tesan İş Ortağım B2B Portal — paralel REST API scraper.
+
+Auth akışı:
+  1. GET  /api/auth/csrf
+  2. POST /api/auth/callback/credentials
+  3. GET  /api/auth/session  → accessToken
+  4. POST /customer/customer/GetCustomerByToken {Token1: accessToken} → customerId
+  5. GET  /customer/customer/GetCustomerTokenById/{customerId} → customerToken
+
+Ürün akışı (tek paralel geçiş):
+  - Tüm ID'ler için GetProductInfoById paralel taranır
+  - Var olan her ürün için GetCustomerPriceList + GetPictureByProductId aynı anda çekilir
+"""
+
 import logging
-import json
-import time
+import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _logger = logging.getLogger(__name__)
 
+API_URL = 'https://api.tesan.com.tr'
+MAX_ID  = 2500
+WORKERS = 15   # paralel iş parçacığı
+
+
 class TesanScraper:
     def __init__(self, base_url=None, username=None, password=None, config=None):
-        self.base_url = base_url or 'https://isortagim.tesan.com.tr'
-        self.api_url = 'https://api.tesan.com.tr/product/product'
-        self.username = username or 'info@jokergrubu.com'
-        self.password = password or 'XZsawq21-'
-        self.config = config or {}
-        self.session = requests.Session()
+        self.base_url       = (base_url or 'https://isortagim.tesan.com.tr').rstrip('/')
+        self.username       = username or 'info@jokergrubu.com'
+        self.password       = password or 'XZsawq21-'
+        self.config         = config or {}
+        self.session        = requests.Session()
         self.session.headers.update({'User-Agent': 'Mozilla/5.0'})
-        self.access_token = None
+        self.access_token   = None
+        self.customer_token = ''
         self.session_active = False
 
+    # ------------------------------------------------------------------
+    # Auth
+    # ------------------------------------------------------------------
+
     def login(self):
-        """Tesan portal'a giriş yap ve API token'ı al"""
         try:
-            csrf_resp = self.session.get(f'{self.base_url}/api/auth/csrf', timeout=15)
-            csrf_token = csrf_resp.json().get('csrfToken')
-            
-            login_data = {
-                'username': self.username,
-                'password': self.password,
-                'csrfToken': csrf_token,
-                'json': 'true',
-                'callbackUrl': self.base_url + '/'
-            }
-            self.session.post(f'{self.base_url}/api/auth/callback/credentials', data=login_data)
-            
-            auth_session = self.session.get(f'{self.base_url}/api/auth/session').json()
-            self.access_token = auth_session.get('accessToken')
-            
-            if self.access_token:
-                self.session_active = True
-                self.session.headers.update({'Authorization': f'Bearer {self.access_token}'})
-                return True
-            return False
+            csrf = self.session.get(
+                f'{self.base_url}/api/auth/csrf', verify=False, timeout=15
+            ).json().get('csrfToken')
+
+            self.session.post(
+                f'{self.base_url}/api/auth/callback/credentials',
+                data={'username': self.username, 'password': self.password,
+                      'csrfToken': csrf, 'json': 'true',
+                      'callbackUrl': self.base_url + '/'},
+                verify=False, timeout=15,
+            )
+
+            sess = self.session.get(
+                f'{self.base_url}/api/auth/session', verify=False, timeout=15
+            ).json()
+            self.access_token = sess.get('accessToken')
+            if not self.access_token:
+                return False
+
+            self._resolve_customer_token()
+            self.session_active = True
+            return True
         except Exception as e:
-            _logger.error(f"Tesan login hatası: {e}")
+            _logger.error('Tesan login hatası: %s', e)
             return False
+
+    def _resolve_customer_token(self):
+        hdrs = self._auth_headers()
+        try:
+            r = self.session.post(
+                f'{API_URL}/customer/customer/GetCustomerByToken',
+                json={'Token1': self.access_token},
+                headers=hdrs, verify=False, timeout=15,
+            )
+            if r.status_code == 200:
+                cid = (r.json().get('data') or {}).get('customerId')
+                if cid:
+                    r2 = self.session.get(
+                        f'{API_URL}/customer/customer/GetCustomerTokenById/{cid}',
+                        headers=hdrs, verify=False, timeout=15,
+                    )
+                    if r2.status_code == 200:
+                        self.customer_token = (r2.json().get('data') or {}).get('Token', '')
+        except Exception as e:
+            _logger.warning('customerToken çözümlenemedi: %s', e)
+
+    def _auth_headers(self):
+        return {
+            'Authorization': f'Bearer {self.access_token}',
+            'CustomerToken': self.customer_token or '',
+        }
+
+    # ------------------------------------------------------------------
+    # Ana tarama — tek paralel geçiş (info + fiyat + görsel)
+    # ------------------------------------------------------------------
 
     def scrape_products(self):
-        """Odoo 'Ürünleri Çek' butonuna basıldığında tüm Tesan havuzunu sunar"""
-        all_products = []
-        scan_file = '/tmp/tesan_scan_results.json'
-        
-        import os
-        if os.path.exists(scan_file):
-            _logger.info(f"Tarama dosyasından ürünler yükleniyor: {scan_file}")
-            with open(scan_file, 'r') as f:
-                scan_data = json.load(f)
-                for item in scan_data:
-                    all_products.append({
-                        'id': item.get('productId'),
-                        'sku': item.get('modelCode') or f"TESAN-{item.get('productId')}",
-                        'name': item.get('name'),
-                        'barcode': item.get('barcode'),
-                        'stock_status': 'in_stock' # Detay çekiminde netleşecek
-                    })
-            _logger.info(f"Dosyadan {len(all_products)} ürün havuzu oluşturuldu.")
-        else:
-            _logger.warning("Tarama dosyası bulunamadı, arama yöntemine dönülüyor.")
-            # Yedek plan: Eski arama mantığı
-            keywords = ['ttec', 'hikvision', 'hi-look', 'ruijie', 'xiaomi']
-            for kw in keywords:
-                try:
-                    params = {'keyword': kw, 'size': 200}
-                    r = self.session.get(f"{self.base_url}/api/search", params=params, timeout=20)
-                    if r.status_code == 200:
-                        items = r.json().get('data', [])
-                        for item in items:
-                            all_products.append({
-                                'id': item.get('productId'),
-                                'sku': item.get('specialCode') or f"TESAN-{item.get('productId')}",
-                                'name': item.get('name'),
-                                'barcode': item.get('barcode'),
-                                'stock_status': 'in_stock'
-                            })
-                except Exception as e:
-                    _logger.error(f"Arama hatası ({kw}): {e}")
-        
-        return all_products
+        """
+        Tüm Tesan ürünlerini tek paralel geçişte çek.
+        Her ürün için info+fiyat+görsel aynı anda alınır.
+        Sonuç: _create_or_update_product_from_scraping'in beklediği dict listesi.
+        """
+        if not self.session_active and not self.login():
+            return []
+
+        max_id  = int(self.config.get('max_product_id', MAX_ID))
+        workers = int(self.config.get('workers', WORKERS))
+        brand_filter = [b.lower() for b in self.config.get('brands', [])]
+
+        _logger.info('Tesan tarama başlıyor: ID 1-%d, %d worker', max_id, workers)
+
+        hdrs = self._auth_headers()
+
+        def _fetch_full(pid):
+            """Tek ürün için info + fiyat + görsel"""
+            try:
+                info_r = requests.get(
+                    f'{API_URL}/product/product/GetProductInfoById/{pid}',
+                    headers=hdrs, verify=False, timeout=12,
+                )
+                if info_r.status_code != 200:
+                    return None
+                info = info_r.json().get('data')
+                if not info:
+                    return None
+
+                brand = (info.get('brandName') or '').lower()
+                if brand_filter and brand not in brand_filter:
+                    return None
+
+                # Fiyat
+                price_r = requests.get(
+                    f'{API_URL}/product/product/GetCustomerPriceList/{pid}',
+                    headers=hdrs, verify=False, timeout=12,
+                )
+                prices = price_r.json().get('data', []) if price_r.status_code == 200 else []
+                price_info = prices[0] if prices else {}
+
+                # Görsel
+                img_r = requests.get(
+                    f'{API_URL}/Product/Product/GetPictureByProductId/{pid}',
+                    headers=hdrs, verify=False, timeout=12,
+                )
+                images = img_r.json().get('data', []) if img_r.status_code == 200 else []
+                img_urls = [i.get('virtualPath') for i in (images or []) if i.get('virtualPath')]
+
+                tech_infos = info.get('technicalInfos', []) or []
+                category = next(
+                    (t.get('specificationValue', '')
+                     for t in tech_infos if t.get('specificationName') == 'Kategori'),
+                    ''
+                )
+
+                cost      = float(price_info.get('lastPrice') or 0)
+                currency  = price_info.get('currency', 'USD')
+                cost_usd  = cost if currency == 'USD' else 0.0
+                cost_try  = cost if currency == 'TL'  else 0.0
+                raw_stock = int(info.get('stock') or 0)
+                sku       = info.get('specialCode') or f'TESAN-{pid}'
+
+                return {
+                    'id':           pid,
+                    'sku':          sku,
+                    'name':         info.get('productName', ''),
+                    'barcode':      info.get('barcode'),
+                    'brand':        info.get('brandName', ''),
+                    'cost_price':   cost_usd,
+                    'cost_try':     cost_try,
+                    'currency':     currency,
+                    'price':        0.0,
+                    'description':  self._format_tech_info(tech_infos),
+                    'image_url':    img_urls[0] if img_urls else info.get('imagePath'),
+                    'image_urls':   ','.join(img_urls) if img_urls else None,
+                    'raw_stock':    raw_stock,
+                    'stock_status': 'in_stock' if raw_stock > 0 else 'out_of_stock',
+                    'category':     category,
+                }
+            except Exception as ex:
+                _logger.debug('Tesan ID %d hata: %s', pid, ex)
+                return None
+
+        products = []
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futs = {ex.submit(_fetch_full, pid): pid for pid in range(1, max_id + 1)}
+            for fut in as_completed(futs):
+                data = fut.result()
+                if data:
+                    products.append(data)
+
+        _logger.info('Tesan tarama tamamlandı: %d ürün', len(products))
+        return products
+
+    # ------------------------------------------------------------------
+    # get_product_data — artık scrape_products tam veri verdiğinden
+    # sadece uyumluluk için burada bırakıldı (boş döner)
+    # ------------------------------------------------------------------
 
     def get_product_data(self, product_id):
-        """Tekil ürün detaylarını (Fiyat, Teknik Tablo) çekmek için Odoo tarafından çağrılır"""
-        if not self.session_active:
-            if not self.login(): return None
-        
-        try:
-            # 1. Detay ve Teknik Bilgiler
-            info = self._api_get(f'GetProductInfoById/{product_id}')
-            if not info: return None
-            
-            # 2. Fiyat (Maliyet) Bilgisi
-            prices = self._api_get(f'GetCustomerPriceList/{product_id}')
-            price_info = prices[0] if prices else {}
-            
-            # 3. Varyant Resimleri
-            variants = self._api_get(f'GetProductVariants/{product_id}')
-            image_urls = [v.get('imagePath') for v in variants if v.get('imagePath')] if variants else []
+        """
+        _run_tesan_scraper bu metodu çağırır; ancak scrape_products
+        zaten tam veri döndürdüğü için burada None dönmek yeterli —
+        caller mevcut product_data'yı kullanır.
+        """
+        return None
 
-            cost_usd = float(price_info.get('lastPrice', 0.0))
-            return {
-                'id': info.get('productId'),
-                'sku': info.get('specialCode') or f"TESAN-{info.get('productId')}",
-                'name': info.get('productName'),
-                'barcode': info.get('barcode'),
-                'brand': info.get('brandName'),
-                'cost_price': cost_usd,      # USD maliyet → xml_supplier_price
-                'price': 0.0,                # Satış fiyatı markup ile ayrıca hesaplanır
-                'currency': price_info.get('currency', 'USD'),
-                'description': self._format_technical_info(info.get('technicalInfos', [])),
-                'image_url': image_urls[0] if image_urls else info.get('imagePath'),
-                'image_urls': ",".join(image_urls) if image_urls else None,
-                'raw_stock': info.get('stock', 0),
-                'stock_status': 'in_stock' if info.get('stock', 0) > 0 else 'out_of_stock'
-            }
-        except Exception as e:
-            _logger.error(f"Detay çekme hatası (ID: {product_id}): {e}")
-            return None
+    # ------------------------------------------------------------------
+    # Yardımcı
+    # ------------------------------------------------------------------
 
-    def _api_get(self, endpoint):
-        try:
-            r = self.session.get(f"{self.api_url}/{endpoint}", timeout=20)
-            return r.json().get('data') if r.status_code == 200 else None
-        except:
-            return None
-
-    def _format_technical_info(self, infos):
-        if not infos: return ""
-        html = "<table class='table table-sm table-striped'><tbody>"
-        for info in infos:
-            html += f"<tr><td><b>{info.get('specificationName')}</b></td><td>{info.get('specificationValue')}</td></tr>"
-        html += "</tbody></table>"
-        return html
+    def _format_tech_info(self, infos):
+        if not infos:
+            return ''
+        rows = ''.join(
+            f"<tr><td><b>{i.get('specificationName','')}</b></td>"
+            f"<td>{i.get('specificationValue','')}</td></tr>"
+            for i in infos
+        )
+        return f"<table class='table table-sm table-striped'><tbody>{rows}</tbody></table>"

@@ -85,9 +85,67 @@ class ProductEnrichmentSource(models.Model):
             'User-Agent': USER_AGENT,
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
         }
+
+    def _get_authenticated_session(self):
+        """Ticimax tabanlı site için oturum açar (ASP.NET WebForms).
+
+        api_key (kullanıcı adı) ve api_secret (şifre) ayarlıysa giriş dener.
+        Giriş başarısızsa temiz (login-cookie'siz) session döner.
+        """
+        fresh_session = requests.Session()
+        fresh_session.headers.update(self._get_headers())
+
+        if not (self.api_key and self.api_secret):
+            return fresh_session
+
+        try:
+            base = (self.base_url or '').rstrip('/')
+            login_url = f"{base}/UyeGiris"
+
+            # Login için ayrı session kullan — başarısız olursa temiz session döner
+            auth_session = requests.Session()
+            auth_session.headers.update(self._get_headers())
+
+            # ASP.NET VIEWSTATE token'larını al
+            resp = auth_session.get(login_url, timeout=15)
+            if resp.status_code != 200:
+                _logger.warning("Oturum açma sayfası alınamadı: %s", resp.status_code)
+                return fresh_session
+
+            soup = BeautifulSoup(resp.text, 'html.parser')
+
+            def _val(name):
+                el = soup.find('input', {'name': name})
+                return el['value'] if el and el.get('value') else ''
+
+            payload = {
+                '__VIEWSTATE': _val('__VIEWSTATE'),
+                '__VIEWSTATEGENERATOR': _val('__VIEWSTATEGENERATOR'),
+                '__RequestVerificationToken': _val('__RequestVerificationToken'),
+                'txtUyeGirisEmail': self.api_key,
+                'txtUyeGirisPassword': self.api_secret,
+            }
+
+            login_resp = auth_session.post(login_url, data=payload, timeout=15, allow_redirects=True)
+
+            # Giriş başarısını çıkış linki varlığıyla doğrula
+            login_soup = BeautifulSoup(login_resp.text, 'html.parser')
+            logout_link = login_soup.find('a', href=lambda h: h and ('cikis' in h.lower() or 'logout' in h.lower()))
+
+            if logout_link:
+                _logger.info("AsiaMark oturumu başarıyla açıldı")
+                return auth_session
+            else:
+                _logger.warning("AsiaMark giriş başarısız (credentials hatalı olabilir) — anonim session kullanılıyor")
+                return fresh_session
+
+        except Exception as e:
+            _logger.error("AsiaMark oturum hatası: %s", e)
+
+        return fresh_session
 
     def search_product(self, query):
         """
@@ -381,8 +439,9 @@ class ProductEnrichmentSource(models.Model):
             return results
 
         try:
+            session = self._get_authenticated_session()
             search_url = self.search_url_pattern.replace('{query}', quote(query))
-            response = requests.get(search_url, headers=self._get_headers(), timeout=15)
+            response = session.get(search_url, timeout=15)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -397,7 +456,7 @@ class ProductEnrichmentSource(models.Model):
                             if data.get('name') or data.get('source_url'):
                                 # Detay sayfası varsa çek
                                 if data.get('source_url') and self.selector_name:
-                                    detail = self._fetch_custom_detail(data['source_url'])
+                                    detail = self._fetch_custom_detail(data['source_url'], session=session)
                                     if detail:
                                         data.update(detail)
                                 results.append(data)
@@ -416,14 +475,17 @@ class ProductEnrichmentSource(models.Model):
 
         return results
 
-    def _fetch_custom_detail(self, url):
+    def _fetch_custom_detail(self, url, session=None):
         """Özel site ürün detay sayfasını parse et"""
         try:
             # Göreceli URL'yi absolute yap
             if not url.startswith('http'):
                 url = urljoin(self.base_url, url)
 
-            response = requests.get(url, headers=self._get_headers(), timeout=15)
+            if session is None:
+                session = self._get_authenticated_session()
+
+            response = session.get(url, timeout=15)
             if response.status_code != 200:
                 return None
 
