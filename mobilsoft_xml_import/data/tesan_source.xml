@@ -1,92 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="0">
-        
-        <!-- Tesan B2B Portal - XML Ürün Kaynağı -->
+
+        <!-- Tesan B2B Portal - Web API Ürün Kaynağı -->
         <record id="xml_source_tesan" model="xml.product.source">
             <field name="name">Tesan Portal</field>
             <field name="sequence">5</field>
             <field name="active">True</field>
-            
-            <!-- SOAP Ayarları -->
-            <field name="xml_url">https://isortagim.tesan.com.tr/WebService/TesanServiceFull.asmx</field>
+
+            <!-- Kaynak tipi ve şablon -->
+            <field name="source_type">web</field>
+            <field name="xml_template">tesan_web</field>
+            <field name="xml_url">https://isortagim.tesan.com.tr</field>
             <field name="xml_username">info@jokergrubu.com</field>
             <field name="xml_password">XZsawq21-</field>
-            
-            <!-- SOAP Metotları -->
-            <field name="soap_namespace">http://tempuri.org/</field>
-            <field name="soap_method_products">GetProductLists</field>
-            <field name="soap_method_prices">GetStockPrices</field>
-            <field name="soap_method_stock">GetWareHouseStocks</field>
-            <field name="soap_method_images">GetProductImages</field>
-            <field name="soap_method_features">GetProductFeatures</field>
-            <field name="soap_method_categories">GetProductCategories</field>
-            <field name="soap_product_element">ProductList</field>
-            <field name="soap_extra_body"><![CDATA[<_departman>0</_departman>]]></field>
-            
-            <!-- Kategori Haritalaması -->
-            <field name="default_category_id" ref="product.product_category_all"/>
-            
-            <!-- Ürün Eşleştirme -->
-            <field name="match_type">external_id</field>
-            
-            <!-- İçeri Aktarım Ayarları -->
-            <field name="import_products">True</field>
-            <field name="import_prices">True</field>
-            <field name="import_stock">True</field>
-            <field name="import_images">True</field>
-            
-            <!-- Açıklama -->
-            <field name="description">
-Tesan B2B Portal'dan ürünleri SOAP Web Service üzerinden çeken otomatik içeri aktarım kaynağı.
 
-Özellikler:
-- Ürün adı, fiyat, stok bilgisi
-- Görsel ve varyant yönetimi
-- Otomatik kategori haritalaması
-- Markaları xml_extra2 alanında tutar
-            </field>
+            <!-- İçeri aktarım seçenekleri -->
+            <field name="create_new_products">True</field>
+            <field name="update_price">True</field>
+            <field name="update_stock">True</field>
+            <field name="download_images">True</field>
+
+            <!-- Kategori -->
+            <field name="default_category_id" ref="product.product_category_goods"/>
+
         </record>
 
         <!-- Tesan Ürün Kategorileri Haritalaması -->
-        <!-- Bu mappinglar Tesan SOAP'dan gelen kategorileri Odoo kategorilerine dönüştürür -->
-        
         <record id="xml_categ_mapping_tesan_mobil" model="xml.category.mapping">
             <field name="source_id" ref="xml_source_tesan"/>
             <field name="xml_category">Mobil Aksesuarlar</field>
             <field name="match_type">exact</field>
-            <field name="odoo_category_id" ref="product.product_category_all"/>
+            <field name="odoo_category_id" ref="product.product_category_goods"/>
         </record>
 
-        <record id="xml_categ_mapping_tesan_agi" model="xml.category.mapping">
+        <record id="xml_categ_mapping_tesan_ses" model="xml.category.mapping">
             <field name="source_id" ref="xml_source_tesan"/>
-            <field name="xml_category">Ağ Altyapısı</field>
+            <field name="xml_category">Ses ve Video Çözümleri</field>
             <field name="match_type">exact</field>
-            <field name="odoo_category_id" ref="product.product_category_all"/>
+            <field name="odoo_category_id" ref="product.product_category_goods"/>
+        </record>
+
+        <record id="xml_categ_mapping_tesan_tuketici" model="xml.category.mapping">
+            <field name="source_id" ref="xml_source_tesan"/>
+            <field name="xml_category">Tüketici Elektroniği</field>
+            <field name="match_type">exact</field>
+            <field name="odoo_category_id" ref="product.product_category_goods"/>
+        </record>
+
+        <record id="xml_categ_mapping_tesan_altyapi" model="xml.category.mapping">
+            <field name="source_id" ref="xml_source_tesan"/>
+            <field name="xml_category">Altyapı Çözümleri</field>
+            <field name="match_type">exact</field>
+            <field name="odoo_category_id" ref="product.product_category_goods"/>
+        </record>
+
+        <record id="xml_categ_mapping_tesan_data" model="xml.category.mapping">
+            <field name="source_id" ref="xml_source_tesan"/>
+            <field name="xml_category">Data Çözümleri</field>
+            <field name="match_type">exact</field>
+            <field name="odoo_category_id" ref="product.product_category_goods"/>
         </record>
 
         <record id="xml_categ_mapping_tesan_cctv" model="xml.category.mapping">
             <field name="source_id" ref="xml_source_tesan"/>
-            <field name="xml_category">CCTV & Güvenlik</field>
+            <field name="xml_category">CCTV &amp; Güvenlik Çözümleri</field>
             <field name="match_type">exact</field>
-            <field name="odoo_category_id" ref="product.product_category_all"/>
+            <field name="odoo_category_id" ref="product.product_category_goods"/>
         </record>
 
-        <!-- Tesan İçeri Aktarım Zamanlaması (her 6 saatte bir) -->
-        <record id="ir_cron_tesan_import" model="ir.cron">
-            <field name="name">Tesan Ürünleri İçeri Aktar</field>
-            <field name="model_name">xml.product.source</field>
-            <field name="state">code</field>
-            <field name="code">
-# Tesan kaynağını bul ve ürünleri içeri aktar
-tesan_source = env['xml.product.source'].search([('name', '=', 'Tesan Portal')], limit=1)
-if tesan_source:
-    tesan_source.action_import_products()
-            </field>
-            <field name="interval_number">6</field>
-            <field name="interval_type">hours</field>
-            <field name="nextcall">2026-04-21 18:00:00</field>
-            <field name="active">True</field>
+        <record id="xml_categ_mapping_tesan_yangin" model="xml.category.mapping">
+            <field name="source_id" ref="xml_source_tesan"/>
+            <field name="xml_category">Yangın Algılama ve İhbar Sistemleri</field>
+            <field name="match_type">exact</field>
+            <field name="odoo_category_id" ref="product.product_category_goods"/>
+        </record>
+
+        <record id="xml_categ_mapping_tesan_erisim" model="xml.category.mapping">
+            <field name="source_id" ref="xml_source_tesan"/>
+            <field name="xml_category">Erişim Kontrol ve PDKS Çözümleri</field>
+            <field name="match_type">exact</field>
+            <field name="odoo_category_id" ref="product.product_category_goods"/>
         </record>
 
     </data>

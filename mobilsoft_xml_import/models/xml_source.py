@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import UserError
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
@@ -12,8 +12,8 @@ import html
 import base64
 import time
 from difflib import SequenceMatcher
-from io import BytesIO
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse, urljoin
+from ..scrapers.name_utils import normalize_product_name
 
 _logger = logging.getLogger(__name__)
 
@@ -2132,7 +2132,7 @@ class XmlProductSource(models.Model):
                 return current.get(part[1:])
 
             # Son parça mı kontrol et (çoklu değer için)
-            is_last_part = (i == len(parts) - 1)
+            (i == len(parts) - 1)
 
             # Child element bul
             found = current.find(part)
@@ -3539,7 +3539,6 @@ class XmlProductSource(models.Model):
             created_names = []
 
             # Eksik ürün oluştururken görselleri indir
-            prev_download = self.download_images
             for item in items:
                 tmpl, _reason = self._match_product_for_stock(item)
                 if tmpl:
@@ -3838,7 +3837,8 @@ class XmlProductSource(models.Model):
 
     def _fetch_powerway_orders(self, session, base):
         """Sipariş listesini çek, her biri için detay satırlarını getir."""
-        import re as _re, base64 as _b64
+        import re as _re
+        import base64 as _b64
         r = session.get(f'{base}/uygulama/siparislerim/', timeout=20)
         order_links = _re.findall(
             r'href="(/ajax/siparisdetay\.asp\?id=([A-Za-z0-9+/=]+))"', r.text
@@ -4046,7 +4046,7 @@ class XmlProductSource(models.Model):
 
     def _fetch_baytek_orders(self, session, base):
         """Sipariş listesini çek, her biri için detay satırlarını getir."""
-        import re as _re, datetime as _dt
+        import re as _re
         r = session.get(f'{base}/Siparis/SiparisIzleme', timeout=20)
 
         # Her sipariş satırını tam <tr>...</tr> olarak al; SS numarası içerenleri seç
@@ -5274,7 +5274,6 @@ class XmlProductSource(models.Model):
         
         try:
             # Scraper sınıfını dinamik olarak yükle
-            scraper_class = self.scraper_class or 'BaseScraper'
             
             # Konfigürasyonu parse et
             config = {}
@@ -5305,61 +5304,260 @@ class XmlProductSource(models.Model):
             })
             raise UserError(f"Web scraping hatası: {e}")
 
+    # ------------------------------------------------------------------
+    # Varyant gruplaması için yardımcı
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _tesan_variant_groups(products):
+        """
+        Ürün listesini varyant gruplarına ayır.
+
+        Kural: ismin ilk %75'i (min 20 karakter) aynı olan ürünler
+        aynı template'e (varyant olarak) ait kabul edilir.
+
+        Dönüş: [(base_name, [product_data, ...]), ...]
+        """
+
+        def norm(name):
+            return (name or '').strip().lower()
+
+        def lcp(a, b):
+            prefix = []
+            for x, y in zip(a, b):
+                if x != y:
+                    break
+                prefix.append(x)
+            return ''.join(prefix).strip()
+
+        # İsme göre sırala — önek benzerliğini bitişik yapar
+        sorted_prods = sorted(products, key=lambda p: norm(p.get('name', '')))
+
+        groups   = []
+        used     = set()
+
+        for i, pa in enumerate(sorted_prods):
+            if i in used:
+                continue
+            na   = pa.get('name', '') or ''
+            grp  = [pa]
+            used.add(i)
+
+            for j, pb in enumerate(sorted_prods):
+                if j in used:
+                    continue
+                nb = pb.get('name', '') or ''
+                prefix = lcp(na, nb)
+                min_len = min(len(na), len(nb))
+                if min_len >= 20 and len(prefix) >= min_len * 0.75:
+                    grp.append(pb)
+                    used.add(j)
+
+            # Grubun ortak tabanı
+            if len(grp) > 1:
+                base = grp[0].get('name', '')
+                for p in grp[1:]:
+                    base = lcp(base, p.get('name', '') or '')
+                base = base.strip(' -,')
+            else:
+                base = grp[0].get('name', '') or ''
+
+            groups.append((base, grp))
+
+        return groups
+
+    # ------------------------------------------------------------------
+    # Varyant olarak ürün oluştur / güncelle
+    # ------------------------------------------------------------------
+
+    def _upsert_tesan_variant_group(self, base_name, group):
+        """
+        Birden fazla Tesan ürünü aynı template altında varyant olarak işle.
+        Her ürünün SKU'su korunur (product.product.default_code).
+        """
+        ATTR_NAME = 'Varyant'
+
+        def suffix(full, base):
+            s = (full or '')[len(base):].strip(' -,')
+            return s if len(s) >= 2 else 'Standart'
+
+        # Attribute al / oluştur
+        attr = self.env['product.attribute'].search(
+            [('name', '=', ATTR_NAME)], limit=1)
+        if not attr:
+            attr = self.env['product.attribute'].create(
+                {'name': ATTR_NAME, 'create_variant': 'always'})
+
+        # Master template: mevcut varsa bul, yoksa ilk üründen oluştur
+        first     = group[0]
+        first_sku = first.get('sku') or ''
+
+        template = (
+            self.env['product.template'].search(
+                [('xml_source_id', '=', self.id),
+                 ('default_code',  '=', first_sku)], limit=1)
+            if first_sku else self.env['product.template']
+        )
+
+        if not template:
+            self._create_or_update_product_from_scraping(first)
+            template = (
+                self.env['product.template'].search(
+                    [('xml_source_id', '=', self.id),
+                     ('default_code',  '=', first_sku)], limit=1)
+                if first_sku else self.env['product.template']
+            )
+
+        if not template:
+            _logger.warning('Tesan varyant: master oluşturulamadı — %s', base_name[:60])
+            return None
+
+        # Template adını base_name'e güncelle
+        template.write({'name': base_name})
+
+        # Tüm suffix/değerleri önceden topla
+        entries = []
+        for prod_data in group:
+            sku = prod_data.get('sku') or ''
+            sfx = suffix(prod_data.get('name') or base_name, base_name)
+            entries.append((sku, sfx))
+
+        # Attribute value'ları al/oluştur
+        val_map = {}   # sfx → attribute.value
+        val_ids = []
+        for sku, sfx in entries:
+            if sfx in val_map:
+                continue
+            val = self.env['product.attribute.value'].search(
+                [('attribute_id', '=', attr.id), ('name', '=', sfx)], limit=1)
+            if not val:
+                val = self.env['product.attribute.value'].create(
+                    {'attribute_id': attr.id, 'name': sfx})
+            val_map[sfx] = val
+            val_ids.append(val.id)
+
+        if not val_ids:
+            return template
+
+        # Attribute line al/oluştur — TÜM değerler tek seferde
+        attr_line = self.env['product.template.attribute.line'].search(
+            [('product_tmpl_id', '=', template.id),
+             ('attribute_id',    '=', attr.id)], limit=1)
+        if not attr_line:
+            attr_line = self.env['product.template.attribute.line'].create({
+                'product_tmpl_id': template.id,
+                'attribute_id':    attr.id,
+                'value_ids':       [(6, 0, val_ids)],  # tüm değerler birlikte
+            })
+        else:
+            attr_line.write({'value_ids': [(4, vid) for vid in val_ids]})
+
+        # Her varyant product.product'a SKU yaz
+        for sku, sfx in entries:
+            if not sku:
+                continue
+            val = val_map.get(sfx)
+            if not val:
+                continue
+            ptav = self.env['product.template.attribute.value'].search(
+                [('product_tmpl_id',            '=', template.id),
+                 ('product_attribute_value_id', '=', val.id)], limit=1)
+            if not ptav:
+                continue
+            self.env['product.product'].search(
+                [('product_tmpl_id', '=', template.id)], limit=1,
+                order='id asc')
+            # combination_indices yerine ptav referansıyla bul
+            all_pp = self.env['product.product'].search(
+                [('product_tmpl_id', '=', template.id)])
+            for p in all_pp:
+                try:
+                    if ptav.id in p.product_template_attribute_value_ids.ids:
+                        if not p.default_code:
+                            p.write({'default_code': sku})
+                        break
+                except Exception:
+                    pass
+
+        return template
+
+    # ------------------------------------------------------------------
+    # Ana scraper metodu
+    # ------------------------------------------------------------------
+
     def _run_tesan_scraper(self, keywords, config):
-        """Tesan scraper'ını çalıştır"""
+        """Tesan API'sinden ürünleri çek ve Odoo'ya aktar."""
         try:
-            # Önce mutlak yolu dene
             try:
                 from odoo.addons.mobilsoft_xml_import.scrapers.tesan.tesan_scraper import TesanScraper
             except ImportError:
-                # Olmazsa göreceli yolu dene
                 from ..scrapers.tesan.tesan_scraper import TesanScraper
 
             scraper = TesanScraper(
                 base_url=self.xml_url or 'https://isortagim.tesan.com.tr',
                 username=self.xml_username or 'info@jokergrubu.com',
                 password=self.xml_password or 'XZsawq21-',
-                config=config
+                config=config,
             )
 
             if not scraper.login():
                 raise UserError("Tesan API'ye giriş yapılamadı. Kullanıcı adı/şifre kontrol edin.")
 
             products = scraper.scrape_products()
+            _logger.info('Tesan scraper: %d ürün çekildi, varyant gruplarına ayrılıyor…', len(products))
 
-            # Ürünleri Odoo'ya aktar — fiyat için get_product_data() çağır
-            import time
-            count = 0
-            for product_data in products:
-                product_id = product_data.get('id')
-                if product_id:
-                    detail = scraper.get_product_data(product_id)
-                    if detail:
-                        product_data.update(detail)
-                    time.sleep(0.15)  # API rate limiting
-                self._create_or_update_product_from_scraping(product_data)
-                count += 1
-            
-            self.write({
-                'state': 'active',
-                'last_sync': fields.Datetime.now(),
-                'last_error': False,
-            })
-            
+            groups    = self._tesan_variant_groups(products)
+            count_new    = 0
+            count_update = 0
+            count_variant_groups = 0
+
+            for base_name, group in groups:
+                if len(group) == 1:
+                    # Tekil ürün — standart yol
+                    prod_data = group[0]
+                    sku = prod_data.get('sku')
+                    existing = self.env['product.template'].search(
+                        [('default_code', '=', sku)], limit=1) if sku else None
+                    self._create_or_update_product_from_scraping(prod_data)
+                    if existing:
+                        count_update += 1
+                    else:
+                        count_new += 1
+                else:
+                    # Varyant grubu — hata olursa tek tek kaydet
+                    try:
+                        self._upsert_tesan_variant_group(base_name, group)
+                        count_variant_groups += 1
+                    except Exception as ve:
+                        _logger.warning('Tesan varyant grubu hata, tekil kaydediliyor: %s', ve)
+                        for pd in group:
+                            try:
+                                self._create_or_update_product_from_scraping(pd)
+                                count_new += 1
+                            except Exception:
+                                pass
+
+            self.write({'state': 'active', 'last_sync': fields.Datetime.now(), 'last_error': False})
+            _logger.info(
+                'Tesan import tamamlandı: %d yeni, %d güncelleme, %d varyant grubu',
+                count_new, count_update, count_variant_groups,
+            )
+
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
                 'params': {
-                    'title': _('Web Scraping Başarılı'),
-                    'message': _('%s ürün içe aktarıldı.') % count,
-                    'type': 'success',
-                    'sticky': False,
-                }
+                    'title':   _('Tesan Import Başarılı'),
+                    'message': _('%d yeni + %d güncelleme + %d varyant grubu') % (
+                        count_new, count_update, count_variant_groups),
+                    'type':    'success',
+                    'sticky':  False,
+                },
             }
-            
+
         except Exception as e:
-            _logger.error(f"Tesan scraper yükleme veya çalışma hatası: {e}")
-            raise UserError(f"Tesan scraper modülü çalıştırılamadı: {e}")
+            _logger.error('Tesan scraper hatası: %s', e)
+            raise UserError(f"Tesan scraper çalıştırılamadı: {e}")
 
     def _run_linktech_scraper(self, keywords, config):
         """LinkTech scraper'ını çalıştır"""
@@ -5407,68 +5605,105 @@ class XmlProductSource(models.Model):
         if not sku:
             return
 
-        # 🚀 BARKOD ÇAKIŞMA KONTROLÜ
+        # Barkod çakışma kontrolü
         if barcode:
             existing_barcode = self.env['product.product'].with_context(active_test=False).search([
                 ('barcode', '=', barcode)
             ], limit=1)
             if existing_barcode:
-                _logger.info(f"Scraping barkod çakışması engellendi: {barcode}")
+                _logger.info("Scraping barkod çakışması engellendi: %s", barcode)
                 return
-        
+
         # Mevcut ürünü ara
         product = self.env['product.template'].search([
             ('default_code', '=', sku),
         ], limit=1)
-        
-        incoming_cost  = float(product_data.get('cost_price') or 0)
+
+        cost_usd = float(product_data.get('cost_price') or 0)
+        cost_try = float(product_data.get('cost_try') or 0)
         incoming_price = float(product_data.get('price') or 0)
 
-        # USD maliyeti TRY'ye çevir (güncel kur kullan)
-        incoming_cost_try = 0.0
-        if incoming_cost:
-            usd_currency = self.env['res.currency'].search([('name','=','USD')], limit=1)
+        # USD → TRY dönüşümü (cost_try yoksa hesapla)
+        if cost_usd and not cost_try:
+            usd_currency = self.env['res.currency'].search([('name', '=', 'USD')], limit=1)
             usd_rate = usd_currency.rate if usd_currency and usd_currency.rate else 1.0
-            incoming_cost_try = incoming_cost / usd_rate  # USD → TRY
+            cost_try = cost_usd / usd_rate
+
+        # İsim normalleştirme: "KOD Marka Detay" → "Marka KOD Detay"
+        raw_name = product_data.get('name') or ''
+        product_name = normalize_product_name(raw_name, brand=product_data.get('brand', ''))
 
         if product:
-            # Güncelle
             update_vals = {
-                'name': product_data.get('name', product.name),
-                'description_sale': product_data.get('description', product.description_sale),
-                'xml_supplier_price': incoming_cost or product.xml_supplier_price,
-                'xml_supplier_sku': sku,
-                'xml_source_id': self.id,
+                'name':               product_name or product.name,
+                'description_sale':   product_data.get('description', product.description_sale),
+                'xml_supplier_price': cost_usd or product.xml_supplier_price,
+                'xml_supplier_sku':   sku,
+                'xml_source_id':      self.id,
             }
-            if incoming_cost_try:
-                update_vals['standard_price'] = incoming_cost_try
+            if cost_try:
+                update_vals['standard_price'] = cost_try
             if incoming_price:
                 update_vals['list_price'] = incoming_price
             product.write(update_vals)
         else:
-            # Yeni ürün oluştur
             product = self.env['product.template'].create({
-                'default_code': sku,
-                'name': product_data.get('name', 'Ürün'),
-                'list_price': incoming_price,
-                'standard_price': incoming_cost_try,
-                'description_sale': product_data.get('description', ''),
-                'xml_supplier_price': incoming_cost,
-                'xml_supplier_sku': sku,
-                'xml_source_id': self.id,
-                'type': 'consu',
+                'default_code':       sku,
+                'name':               product_name or 'Ürün',
+                'list_price':         incoming_price,
+                'standard_price':     cost_try,
+                'description_sale':   product_data.get('description', ''),
+                'xml_supplier_price': cost_usd,
+                'xml_supplier_sku':   sku,
+                'xml_source_id':      self.id,
+                'type':               'consu',
             })
-        
-        # Stok durumuna göre görünürlük ayarla
-        raw_stock = float(product_data.get('raw_stock', 0) or 0)
-        stock_status = product_data.get('stock_status', 'out_of_stock')
-        
-        is_available = (raw_stock > 0 or stock_status == 'in_stock')
-        product.write({
-            'sale_ok': is_available,
-            'is_published': is_available
-        })
 
-        # Kategori ata
-        if product_data.get('category'):
-            self._assign_category_to_product(product, product_data['category'])
+        # Stok durumuna göre görünürlük ayarla
+        raw_stock    = float(product_data.get('raw_stock', 0) or 0)
+        stock_status = product_data.get('stock_status', 'out_of_stock')
+        is_available = (raw_stock > 0 or stock_status == 'in_stock')
+        product.write({'sale_ok': is_available})
+
+        # Supplier info güncelle
+        if cost_usd and self.supplier_id:
+            usd_currency = self.env['res.currency'].search([('name', '=', 'USD')], limit=1)
+            existing_si = self.env['product.supplierinfo'].search([
+                ('product_tmpl_id', '=', product.id),
+                ('partner_id', '=', self.supplier_id.id),
+            ], limit=1)
+            si_vals = {
+                'product_tmpl_id': product.id,
+                'partner_id':      self.supplier_id.id,
+                'price':           cost_usd,
+                'product_code':    sku,
+                'currency_id':     usd_currency.id if usd_currency else False,
+            }
+            if existing_si:
+                existing_si.write({'price': cost_usd})
+            else:
+                self.env['product.supplierinfo'].create(si_vals)
+
+        # Kategori ata (technicalInfos'dan gelen "Kategori" spec değeri)
+        category_name = product_data.get('category')
+        if category_name:
+            cat = self.env['product.category'].search([('name', '=', category_name)], limit=1)
+            if cat:
+                product.categ_id = cat.id
+
+        # Görsel: URL kaydet / indir
+        image_url = product_data.get('image_url')
+        image_urls_str = product_data.get('image_urls')
+        if image_url and not product.image_1920:
+            if self.download_images:
+                img_data = self._download_image(image_url)
+                if img_data:
+                    product.image_1920 = img_data
+            else:
+                self._set_image_from_url(product, image_url)
+        if image_urls_str:
+            urls_list = [u.strip() for u in image_urls_str.split(',') if u.strip()]
+            if self.download_images:
+                self._add_extra_images(product, urls_list[1:])
+            else:
+                self._add_extra_images_from_url(product, urls_list)
