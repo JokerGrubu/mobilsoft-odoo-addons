@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Cepte Tedarik Homepage -->
+    <template id="ceptetedarik_homepage" name="Cepte Tedarik Home" track="1">
+        <t t-call="website.layout">
+            <t t-set="pageName" t-value="'ceptetedarik_home'"/>
+            <div id="wrap" class="oe_structure">
+                <!-- Hero Banner -->
+                <section class="s_cover bg-black-50 pt120 pb120" data-snippet="s_cover" data-name="Cover">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-8 offset-lg-2 text-center text-white">
+                                <h1 class="display-3 fw-bold mb-4">Türkiye'nin B2B Teknoloji Pazaryeri</h1>
+                                <p class="lead mb-5">Binlerce teknoloji ürününde en iyi bayi fiyatları, hızlı sevkiyat ve güvenli ödeme. Hemen üye olun, avantajlı fiyatları keşfedin.</p>
+                                <div class="d-flex justify-content-center gap-3">
+                                    <a href="/shop" class="btn btn-primary btn-lg px-5">Mağazayı İncele</a>
+                                    <a href="/web/signup" class="btn btn-outline-light btn-lg px-5">Bayi Ol</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Features -->
+                <section class="s_features pt64 pb64" data-snippet="s_features" data-name="Features">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-4 text-center">
+                                <i class="fa fa-truck fa-3x text-primary mb-3"/>
+                                <h4 class="fw-bold">Hızlı Sevkiyat</h4>
+                                <p class="text-muted">Saat 16:00'ya kadar verilen siparişler aynı gün kargoda.</p>
+                            </div>
+                            <div class="col-lg-4 text-center">
+                                <i class="fa fa-tags fa-3x text-primary mb-3"/>
+                                <h4 class="fw-bold">Bayi Özel Fiyatları</h4>
+                                <p class="text-muted">Üye girişi yaparak size özel indirimli fiyatları görün.</p>
+                            </div>
+                            <div class="col-lg-4 text-center">
+                                <i class="fa fa-shield fa-3x text-primary mb-3"/>
+                                <h4 class="fw-bold">Güvenli Ödeme</h4>
+                                <p class="text-muted">PayTR altyapısı ile tüm kartlara taksit imkanı.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+
+    <!-- Joker Tedarik Homepage -->
+    <template id="jokertedarik_homepage" name="Joker Tedarik Home" track="1">
+        <t t-call="website.layout">
+            <t t-set="pageName" t-value="'jokertedarik_home'"/>
+            <div id="wrap" class="oe_structure">
+                <!-- Carousel / Banner -->
+                <section class="s_banner pt96 pb96 bg-light" data-snippet="s_banner" data-name="Banner">
+                    <div class="container">
+                        <div class="row align-items-center">
+                            <div class="col-lg-6">
+                                <h1 class="display-4 fw-bold mb-3 text-primary">Teknolojiye Joker Dokunuşu</h1>
+                                <p class="lead mb-4">En yeni aksesuarlar, akıllı cihazlar ve daha fazlası en uygun fiyatlarla Joker Tedarik'te.</p>
+                                <a href="/shop" class="btn btn-primary btn-lg">Alışverişe Başla</a>
+                            </div>
+                            <div class="col-lg-6 text-center">
+                                <i class="fa fa-shopping-cart text-primary-light" style="font-size:200px; opacity:0.2;"/>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+</odoo>
