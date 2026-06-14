@@ -35,7 +35,7 @@ class PayTRController(http.Controller):
     _return_url = '/payment/paytr/return'  # Endpoint for payment return notifications
     _iframe_token = '/payment/paytr/get-iframe-token'  # Endpoint for generating iframe tokens
 
-    @http.route(_iframe_token, type='json', auth='public')
+    @http.route(_iframe_token, type='jsonrpc', auth='public')
     def get_iframe_token(self, **data):
         """Generate an iframe token for PayTR payment.
 

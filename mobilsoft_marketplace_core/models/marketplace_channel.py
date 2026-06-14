@@ -100,13 +100,10 @@ class MarketplaceChannel(models.Model):
         "marketplace.sync.log", "channel_id", "Senkronizasyon Logları"
     )
 
-    _sql_constraints = [
-        (
-            "name_unique_per_company",
-            "UNIQUE(name, company_id)",
-            "Kanal adı şirket içinde benzersiz olmalıdır!",
-        )
-    ]
+    _constraint_name_unique_per_company = models.Constraint(
+        'UNIQUE(name, company_id)',
+        'Kanal adı şirket içinde benzersiz olmalıdır!',
+    )
 
     @api.constrains("api_key", "api_secret")
     def _check_credentials(self):

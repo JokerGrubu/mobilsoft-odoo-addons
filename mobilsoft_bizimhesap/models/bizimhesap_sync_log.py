@@ -85,7 +85,7 @@ class BizimHesapBinding(models.AbstractModel):
         string='Ham Veri (JSON)',
     )
     
-    _sql_constraints = [
-        ('external_uniq', 'unique(backend_id, external_id)',
-         'Bu External ID zaten bu backend için mevcut!'),
-    ]
+    _constraint_external_uniq = models.Constraint(
+        'unique(backend_id, external_id)',
+        'Bu External ID zaten bu backend için mevcut!',
+    )

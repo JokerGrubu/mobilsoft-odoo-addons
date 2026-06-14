@@ -21,10 +21,15 @@ class QCommerceOrder(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 
+    _constraint_platform_order_unique = models.Constraint(
+        'unique(platform_order_id)',
+        'Bu platform sipariş ID zaten mevcut!',
+    )
+
     # ==================== Temel Alanlar ====================
 
     name = fields.Char("Sipariş No", required=True, tracking=True)
-    platform_order_id = fields.Char("Platform Sipariş ID", required=True, unique=True)
+    platform_order_id = fields.Char("Platform Sipariş ID", required=True)
 
     # ==================== Durum ====================
 

@@ -687,9 +687,7 @@ class BizimHesapBackend(models.Model):
                     ], limit=1)
                     
                     if not existing:
-                        self.env['product.category'].create({
-                            'name': cat_name,
-                        })
+                        # YENİ KAYIT İPTAL EDİLDİ: self.env['product.category'].create({'name': cat_name})
                         created += 1
                     else:
                         updated += 1
@@ -1055,8 +1053,7 @@ class BizimHesapBackend(models.Model):
             if self._vat_match_or_empty(binding.odoo_id, partner_vals.get('vat')):
                 update_vals = self._get_missing_partner_vals(binding.odoo_id, partner_vals)
                 if update_vals:
-                    # Context ile sync kaynağını belirt
-                    binding.odoo_id.with_context(sync_source='bizimhesap').write(update_vals)
+                    pass # YAZMA İPTAL EDİLDİ
                 self._ensure_authorized_contact(binding.odoo_id, data)
             else:
                 _logger.warning(
@@ -1106,7 +1103,8 @@ class BizimHesapBackend(models.Model):
             if self._vat_match_or_empty(partner, partner_vals.get('vat')):
                 update_vals = self._get_missing_partner_vals(partner, partner_vals)
                 if update_vals:
-                    partner.with_context(sync_source='bizimhesap').write(update_vals)
+                    pass
+                # YAZMA İPTAL EDİLDİ: partner.with_context(sync_source='bizimhesap').write(update_vals)
                 self._ensure_authorized_contact(partner, data)
             else:
                 _logger.warning("VKN uyuşmadı, partner güncellenmedi: %s", partner.name)
@@ -1153,7 +1151,8 @@ class BizimHesapBackend(models.Model):
             if self._vat_match_or_empty(partner, partner_vals.get('vat')):
                 update_vals = self._get_missing_partner_vals(partner, partner_vals)
                 if update_vals:
-                    partner.with_context(sync_source='bizimhesap').write(update_vals)
+                    pass
+                # YAZMA İPTAL EDİLDİ: partner.with_context(sync_source='bizimhesap').write(update_vals)
                 self._ensure_authorized_contact(partner, data)
             else:
                 _logger.warning(
@@ -1206,7 +1205,8 @@ class BizimHesapBackend(models.Model):
             if self._vat_match_or_empty(partner, partner_vals.get('vat')):
                 update_vals = self._get_missing_partner_vals(partner, partner_vals)
                 if update_vals:
-                    partner.with_context(sync_source='bizimhesap').write(update_vals)
+                    pass
+                # YAZMA İPTAL EDİLDİ: partner.with_context(sync_source='bizimhesap').write(update_vals)
                 self._ensure_authorized_contact(partner, data)
             else:
                 _logger.warning(
@@ -1633,7 +1633,7 @@ class BizimHesapBackend(models.Model):
 
         if binding:
             # Mevcut kayıt - isim HARİÇ güncelle
-            binding.odoo_id.with_context(sync_source='bizimhesap').write(update_vals)
+            # YAZMA İPTAL EDİLDİ: # YAZMA İPTAL EDİLDİ: binding.odoo_id.with_context(sync_source='bizimhesap').write(update_vals)
             binding.write({
                 'sync_date': fields.Datetime.now(),
                 'external_data': json.dumps(data),
@@ -1648,7 +1648,7 @@ class BizimHesapBackend(models.Model):
             name=(data.get('title') or '').strip().split('\n', 1)[0] or None,
         )
         if product:
-            product.with_context(sync_source='bizimhesap').write(update_vals)
+            # YAZMA İPTAL EDİLDİ: product.with_context(sync_source='bizimhesap').write(update_vals)
             self.env['bizimhesap.product.binding'].create({
                 'backend_id': self.id,
                 'external_id': external_id,
@@ -1678,7 +1678,7 @@ class BizimHesapBackend(models.Model):
             # İsim HARİÇ güncelle (XML birincil kaynak)
             product_id = match['matched_product']['id']
             product = self.env['product.product'].browse(product_id)
-            product.with_context(sync_source='bizimhesap').write(update_vals)
+            # YAZMA İPTAL EDİLDİ: product.with_context(sync_source='bizimhesap').write(update_vals)
             
             self.env['bizimhesap.product.binding'].create({
                 'backend_id': self.id,
@@ -1703,14 +1703,12 @@ class BizimHesapBackend(models.Model):
             
             if existing_product:
                 # Mevcut ürünü güncelle - isim HARİÇ (XML birincil kaynak)
-                existing_product.with_context(sync_source='bizimhesap').write(update_vals)
+                pass # YAZMA IPTAL EDILDI
                 product = existing_product
                 _logger.info("Mevcut varyant güncellendi: %s (Barkod: %s)", data.get('title'), data.get('barcode'))
             else:
-                # Yeni oluştur (combination_indices olmadan) - isim DAHİL
-                product_vals['product_tmpl_id'] = template_id
-                product = self.env['product.product'].with_context(sync_source='bizimhesap').create(product_vals)
-                _logger.info("Varyant oluşturuldu: %s (Barkod: %s)", data.get('title'), data.get('barcode'))
+                _logger.warning('Yeni ürün/varyant oluşturma iptal edildi: %s', data.get('title'))
+                return 'skipped'
             
             # Binding kontrolü - duplicate önle
             existing_binding = self.env['bizimhesap.product.binding'].search([
@@ -1738,7 +1736,7 @@ class BizimHesapBackend(models.Model):
             # Benzer isim - isim HARİÇ güncelle (XML birincil kaynak)
             product_id = match['matched_product']['id']
             product = self.env['product.product'].browse(product_id)
-            product.with_context(sync_source='bizimhesap').write(update_vals)
+            # YAZMA İPTAL EDİLDİ: product.with_context(sync_source='bizimhesap').write(update_vals)
             
             self.env['bizimhesap.product.binding'].create({
                 'backend_id': self.id,
@@ -1752,7 +1750,9 @@ class BizimHesapBackend(models.Model):
         
         else:
             # Yeni ürün oluştur - isim DAHİL (ilk kez)
-            product = self.env['product.product'].with_context(sync_source='bizimhesap').create(product_vals)
+            # YENİ KAYIT İPTAL EDİLDİ: product = self.env['product.product'].with_context(sync_source='bizimhesap').create(product_vals)
+            _logger.warning('Yeni ürün/varyant oluşturma iptal edildi: %s', data.get('title'))
+            return 'skipped'
             
             self.env['bizimhesap.product.binding'].create({
                 'backend_id': self.id,
@@ -2582,7 +2582,8 @@ class BizimHesapBackend(models.Model):
                 pass
 
         if update_vals:
-            partner.with_context(sync_source='bizimhesap').write(update_vals)
+                    pass
+                # YAZMA İPTAL EDİLDİ: partner.with_context(sync_source='bizimhesap').write(update_vals)
 
         _logger.info("Abstract synced for partner %s (id=%s)", partner.name, binding.external_id)
         return response

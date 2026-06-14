@@ -74,13 +74,10 @@ class MarketplaceProduct(models.Model):
     # Extra Fields
     extra_data = fields.Text("Ek Veriler (JSON)")
 
-    _sql_constraints = [
-        (
-            "channel_product_id_unique",
-            "UNIQUE(channel_id, channel_product_id)",
-            "Bu ürün ID pazaryeri içinde benzersiz olmalıdır!",
-        )
-    ]
+    _constraint_channel_product_id_unique = models.Constraint(
+        'UNIQUE(channel_id, channel_product_id)',
+        'Bu ürün ID pazaryeri içinde benzersiz olmalıdır!',
+    )
 
     @api.depends("sale_price", "cost_price")
     def _compute_margin(self):

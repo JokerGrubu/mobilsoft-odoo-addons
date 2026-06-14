@@ -20,10 +20,15 @@ class QCommerceDelivery(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 
+    _constraint_platform_delivery_unique = models.Constraint(
+        'unique(platform_delivery_id)',
+        'Bu platform teslimat ID zaten mevcut!',
+    )
+
     # ==================== Temel Alanlar ====================
 
     name = fields.Char("Teslimat No", required=True)
-    platform_delivery_id = fields.Char("Platform Teslimat ID", unique=True)
+    platform_delivery_id = fields.Char("Platform Teslimat ID")
 
     # ==================== Durum ====================
 

@@ -92,13 +92,10 @@ class MarketplaceOrder(models.Model):
     # Extra Data
     extra_data = fields.Text("Ek Veriler (JSON)")
 
-    _sql_constraints = [
-        (
-            "channel_order_id_unique",
-            "UNIQUE(channel_id, channel_order_id)",
-            "Bu sipariş ID pazaryeri içinde benzersiz olmalıdır!",
-        )
-    ]
+    _constraint_channel_order_id_unique = models.Constraint(
+        'UNIQUE(channel_id, channel_order_id)',
+        'Bu sipariş ID pazaryeri içinde benzersiz olmalıdır!',
+    )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -302,9 +299,10 @@ class MarketplaceOrderLine(models.Model):
     discount = fields.Float("İndirim %")
     subtotal = fields.Float("Ara Toplam", compute="_compute_subtotal")
 
-    _sql_constraints = [
-        ("qty_positive", "CHECK(qty > 0)", "Miktar sıfırdan büyük olmalıdır!")
-    ]
+    _constraint_qty_positive = models.Constraint(
+        'CHECK(qty > 0)',
+        'Miktar sıfırdan büyük olmalıdır!',
+    )
 
     @api.depends("qty", "price", "discount")
     def _compute_subtotal(self):
